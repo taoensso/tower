@@ -340,7 +340,7 @@
                    :welcome.note        "This is a note to translators!"
                    :some-markdown.md    "**This is strong**"
                    :some-html.html      "<strong>This is also strong</strong>"
-                   :something-to-escape "This is <html tag> safe!"}}
+                   :something-to-escape "This is <HTML tag> safe!"}}
        :en_US {:root {:welcome          "Hello World! Color doesn't have a 'u'!"}}
        :de    {:root {:welcome          "Hallo Welt!"}}})))
 
@@ -359,13 +359,3 @@
     [(t :welcome)
      (t :some-html)
      (t :invalid)]))
-
-(with-i18n {:locale (parse-locale "de_CH")
-            :translations-db   translations-db
-            :translation-scope :root
-            :dev-mode?         false}
-  [(t :welcome)
-   (t :some-html)
-   (t :invalid)])
-
-
