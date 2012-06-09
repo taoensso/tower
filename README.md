@@ -20,8 +20,8 @@
 
 
 (tower/with-i18n {:locale (parse-locale "en")
-            :translations-db   translations-db
-            :translation-scope :root}
+                  :translations-db   translations-db
+                  :translation-scope :root}
   [(t :welcome)
    (t :some-markdown)
    (t :some-html)
