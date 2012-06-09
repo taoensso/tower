@@ -7,6 +7,9 @@
             [tower.utils :as utils])
   (:import (java.text NumberFormat DateFormat)))
 
+;; TODO Assert when trying to run fn without *options* context.
+;; TODO Assert when db is of wrong form (e.g. not an atom).
+
 (defn locale
   "Creates a Java Locale object with a lowercase ISO-639 language code,
   optional uppercase ISO-3166 country code, and optional vender-specific variant
@@ -37,18 +40,16 @@
   translation-scope is of form :ns1/.../nsN or nil.
 
   See (map->translations-db) for more information about translations-db."
-  [{:keys [locale translations-db translation-scope dev-mode? escape-html?]
+  [{:keys [locale translations-db translation-scope dev-mode?]
     :as   options
     :or   {locale       (parse-locale "") ; JVM default
-           dev-mode?    true
-           escape-html? true}}
+           dev-mode?    true}}
    & body]
 
   `(binding [*options* {:locale       ~locale
                         :db           ~translations-db
                         :scope        ~translation-scope
-                        :dev-mode?    ~dev-mode?
-                        :escape-html? ~escape-html?}]
+                        :dev-mode?    ~dev-mode?}]
      ~@body))
 
 (defmacro ^:private !with-i18n
@@ -190,7 +191,8 @@
 (defn- compile-map-path
   "[locale-name :ns1 ... :nsM unscoped-key.decorator translation] =>
   {locale-name {:ns1/.../nsM/unscoped-key (f translation decorator)}}"
-  [path]
+  [path & {:keys [escape-undecorated?]
+           :or   {escape-undecorated? true}}]
   {:pre [(seq path) (>= (count path) 3)]}
   (let [path        (vec path)
         locale-name (first path)
@@ -198,8 +200,9 @@
         scope-ks    (subvec path 1 (- (count path) 2)) ; [:ns1 ... :nsM]
 
         ;; Check for possible decorator
-        [unscoped-k decorator] (-> (name (peek (pop path)))
-                                   (str/split #"[\._]"))
+        [unscoped-k decorator]
+        (->> (str/split (name (peek (pop path))) #"[\._]")
+             (map keyword))
 
         ;; [:ns1 ... :nsM :unscoped-key] => :ns1/.../nsM/unscoped-key
         scoped-key (->> (conj scope-ks unscoped-k)
@@ -219,12 +222,9 @@
                     (utils/inline-markdown->html))
 
           ;; No special decorator
-          (if (:escape-html? *options*)
+          (if escape-undecorated?
             (utils/escape-html translation)
             translation))}})))
-
-(comment (compile-map-path [:en_US :a :b :c :d.md "*d-data*"])
-         (compile-map-path [:en_US :a "*d-data*"]))
 
 (defn map->translations-db
   "Processes text translations stored in a simple development-friendly Clojure
@@ -297,7 +297,7 @@
   translation or to \"\" if that's missing too."
   ([scoped-key & args] (apply format-msg (t scoped-key) args))
   ([scoped-key]
-     (let [{:keys [db scope dev-mode? escape-html?]} *options*
+     (let [{:keys [db scope dev-mode?]} *options*
 
            fully-scoped-key ; :nsa/.../nsN/ns1/.../nsM
            (if scope
@@ -324,3 +324,48 @@
   (!with-i18n (locale) (t :a/b/c))
   (!with-i18n (locale) (t :e/f))
   (!with-i18n (locale) (t :a/b/c/d)))
+
+
+;;;; README examples
+
+(comment
+
+  (ns my-app (:use [tower.core :as tower :only (t)]))
+
+  (def translations-db
+    (atom
+     (map->translations-db
+      :en ; Default locale
+      {:en {:root {:welcome             "Hello World!"
+                   :welcome.note        "This is a note to translators!"
+                   :some-markdown.md    "**This is strong**"
+                   :some-html.html      "<strong>This is also strong</strong>"
+                   :something-to-escape "This is <html tag> safe!"}}
+       :en_US {:root {:welcome          "Hello World! Color doesn't have a 'u'!"}}
+       :de    {:root {:welcome          "Hallo Welt!"}}})))
+
+  (with-i18n {:locale (parse-locale "en")
+              :translations-db   translations-db
+              :translation-scope :root}
+    [(t :welcome)
+     (t :some-markdown)
+     (t :some-html)
+     (t :something-to-escape)])
+
+  (with-i18n {:locale (parse-locale "de_CH")
+              :translations-db   translations-db
+              :translation-scope :root
+              :dev-mode?         false}
+    [(t :welcome)
+     (t :some-html)
+     (t :invalid)]))
+
+(with-i18n {:locale (parse-locale "de_CH")
+            :translations-db   translations-db
+            :translation-scope :root
+            :dev-mode?         false}
+  [(t :welcome)
+   (t :some-html)
+   (t :invalid)])
+
+
