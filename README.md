@@ -1,4 +1,3 @@
-tower
-=====
+# Tower, an experimental Clojure i18n library prototype
 
-TODO: i18n lib
+TODO: README
