@@ -27,11 +27,8 @@
 (comment (parse-locale :en_US)
          (parse-locale nil))
 
-;;; Thread-local working vars
-(declare ^:dynamic *locale*
-         ^:dynamic *translations-db*
-         ^:dynamic *translation-scope*
-         ^:dynamic *dev-mode?*)
+;; Thread-local working options
+(def ^:dynamic *options* {:locale (parse-locale "")})
 
 (defmacro with-i18n
   "Executes body after setting appropriate thread-local i18n vars. locale should
@@ -40,34 +37,44 @@
   translation-scope is of form :ns1/.../nsN or nil.
 
   See (map->translations-db) for more information about translations-db."
-  [locale translations-db translation-scope dev-mode? & body]
-  `(binding [*locale*             ~locale
-             *translations-db*    ~translations-db
-             *translation-scope*  ~translation-scope
-             *dev-mode?*          ~dev-mode?]
+  [{:keys [locale translations-db translation-scope dev-mode? escape-html?]
+    :as   options
+    :or   {locale       (parse-locale "") ; JVM default
+           dev-mode?    true
+           escape-html? true}}
+   & body]
+
+  `(binding [*options* {:locale       ~locale
+                        :db           ~translations-db
+                        :scope        ~translation-scope
+                        :dev-mode?    ~dev-mode?
+                        :escape-html? ~escape-html?}]
      ~@body))
 
 (defmacro ^:private !with-i18n
   "Debug form of 'with-i18n'."
   [locale & body]
-  `(with-i18n ~locale
-     (atom {:en        {:a/b/c "English text"
-                        :e/f   "Different English text"}
-            :en_US     {:a/b/c "English (US) text"}
-            :en_UK     {:a/b/c "English (UK) text"}
-            :en_UK_va1 {:a/b/c "English (UK, var1) text"}})
-     nil true
+  `(with-i18n
+     {:locale ~locale
+      :translations-db
+      (atom {:en        {:a/b/c "English text"
+                         :e/f   "Different English text"}
+             :en_US     {:a/b/c "English (US) text"}
+             :en_UK     {:a/b/c "English (UK) text"}
+             :en_UK_va1 {:a/b/c "English (UK, var1) text"}})}
      ~@body))
 
 (defmacro with-scope
   "Executes body with given translation scope :ns1/.../nsN or nil."
   [translation-scope & body]
-  `(binding [*translation-scope* ~translation-scope]
+  `(binding [*options* (assoc *options* :scope ~translation-scope)]
      ~@body))
 
 (comment
   (!with-i18n (locale) (t :a/b/c))
   (!with-i18n (locale) (with-scope :a/b (t :c))))
+
+(defmacro ^:private curr-locale [] `(:locale *options*))
 
 ;;;; Collation, etc.
 
@@ -75,7 +82,7 @@
   (memoize (fn [locale] (java.text.Collator/getInstance locale))))
 
 (defn u-compare "Localized Unicode comparator."
-  [x y] (.compare ^java.text.Collator (get-collator *locale*) x y))
+  [x y] (.compare ^java.text.Collator (get-collator (curr-locale)) x y))
 
 (comment
   (!with-i18n (locale) (sort u-compare ["a" "d" "c" "b" "f" "_"])))
@@ -103,15 +110,15 @@
 
 ;;; Utility fns
 
-(defn format-number   [x] (.format ^NumberFormat (f-number   *locale*) x))
-(defn format-integer  [x] (.format ^NumberFormat (f-integer  *locale*) x))
-(defn format-percent  [x] (.format ^NumberFormat (f-percent  *locale*) x))
-(defn format-currency [x] (.format ^NumberFormat (f-currency *locale*) x))
+(defn format-number   [x] (.format ^NumberFormat (f-number   (curr-locale)) x))
+(defn format-integer  [x] (.format ^NumberFormat (f-integer  (curr-locale)) x))
+(defn format-percent  [x] (.format ^NumberFormat (f-percent  (curr-locale)) x))
+(defn format-currency [x] (.format ^NumberFormat (f-currency (curr-locale)) x))
 
-(defn parse-number    [s] (.parse ^NumberFormat  (f-number   *locale*) s))
-(defn parse-integer   [s] (.parse ^NumberFormat  (f-integer  *locale*) s))
-(defn parse-percent   [s] (.parse ^NumberFormat  (f-percent  *locale*) s))
-(defn parse-currency  [s] (.parse ^NumberFormat  (f-currency *locale*) s))
+(defn parse-number    [s] (.parse ^NumberFormat  (f-number   (curr-locale)) s))
+(defn parse-integer   [s] (.parse ^NumberFormat  (f-integer  (curr-locale)) s))
+(defn parse-percent   [s] (.parse ^NumberFormat  (f-percent  (curr-locale)) s))
+(defn parse-currency  [s] (.parse ^NumberFormat  (f-currency (curr-locale)) s))
 
 (comment
   (!with-i18n (locale "en" "ZA") (format-currency 200))
@@ -141,15 +148,15 @@
         :long   DateFormat/LONG
         :full   DateFormat/FULL} style DateFormat/DEFAULT))
 
-(defn format-date [style d] (.format ^DateFormat (f-date style *locale*) d))
-(defn format-time [style t] (.format ^DateFormat (f-time style *locale*) t))
+(defn format-date [style d] (.format ^DateFormat (f-date style (curr-locale)) d))
+(defn format-time [style t] (.format ^DateFormat (f-time style (curr-locale)) t))
 (defn format-dt   [date-style time-style dt]
-  (.format ^DateFormat (f-dt date-style time-style *locale*) dt))
+  (.format ^DateFormat (f-dt date-style time-style (curr-locale)) dt))
 
-(defn parse-date [style s] (.parse ^DateFormat (f-date style *locale*) s))
-(defn parse-time [style s] (.parse ^DateFormat (f-time style *locale*) s))
+(defn parse-date [style s] (.parse ^DateFormat (f-date style (curr-locale)) s))
+(defn parse-time [style s] (.parse ^DateFormat (f-time style (curr-locale)) s))
 (defn parse-dt   [date-style time-style s]
-  (.parse ^DateFormat (f-dt date-style time-style *locale*) s))
+  (.parse ^DateFormat (f-dt date-style time-style (curr-locale)) s))
 
 (comment
   (!with-i18n (locale "en" "ZA") (format-date (style :full) (java.util.Date.)))
@@ -162,13 +169,13 @@
 (defn format-str
   "Like clojure.core/format, but uses a locale."
   ^String [fmt & args]
-  (String/format *locale* fmt (to-array args)))
+  (String/format (curr-locale) fmt (to-array args)))
 
 (defn format-msg
   "Creates a localized message formatter and parse pattern string, substituting
   given arguments as per MessageFormat spec."
   [pattern & args]
-  (let [formatter     (java.text.MessageFormat. pattern *locale*)
+  (let [formatter     (java.text.MessageFormat. pattern (curr-locale))
         string-buffer (.format formatter (to-array args) (StringBuffer.) nil)]
     (.toString string-buffer)))
 
@@ -211,8 +218,10 @@
                     (utils/escape-html)
                     (utils/inline-markdown->html))
 
-          ;; No special decorator (just escape)
-          (utils/escape-html translation))}})))
+          ;; No special decorator
+          (if (:escape-html? *options*)
+            (utils/escape-html translation)
+            translation))}})))
 
 (comment (compile-map-path [:en_US :a :b :c :d.md "*d-data*"])
          (compile-map-path [:en_US :a "*d-data*"]))
@@ -227,11 +236,11 @@
                             :message    \"Hello & welcome.\"}}}
    :en_US {:root {:buttons {:logout     \"American sign out\"}}}}
   =>
-  {:canonical-locale canonical-locale
-   :en    {:root/buttons/login   \"<strong>Sign in</strong>\"
+  {:en    {:root/buttons/login   \"<strong>Sign in</strong>\"
            :root/buttons/logout  \"<strong>Sign out</strong>\"
            :root/buttons/message \"Hello &amp; welcome.\"}
-   :en_US {:root/buttons/logout  \"American sign out\"}}
+   :en_US {:root/buttons/logout  \"American sign out\"}
+   :canonical-locale canonical-locale}
 
   Note the optional key decorators."
   [canonical-locale m]
@@ -288,22 +297,24 @@
   translation or to \"\" if that's missing too."
   ([scoped-key & args] (apply format-msg (t scoped-key) args))
   ([scoped-key]
-     (let [fully-scoped-key ; :nsa/.../nsN/ns1/.../nsM
-           (if *translation-scope* (keyword (str (fqname *translation-scope*)
-                                                 "/" (fqname scoped-key)))
-               scoped-key)
+     (let [{:keys [db scope dev-mode? escape-html?]} *options*
 
-           [lchoice1 lchoice2 lchoice3 :as lchoices] (locales-to-check *locale*)
-           translations                              @*translations-db*]
+           fully-scoped-key ; :nsa/.../nsN/ns1/.../nsM
+           (if scope
+             (keyword (str (fqname scope) "/" (fqname scoped-key)))
+             scoped-key)
+
+           [lchoice1 lchoice2 lchoice3] (locales-to-check (curr-locale))
+           translations @db]
 
        (or (get-in translations [lchoice1 fully-scoped-key])
            (when lchoice2 (get-in translations [lchoice2 fully-scoped-key]))
            (when lchoice3 (get-in translations [lchoice3 fully-scoped-key]))
 
-           (if *dev-mode?* (str "**" fully-scoped-key "**")
+           (if dev-mode? (str "**" fully-scoped-key "**")
                ;; TODO Don't want to depend on Timbre!
                (do #_(error "Missing translation"
-                          (str fully-scoped-key " for " *locale*))
+                            (str fully-scoped-key " for " (curr-locale)))
                    (or (get-in translations [(:canonical-locale translations)
                                              fully-scoped-key]
                                ""))))))))
