@@ -12,5 +12,7 @@ dependency and added complication?
 This'll get us:
   1. Fully-featured tools for translators (incl. comment support).
   2. Smart flagging and reporting: missing, fuzzy, obsolete, etc.
+** Timezone stuff, countries, languages, etc.
+** Possibly geospatial/geocoordinates stuff?
 * TESTS
 ** Write some!

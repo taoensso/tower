@@ -13,6 +13,7 @@ Tower is an attempt to present a **simple, idiomatic internationalization and lo
  * Seamless **markdown support** for translators.
  * TODO: export/import for use with **industry-standard translator tools**.
  * TODO: **Ring middleware** for rapidly internationalizing web applications.
+ * TODO: Various other goodies: localized timezone names, country names, languages, etc.
 
 ## Status [![Build Status](https://secure.travis-ci.org/ptaoussanis/tower.png)](http://travis-ci.org/ptaoussanis/tower)
 
