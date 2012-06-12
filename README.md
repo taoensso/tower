@@ -75,7 +75,7 @@ If you're not using the provided Ring middleware, you'll need to call localizati
 
 ```clojure
 (with-locale :pl
-  (sort tower/u-compare ["Warsaw" "Kraków" "Łódź" "Wrocław" "Poznań"]))
+  (sort tower/l-compare ["Warsaw" "Kraków" "Łódź" "Wrocław" "Poznań"]))
 => ("Kraków" "Łódź" "Poznań" "Warsaw" "Wrocław")
 ```
 

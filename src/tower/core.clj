@@ -66,10 +66,10 @@
 
 (defmem- get-collator Collator [locale] (Collator/getInstance locale))
 
-(defn u-compare "Localized Unicode comparator."
+(defn l-compare "Localized Unicode comparator."
   [x y] (.compare (get-collator *Locale*) x y))
 
-(comment (with-locale nil (sort u-compare ["a" "d" "c" "b" "f" "_"])))
+(comment (with-locale nil (sort l-compare ["a" "d" "c" "b" "f" "_"])))
 
 (defn normalize
   "Transforms Unicode string into W3C-recommended standard de/composition form
