@@ -81,9 +81,7 @@ If you're not using the provided Ring middleware, you'll need to call localizati
 
 ### Translation
 
-Here Tower diverges from the standard Java resource approach in favour of something simpler and more agile.
-
-Let's look at the default configuration:
+Here Tower diverges from the standard Java resource approach in favour of something simpler and more agile. Let's look at the **default configuration**:
 
 ```clojure
 @tower/translation-config
@@ -106,16 +104,16 @@ Let's look at the default configuration:
 
 Note the format of the `:dictionary` map and the optional decorator suffixes (.html, .md, etc.).
 
-To change translations, you'll just change this map: load it from file, tweak it during development with `set-translation-config!`, etc.
+**To change translations, you'll just change this map**: load it from file, tweak it during development with `set-translation-config!`, etc.
 
-So let's play with the default dictionary to see what we can do:
+Let's play with the default dictionary to see what we can do:
 
 ```clojure
 (with-i18n :en_US nil (t :example/foo)) => ":en_US :example/foo text"
 (with-i18n :en nil (t :example/foo))    => ":en :example/foo text"
 ```
 
-So that's as expected. What are the decorators for? They control HTML escaping, Markdown rendering, etc.:
+So that's as expected. What are the decorators for? They control **HTML escaping, Markdown rendering, etc.**:
 
 ```clojure
 (with-i18n :en nil (t :example/decorated/foo)) => "<tag>"
@@ -123,9 +121,9 @@ So that's as expected. What are the decorators for? They control HTML escaping, 
 (with-i18n :en nil (t :example/decorated/baz)) => "&lt;tag&gt;"
 ```
 
-This is all cached, btw - so there's no performance hit.
+Note that decorator effects are cached to avoid any performance hit.
 
-What's the nil to `with-i18n` for? That's a translation scope:
+What's the nil given to `with-i18n` for? That's a **translation scope**:
 
 ```clojure
 (with-i18n :en :example
@@ -142,7 +140,7 @@ You can also control scope like this:
           (t :bar)))) => (":en :example/foo text" ":en :example/bar text")
 ```
 
-What if we request a key that doesn't exist?
+What happens if we request a key that doesn't exist?
 
 ```clojure
 (with-i18n :en_US nil (t :example/bar)) => ":en :example/bar text"
