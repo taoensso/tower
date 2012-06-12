@@ -2,9 +2,10 @@
   "Simple internationalization (i18n) library for Clojure. Wraps standard Java
   functionality when possible, removing unnecessary boilerplate."
   {:author "Peter Taoussanis"}
-  (:require [clojure.string :as str]
-            [timbre.core    :as timbre])
-  (:use     [tower.utils    :as utils :only (defmem-)])
+  (:require [clojure.string  :as str]
+            [clojure.java.io :as io]
+            [timbre.core     :as timbre])
+  (:use     [tower.utils     :as utils :only (defmem-)])
   (:import  [java.util Date Locale]
             [java.text Collator NumberFormat DateFormat]))
 
@@ -213,6 +214,19 @@
 
 (defn set-translation-config!
   [[k & ks] val] (swap! translation-config assoc-in (cons k ks) val))
+
+(defn load-dictionary-from-map-resource!
+  "Sets dictionary by reading Clojure map from named resource. Without any
+  arguments, searches for 'tower-translations.clj' in classpath and Leiningen's
+  resource paths."
+  ([] (load-dictionary-from-map-resource! "tower-translations.clj"))
+  ([resource-name]
+     (->> resource-name
+          io/resource
+          io/reader
+          slurp
+          read-string
+          (set-translation-config! [:dictionary]))))
 
 (defn- compile-map-path
   "[:locale :ns1 ... :nsN unscoped-key.decorator translation] =>

@@ -2,16 +2,16 @@
 
 # PREVIEW RELEASE
 
-The Java platform provides some very capable tools for writing internationalized applications. But these tools can be disappointingly cumbersome when taken into a Clojure context.
+The Java platform provides some very capable tools for writing internationalized applications. Unfortunately, these tools can be disappointingly cumbersome when taken into a Clojure context.
 
-Tower is an attempt to present a **simple, idiomatic internationalization and localization** story for Clojure. It wraps standard Java functionality where possible, but isn't afraid to step away from Java conventions when there's a good reason to.
+Tower is an attempt to present a **simple, idiomatic internationalization and localization** story for Clojure. It wraps standard Java functionality where possible, but it isn't afraid to step away from Java conventions when there's a good reason to.
 
 ## What's In The Box?
  * Lightweight wrappers for standard Java **localization functions**.
  * Rails-like, *all-Clojure* **translation function**.
  * **Simple, map-based** translation dictionary format. No XML or resource files!
  * Seamless **markdown support** for translators.
- * TODO: export/import to allow use with **industry-standard translator tools**.
+ * TODO: export/import to support use with **industry-standard translator tools**.
  * TODO: **Ring middleware** for rapidly internationalizing web applications.
 
 ## Status [![Build Status](https://secure.travis-ci.org/ptaoussanis/tower.png)](http://travis-ci.org/ptaoussanis/tower)
@@ -31,12 +31,13 @@ Depend on `[tower "0.3.0-SNAPSHOT"]` in your `project.clj` and `use` the library
 ```clojure
 (ns my-app
   (:use [tower.core :as tower :only (with-locale with-scope t style)])
-  (:import [java.util Date Locale])
 ```
+
+Note that in practice you'll usually use `:only (t)`. We're importing a few extra things here to help with the examples.
 
 ### Localization
 
-If you're not using the provided Ring middleware, you'll need to call localization and translation functions from within a `with-locale` body.
+If you're not using the provided Ring middleware, you'll need to call localization and translation functions from within a `with-locale` body:
 
 #### Numbers
 
@@ -51,10 +52,11 @@ If you're not using the provided Ring middleware, you'll need to call localizati
 #### Dates and Times
 
 ```clojure
-(with-locale :de (tower/format-date (Date.))) => "12.06.2012"
-(with-locale :de (tower/format-date (style :long) (Date.))) => "12. Juni 2012"
+(with-locale :de (tower/format-date (java.util.Date.))) => "12.06.2012"
+(with-locale :de (tower/format-date (style :long) (java.util.Date.)))
+=> "12. Juni 2012"
 
-(with-locale :it (tower/format-dt (style :long) (style :long) (Date.)))
+(with-locale :it (tower/format-dt (style :long) (style :long) (java.util.Date.)))
 => "12 giugno 2012 16.48.01 ICT"
 
 (with-locale :it (tower/parse-date (style :long) "12 giugno 2012 16.48.01 ICT"))
@@ -83,13 +85,12 @@ If you're not using the provided Ring middleware, you'll need to call localizati
 
 ### Translation
 
-Here Tower diverges from the standard Java resource approach in favour of something simpler and more agile. Let's look at the **default configuration**:
+Here Tower diverges from the standard Java resource approach in favour of something simpler and more agile. Let's look at the *default configuration*:
 
 ```clojure
 @tower/translation-config
 =>
 {:dictionary-compiler-options {:escape-undecorated? true}
-
  :dictionary
  {:en         {:example {:foo ":en :example/foo text"
                          :bar ":en :example/bar text"
@@ -100,13 +101,13 @@ Here Tower diverges from the standard Java resource approach in favour of someth
   :en_US      {:example {:foo ":en_US :example/foo text"}}
   :en_US_var1 {:example {:foo ":en_US_var1 :example/foo text"}}}
 
- ;; <Cut some other optional/advanced stuff for this example>
+  ;; Cut some other optional/advanced stuff for this example
  }
 ```
 
-Note the format of the `:dictionary` map and the optional decorator suffixes (.html, .md, etc.).
+Note the format of the `:dictionary` map since **this is the map you'll change to set your own translations**. 
 
-**To change translations, you'll just change this map**: load it from file, tweak it during development with `set-translation-config!`, etc.
+You can load translations from file using `tower/load-dictionary-from-map-resource!` or you can set them manually using `set-translation-config!`.
 
 Let's play with the default dictionary to see what we can do:
 
@@ -115,7 +116,7 @@ Let's play with the default dictionary to see what we can do:
 (with-locale :en (t :example/foo))    => ":en :example/foo text"
 ```
 
-So that's as expected. The decorators control cached **HTML escaping, Markdown rendering, etc.**:
+So that's as expected. The decorator suffixes (.html, .md, etc.) control cached **HTML escaping, Markdown rendering, etc.**:
 
 ```clojure
 (with-locale :en (t :example/decorated/foo)) => "<tag>"
@@ -123,7 +124,7 @@ So that's as expected. The decorators control cached **HTML escaping, Markdown r
 (with-locale :en (t :example/decorated/baz)) => "&lt;tag&gt;"
 ```
 
-If you're calling 't' repeatedly within a specific namespace context, you can specify a **translation scope**:
+If you're calling the translate fn repeatedly within a specific namespace context, you can specify a **translation scope**:
 
 ```clojure
 (with-locale :en
@@ -155,5 +156,7 @@ Reach me (Peter Taoussanis) at *ptaoussanis at gmail.com* for questions/comments
 I'm also on Twitter: [@ptaoussanis](https://twitter.com/#!/ptaoussanis).
 
 ## License
+
+Copyright &copy; 2012 Peter Taoussanis
 
 Distributed under the [Eclipse Public License](http://www.eclipse.org/legal/epl-v10.html), the same as Clojure.
