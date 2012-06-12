@@ -44,22 +44,17 @@
 (def ^:dynamic *translation-scope* nil)
 
 (defmacro with-locale
+  "Executes body within the context of thread-local locale binding, enabling
+  use of translation and localization functions. 'locale' should be a keyword
+  like :en_US_var, or nil for JVM default."
   [locale & body]
   `(binding [*Locale* (parse-Locale ~locale)] ~@body))
 
 (defmacro with-scope
+  "Executes body within the context of thread-local translation-scope binding.
+  'translation-scope' should be a keyword like :example/greetings, or nil."
   [translation-scope & body]
   `(binding [*translation-scope* ~translation-scope] ~@body))
-
-(defmacro with-i18n
-  "Executes body within the context of thread-local i18n bindings, enabling use
-  of translation and localization functions.
-
-  'locale': :en, :en_US, :en_US_var1, etc.
-  'translation-scope': nil, :example/greetings/main, etc."
-  [locale translation-scope & body]
-  `(with-local ~locale
-     (with-scope ~translation-scope ~@body)))
 
 ;;;; Collation, etc.
 
@@ -342,5 +337,5 @@
 
 ;;;; Dev/tests
 
-(comment (with-i18n :en_ZA nil (t :example/foo))
-         (with-i18n :en_ZA nil (with-scope :example (t :foo))))
+(comment (with-locale :en_ZA (t :example/foo))
+         (with-locale :en_ZA (with-scope :example (t :foo))))

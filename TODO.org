@@ -1,10 +1,9 @@
 #+STARTUP: overview, hidestars
 #+TAGS: urgent underway maybe waiting hammock next
 * DOCS
-** Basic README examples.
-** Write basic README.                                                 :next:
+** Write basic README.                                             :underway:
 * API
-** Ring with-i18n middleware
+** Ring with-locale middleware                                     :underway:
 Grab locale from session, URI, or headers.
 ** Migrate to ICU4J?                                                  :maybe:
 Stronger than native JVM library, esp. for pluralization. But is it worth the

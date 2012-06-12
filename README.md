@@ -1,5 +1,7 @@
 # Tower, a simple internationalization (i18n) library for Clojure.
 
+# PREVIEW RELEASE
+
 The Java platform provides some very capable tools for writing internationalized applications. But these tools can be disappointingly cumbersome when taken into a Clojure context.
 
 Tower is an attempt to present a **simple, idiomatic internationalization and localization** story for Clojure. It wraps standard Java functionality where possible, but isn't afraid to step away from Java conventions when there's a good reason to.
@@ -28,13 +30,13 @@ Depend on `[tower "0.3.0-SNAPSHOT"]` in your `project.clj` and `use` the library
 
 ```clojure
 (ns my-app
-  (:use [tower.core :as tower :only (with-i18n with-locale with-scope t style)])
+  (:use [tower.core :as tower :only (with-locale with-scope t style)])
   (:import [java.util Date Locale])
 ```
 
 ### Localization
 
-If you're not using the provided Ring middleware, you'll need to call localization and translation functions from within a `with-i18n` or `with-locale` body.
+If you're not using the provided Ring middleware, you'll need to call localization and translation functions from within a `with-locale` body.
 
 #### Numbers
 
@@ -109,30 +111,22 @@ Note the format of the `:dictionary` map and the optional decorator suffixes (.h
 Let's play with the default dictionary to see what we can do:
 
 ```clojure
-(with-i18n :en_US nil (t :example/foo)) => ":en_US :example/foo text"
-(with-i18n :en nil (t :example/foo))    => ":en :example/foo text"
+(with-locale :en_US (t :example/foo)) => ":en_US :example/foo text"
+(with-locale :en (t :example/foo))    => ":en :example/foo text"
 ```
 
 So that's as expected. The decorators control cached **HTML escaping, Markdown rendering, etc.**:
 
 ```clojure
-(with-i18n :en nil (t :example/decorated/foo)) => "<tag>"
-(with-i18n :en nil (t :example/decorated/bar)) => "<strong>strong</strong>"
-(with-i18n :en nil (t :example/decorated/baz)) => "&lt;tag&gt;"
+(with-locale :en (t :example/decorated/foo)) => "<tag>"
+(with-locale :en (t :example/decorated/bar)) => "<strong>strong</strong>"
+(with-locale :en (t :example/decorated/baz)) => "&lt;tag&gt;"
 ```
 
-What's the nil given to `with-i18n` for? That's a **translation scope**:
+If you're calling 't' repeatedly within a specific namespace context, you can specify a **translation scope**:
 
 ```clojure
-(with-i18n :en :example
-  (list (t :foo)
-        (t :bar))) => (":en :example/foo text" ":en :example/bar text")
-```
-
-You can also control scope like this:
-
-```clojure
-(with-i18n :en nil
+(with-locale :en
   (with-scope :example
     (list (t :foo)
           (t :bar)))) => (":en :example/foo text" ":en :example/bar text")
@@ -141,7 +135,7 @@ You can also control scope like this:
 What happens if we request a key that doesn't exist?
 
 ```clojure
-(with-i18n :en_US nil (t :example/bar)) => ":en :example/bar text"
+(with-locale :en_US (t :example/bar)) => ":en :example/bar text"
 ```
 
 So the request for an `:en_US` translation fell back to the parent `:en` translation. This is great for sparse dictionaries (for example if you have only a few differences between your `:en_US` and `:en_UK` translations).
@@ -149,7 +143,7 @@ So the request for an `:en_US` translation fell back to the parent `:en` transla
 But what if a key just doesn't exist at all?
 
 ```clojure
-(with-i18n :en nil (t :this-is-invalid)) => "**:this-is-invalid**"
+(with-locale :en (t :this-is-invalid)) => "**:this-is-invalid**"
 ```
 
 The behaviour here is actually controlled by `(:missing-key-fn @translation-config)` and is fully configurable. Please see the source code for further details.
