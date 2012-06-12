@@ -3,8 +3,8 @@
     (:require [tower.core :as tower]))
 
 (defn i18n-middleware
-  "Sets appropriate i18n bindings for request by first trying to determine
-  locale preference from request's session, URL, or headers."
+  "Sets appropriate i18n bindings for request after determining locale
+  preference from request's session, URL, or headers."
   [handler]
   (fn [request]
 
@@ -13,5 +13,5 @@
     (let [locale (or (-> request :session :locale
                          ;; ...
                          ))]
-      (tower/with-i18n locale nil
+      (tower/with-locale locale
         (handler request)))))

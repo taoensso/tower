@@ -1,6 +1,6 @@
 (ns tower.test.core
   (:use [clojure.test]
-        [tower.core :as tower :only (with-i18n with-locale with-scope)]))
+        [tower.core :as tower :only (with-i18n with-locale with-scope t)]))
 
 ;; TODO Tests (help would be welcome!!)
 

@@ -113,15 +113,13 @@ Let's play with the default dictionary to see what we can do:
 (with-i18n :en nil (t :example/foo))    => ":en :example/foo text"
 ```
 
-So that's as expected. What are the decorators for? They control **HTML escaping, Markdown rendering, etc.**:
+So that's as expected. The decorators control cached **HTML escaping, Markdown rendering, etc.**:
 
 ```clojure
 (with-i18n :en nil (t :example/decorated/foo)) => "<tag>"
 (with-i18n :en nil (t :example/decorated/bar)) => "<strong>strong</strong>"
 (with-i18n :en nil (t :example/decorated/baz)) => "&lt;tag&gt;"
 ```
-
-Note that decorator effects are cached to avoid any performance hit.
 
 What's the nil given to `with-i18n` for? That's a **translation scope**:
 

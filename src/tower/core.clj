@@ -43,17 +43,6 @@
 (def ^:dynamic *Locale* (make-Locale))
 (def ^:dynamic *translation-scope* nil)
 
-(defmacro with-i18n
-  "Executes body within the context of thread-local i18n bindings, enabling use
-  of translation and localization functions.
-
-  'locale': :en, :en_US, :en_US_var1, etc.
-  'translation-scope': nil, :example/a/greeting, etc."
-  [locale translation-scope & body]
-  `(binding [*Locale* (parse-Locale ~locale)
-             *translation-scope* ~translation-scope]
-     ~@body))
-
 (defmacro with-locale
   [locale & body]
   `(binding [*Locale* (parse-Locale ~locale)] ~@body))
@@ -61,6 +50,16 @@
 (defmacro with-scope
   [translation-scope & body]
   `(binding [*translation-scope* ~translation-scope] ~@body))
+
+(defmacro with-i18n
+  "Executes body within the context of thread-local i18n bindings, enabling use
+  of translation and localization functions.
+
+  'locale': :en, :en_US, :en_US_var1, etc.
+  'translation-scope': nil, :example/greetings/main, etc."
+  [locale translation-scope & body]
+  `(with-local ~locale
+     (with-scope ~translation-scope ~@body)))
 
 ;;;; Collation, etc.
 
