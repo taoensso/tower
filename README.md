@@ -8,10 +8,10 @@ Tower is an attempt to present a **simple, idiomatic internationalization and lo
 
 ## What's In The Box?
  * Lightweight wrappers for standard Java **localization functions**.
- * Rails-like, *all-Clojure* **translation function**.
+ * Rails-like, all-Clojure **translation function**.
  * **Simple, map-based** translation dictionary format. No XML or resource files!
  * Seamless **markdown support** for translators.
- * TODO: export/import to support use with **industry-standard translator tools**.
+ * TODO: export/import for use with **industry-standard translator tools**.
  * TODO: **Ring middleware** for rapidly internationalizing web applications.
 
 ## Status [![Build Status](https://secure.travis-ci.org/ptaoussanis/tower.png)](http://travis-ci.org/ptaoussanis/tower)
@@ -109,7 +109,7 @@ Note the format of the `:dictionary` map since **this is the map you'll change t
 
 You can load translations from file using `tower/load-dictionary-from-map-resource!` or you can set them manually using `set-translation-config!`.
 
-Let's play with the default dictionary to see what we can do:
+Let's play with the default dictionary to see how Tower handles translation:
 
 ```clojure
 (with-locale :en_US (t :example/foo)) => ":en_US :example/foo text"
@@ -139,7 +139,7 @@ What happens if we request a key that doesn't exist?
 (with-locale :en_US (t :example/bar)) => ":en :example/bar text"
 ```
 
-So the request for an `:en_US` translation fell back to the parent `:en` translation. This is great for sparse dictionaries (for example if you have only a few differences between your `:en_US` and `:en_UK` translations).
+So the request for an `:en_US` translation fell back to the parent `:en` translation. This is great for sparse dictionaries (for example if you have only a few differences between your `:en_US` and `:en_UK` content).
 
 But what if a key just doesn't exist at all?
 
