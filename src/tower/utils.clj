@@ -27,23 +27,26 @@
 (comment (escape-html "\"Word\" & <tag>"))
 
 (defn inline-markdown->html
-  "Uses regex to parse given reduced-feature-set inline markdown string into
-  HTML string. Supports bold, italic, and a context-specific alternative style
-  tag.
-
-  Doesn't do any escaping."
+  "Uses regex to parse given markdown string into HTML. Supports only strong,
+  emph, and a context-spexific alternative style tag. Doesn't do any escaping."
   [markdown]
 
   (-> markdown
-      ;; Strong
       (str/replace #"\*\*(.+?)\*\*" "<strong>$1</strong>")
       (str/replace #"__(.+?)__"     "<strong>$1</strong>")
+      (str/replace #"\*(.+?)\*"     "<emph>$1</emph>")
+      (str/replace #"_(.+?)_"       "<emph>$1</emph>")
 
-      ;; Emph
-      (str/replace #"\*(.+?)\*" "<emph>$1</emph>")
-      (str/replace #"_(.+?)_"   "<emph>$1</emph>")
-
-      ;; Special context-specific style (define in surrounding CSS scope!)
+      ;; "alt" span (define in surrounding CSS scope)
       (str/replace #"~~(.+?)~~" "<span class=\"alt\">$1</span>")))
 
-(comment (inline-markdown->html "Maybe **this** and ~~that~~ <tag> & thing?"))
+(comment (inline-markdown->html "**strong** *emph* ~~alt~~ <tag>"))
+
+(defmacro defmem-
+  "Defines a type-hinted, private memoized fn."
+  [name type-hint fn-params fn-body]
+  ;; To allow type-hinting, we'll actually wrap a closed-over memoized fn
+  `(let [memfn# (memoize (~'fn ~fn-params ~fn-body))]
+     (defn ~(with-meta (symbol name) {:private true})
+       ~(with-meta '[& args] {:tag type-hint})
+       (apply memfn# ~'args))))

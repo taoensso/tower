@@ -1,8 +1,9 @@
-(defproject tower "0.0.1-SNAPSHOT"
+(defproject tower "0.3.0-SNAPSHOT"
   :description "Simple internationalization (i18n) library for Clojure."
   :url "https://github.com/ptaoussanis/tower"
   :license {:name "Eclipse Public License"}
-  :dependencies [[org.clojure/clojure           "1.3.0"]]
+  :dependencies [[org.clojure/clojure "1.3.0"]
+                 [timbre "0.5.1-SNAPSHOT"]]
   :profiles {:1.3   {:dependencies [[org.clojure/clojure "1.3.0"]]}
              :1.4   {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :1.5   {:dependencies [[org.clojure/clojure "1.5.0-master-SNAPSHOT"]]}
