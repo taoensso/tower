@@ -50,3 +50,18 @@
      (defn ~(with-meta (symbol name) {:private true})
        ~(with-meta '[& args] {:tag type-hint})
        (apply memfn# ~'args))))
+
+(defn memoize-ttl
+  "Like 'memoize' but invalidates the cache for a set of arguments after TTL
+  msecs has elapsed."
+  [ttl f]
+  (let [cache (atom {})]
+    (fn [& args]
+      (let [{:keys [last-cached result]} (get @cache args)
+            now (System/currentTimeMillis)]
+
+        (if (and last-cached (< (- now last-cached) ttl))
+          result
+          (let [result (apply f args)]
+            (swap! cache assoc args {:last-cached now :result result})
+            result))))))

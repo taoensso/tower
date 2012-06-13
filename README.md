@@ -7,13 +7,12 @@ The Java platform provides some very capable tools for writing internationalized
 Tower is an attempt to present a **simple, idiomatic internationalization and localization** story for Clojure. It wraps standard Java functionality where possible, but it isn't afraid to step away from Java conventions when there's a good reason to.
 
 ## What's In The Box?
- * Lightweight wrappers for standard Java **localization functions**.
+ * Consistent, lightweight wrappers for standard Java **localization functions**.
  * Rails-like, all-Clojure **translation function**.
  * **Simple, map-based** translation dictionary format. No XML or resource files!
  * Seamless **markdown support** for translators.
- * TODO: export/import for use with **industry-standard translator tools**.
+ * TODO: export/import to allow use with **industry-standard tools for translators**.
  * TODO: **Ring middleware** for rapidly internationalizing web applications.
- * TODO: Various other goodies: localized timezone names, country names, languages, etc.
 
 ## Status [![Build Status](https://secure.travis-ci.org/ptaoussanis/tower.png)](http://travis-ci.org/ptaoussanis/tower)
 
@@ -84,6 +83,29 @@ If you're not using the provided Ring middleware, you'll need to call localizati
 => ("Kraków" "Łódź" "Poznań" "Warsaw" "Wrocław")
 ```
 
+#### Country and Language Names
+
+```clojure
+(with-locale :pl (tower/sorted-localized-countries ["GB" "DE" "PL"]))
+=> {:sorted-codes ["DE" "PL" "GB"],
+    :sorted-names ["Niemcy" "Polska" "Wielka Brytania"]}
+
+(with-locale :pl (tower/sorted-localized-languages ["en" "de" "pl"]))
+=> {:sorted-codes ["en" "de" "pl"],
+    :sorted-names ["angielski (English)" "niemiecki (Deutsch)" "polski"]}
+
+(take 5 (:sorted-names (with-locale :en (tower/sorted-localized-countries))))
+=> ("Afghanistan" "Åland Islands" "Albania" "Algeria" "American Samoa")
+```
+
+#### Timezones
+
+```clojure
+(tower/sorted-timezones)
+=> {:sorted-ids   ["Pacific/Midway" "Pacific/Niue" ...]
+    :sorted-names ["(GMT -11:00) Midway" "(GMT -11:00) Niue" ...]
+```
+
 ### Translation
 
 Here Tower diverges from the standard Java resource approach in favour of something simpler and more agile. Let's look at the *default configuration*:
@@ -106,18 +128,22 @@ Here Tower diverges from the standard Java resource approach in favour of someth
  }
 ```
 
-Note the format of the `:dictionary` map since **this is the map you'll change to set your own translations**. 
+Note the format of the `:dictionary` map since **this is the map you'll change to set your own translations**. Work with the map manually using `set-translation-config!`, or load translations from a ClassLoader resource:
 
-You can load translations from file using `tower/load-dictionary-from-map-resource!` or you can set them manually using `set-translation-config!`.
+```clojure
+(load-dictionary-from-map-resource! "my-dictionary.clj")
+```
 
-Let's play with the default dictionary to see how Tower handles translation:
+You can put `my-dictionary.clj` on your classpath or one of Leiningen's resource paths (e.g. `/resources/`).
+
+For now let's play with the default dictionary to see how Tower handles translation:
 
 ```clojure
 (with-locale :en_US (t :example/foo)) => ":en_US :example/foo text"
 (with-locale :en (t :example/foo))    => ":en :example/foo text"
 ```
 
-So that's as expected. The decorator suffixes (.html, .md, etc.) control cached **HTML escaping, Markdown rendering, etc.**:
+So that's as expected. Note that the decorator suffixes (.html, .md, etc.) control cached **HTML escaping, Markdown rendering, etc.**:
 
 ```clojure
 (with-locale :en (t :example/decorated/foo)) => "<tag>"

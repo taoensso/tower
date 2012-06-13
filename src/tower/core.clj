@@ -6,7 +6,7 @@
             [clojure.java.io :as io]
             [timbre.core     :as timbre])
   (:use     [tower.utils     :as utils :only (defmem-)])
-  (:import  [java.util Date Locale]
+  (:import  [java.util Date Locale TimeZone]
             [java.text Collator NumberFormat DateFormat]))
 
 ;;;; Locales (big L for the Java object)
@@ -74,10 +74,10 @@
 
 ;;;; Localized number formatting
 
-(defmem- f-number   NumberFormat [loc] (NumberFormat/getNumberInstance   loc))
-(defmem- f-integer  NumberFormat [loc] (NumberFormat/getIntegerInstance  loc))
-(defmem- f-percent  NumberFormat [loc] (NumberFormat/getPercentInstance  loc))
-(defmem- f-currency NumberFormat [loc] (NumberFormat/getCurrencyInstance loc))
+(defmem- f-number   NumberFormat [Loc] (NumberFormat/getNumberInstance   Loc))
+(defmem- f-integer  NumberFormat [Loc] (NumberFormat/getIntegerInstance  Loc))
+(defmem- f-percent  NumberFormat [Loc] (NumberFormat/getPercentInstance  Loc))
+(defmem- f-currency NumberFormat [Loc] (NumberFormat/getCurrencyInstance Loc))
 
 (defn format-number   [x] (.format (f-number   *Locale*) x))
 (defn format-integer  [x] (.format (f-integer  *Locale*) x))
@@ -94,9 +94,9 @@
 
 ;;;; Localized date/time formatting
 
-(defmem- f-date DateFormat [st loc]    (DateFormat/getDateInstance st loc))
-(defmem- f-time DateFormat [st loc]    (DateFormat/getTimeInstance st loc))
-(defmem- f-dt   DateFormat [ds ts loc] (DateFormat/getDateTimeInstance ds ts loc))
+(defmem- f-date DateFormat [st Loc]    (DateFormat/getDateInstance st Loc))
+(defmem- f-time DateFormat [st Loc]    (DateFormat/getTimeInstance st Loc))
+(defmem- f-dt   DateFormat [ds ts Loc] (DateFormat/getDateTimeInstance ds ts Loc))
 
 (defn style
   "Returns a DateFormat time/date style constant by style key e/o
@@ -163,6 +163,90 @@
   (-> #(format-msg "{0,choice,0#no cats|1#one cat|1<{0,number} cats}" %)
       (map (range 5))))
 
+;;;; Localized country & language names
+
+(def ^:private get-sorted-localized-names
+  "Returns map containing ISO codes and corresponding localized names, both
+  sorted by the localized names."
+  (memoize
+   (fn [display-fn iso-codes display-Loc]
+     (let [;; [localized-display-name code] seq sorted by localized-display-name
+           sorted-pairs
+           (->> (for [code iso-codes] [(display-fn code) code])
+                (sort (fn [[x _] [y _]]
+                        (.compare (get-collator display-Loc) x y))))]
+       ;; mapv requires Clojure 1.4+
+       {:sorted-names (vec (map first sorted-pairs))
+        :sorted-codes (vec (map second sorted-pairs))}))))
+
+(def ^:private all-iso-countries (seq (Locale/getISOCountries)))
+
+(defn sorted-localized-countries
+  "Returns map containing ISO country codes and corresponding localized country
+  names, both sorted by the localized names."
+  ([] (sorted-localized-countries all-iso-countries))
+  ([iso-countries]
+     (get-sorted-localized-names
+      (fn [code] (.getDisplayCountry (Locale. "" code) *Locale*))
+      iso-countries *Locale*)))
+
+(comment (with-locale :pl (sorted-localized-countries ["GB" "DE" "PL"])))
+
+(def ^:private all-iso-languages (seq (Locale/getISOLanguages)))
+
+(defn sorted-localized-languages
+  "Returns map containing ISO language codes and corresponding localized
+  language names, both sorted by the localized names."
+  ([] (sorted-localized-languages all-iso-languages))
+  ([iso-languages]
+     (get-sorted-localized-names
+      (fn [code] (let [Loc (Locale. code)]
+                  (str (.getDisplayLanguage Loc *Locale*)
+                       ;; Also provide each name in it's OWN language
+                       (when (not= Loc *Locale*)
+                         (str " (" (.getDisplayLanguage Loc Loc) ")")))))
+      iso-languages *Locale*)))
+
+(comment (with-locale :pl (sorted-localized-languages ["en" "de" "pl"])))
+
+;;;; Timezones (note: doesn't use locales)
+
+(def ^:private major-timezone-ids
+  (->> (TimeZone/getAvailableIDs)
+       (filter #(re-find #"^(Africa|America|Asia|Atlantic|Australia|Europe|Indian|Pacific)/.*" %))))
+
+(defn- timezone-display-name "(GMT +05:30) Colombo"
+  [city-tz-id offset]
+  (let [[region city] (str/split city-tz-id #"/")
+        offset-mins   (/ offset 1000 60)]
+    (str "(GMT " (if (neg? offset-mins) "-" "+")
+         (format "%02d:%02d" (Math/abs (int (/ offset-mins 60)))
+                 (mod (int offset-mins) 60))
+         ") " city)))
+
+(comment (timezone-display-name "Asia/Bangkok" (* 90 60 1000)))
+
+(def sorted-timezones
+  "Returns map containing timezone IDs and corresponding pretty timezone names,
+  both sorted by the timezone's offset. Caches result for 3 hours."
+  (utils/memoize-ttl
+   #=(* 3 60 60 1000) ; 3hr ttl
+   (fn []
+     (let [;; [timezone-display-name id] seq sorted by timezone's offset
+           sorted-pairs
+           (->> (for [id major-timezone-ids]
+                  (let [instant (System/currentTimeMillis)
+                        tz      (TimeZone/getTimeZone id)
+                        offset  (.getOffset tz instant)]
+                    [offset (timezone-display-name id offset) id]))
+                sort
+                (map (comp vec rest)))]
+       {:sorted-names (vec (map first sorted-pairs))
+        :sorted-ids   (vec (map second sorted-pairs))}))))
+
+(comment (take 10      (:sorted-names (sorted-timezones)))
+         (take-last 10 (:sorted-names (sorted-timezones))))
+
 ;;;; Dictionary management
 
 (def ^:private compiled-dictionary
@@ -217,9 +301,9 @@
 
 (defn load-dictionary-from-map-resource!
   "Sets dictionary by reading Clojure map from named resource. Without any
-  arguments, searches for 'tower-translations.clj' in classpath and Leiningen's
+  arguments, searches for 'tower-dictionary.clj' in classpath and Leiningen's
   resource paths."
-  ([] (load-dictionary-from-map-resource! "tower-translations.clj"))
+  ([] (load-dictionary-from-map-resource! "tower-dictionary.clj"))
   ([resource-name]
      (->> resource-name
           io/resource
@@ -348,8 +432,6 @@
            (when lchoice3 (get-in cdict-snap [lchoice3 fully-scoped-key]))
            ((:missing-key-fn @translation-config) {:key     fully-scoped-key
                                                    :locale *Locale*})))))
-
-;;;; Dev/tests
 
 (comment (with-locale :en_ZA (t :example/foo))
          (with-locale :en_ZA (with-scope :example (t :foo))))

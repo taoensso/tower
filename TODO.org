@@ -1,7 +1,6 @@
 #+STARTUP: overview, hidestars
 #+TAGS: urgent underway maybe waiting hammock next
 * DOCS
-** Write basic README.                                             :underway:
 * API
 ** Ring with-locale middleware                                     :underway:
 Grab locale from session, URI, or headers.
@@ -12,7 +11,8 @@ dependency and added complication?
 This'll get us:
   1. Fully-featured tools for translators (incl. comment support).
   2. Smart flagging and reporting: missing, fuzzy, obsolete, etc.
-** Timezone stuff, countries, languages, etc.
 ** Possibly geospatial/geocoordinates stuff?
+** HTML helpers
+E.g. helpers to create country selection tags, etc.
 * TESTS
 ** Write some!
