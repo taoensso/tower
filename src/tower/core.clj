@@ -220,7 +220,8 @@
   (let [[region city] (str/split city-tz-id #"/")
         offset-mins   (/ offset 1000 60)]
     (str "(GMT " (if (neg? offset-mins) "-" "+")
-         (format "%02d:%02d" (Math/abs (int (/ offset-mins 60)))
+         (format "%02d:%02d"
+                 (Math/abs (int (/ offset-mins 60)))
                  (mod (int offset-mins) 60))
          ") " city)))
 

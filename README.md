@@ -26,7 +26,7 @@ lein2 all test
 
 ### Leiningen
 
-Depend on `[tower "0.3.0-SNAPSHOT"]` in your `project.clj` and `use` the library:
+Depend on `[tower "0.4.0-SNAPSHOT"]` in your `project.clj` and `use` the library:
 
 ```clojure
 (ns my-app
