@@ -70,8 +70,9 @@ If you're not using the provided Ring middleware, you'll need to call localizati
 (with-locale :de (tower/format-msg "foobar {0,number,integer}!" 102.22))
 => "foobar 102!"
 
-(-> #(tower/format-msg "{0,choice,0#no cats|1#one cat|1<{0,number} cats}" %)
-      (map (range 5)))
+(with-locale :de
+  (-> #(tower/format-msg "{0,choice,0#no cats|1#one cat|1<{0,number} cats}" %)
+      (map (range 5)) doall))
 => ("no cats" "one cat" "2 cats" "3 cats" "4 cats")
 ```
 
