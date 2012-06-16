@@ -24,7 +24,7 @@
          (parse-http-accept-header "en-GB  ,  en; q=0.8, en-US;  q=0.6")
          (parse-http-accept-header "a,"))
 
-(defn select-locale-from-headers
+(defn locale-from-headers
   "Parses HTTP Accept-Language header and returns highest weighted locale that
   is valid, or nil if none is."
   [request]
@@ -34,13 +34,13 @@
          (filter tower/parse-Locale)
          first)))
 
-(comment (select-locale-from-headers
+(comment (locale-from-headers
           {:headers {"accept-language" "en-GB,en;q=0.8,en-US;q=0.6"}}))
 
-(defn select-locale-from-uri "\"/foo/bar/locale/en/\" => \"en\""
+(defn locale-from-uri "\"/foo/bar/locale/en/\" => \"en\""
   [request] (second (re-find #"\/locale\/([^\/]+)" (str (:uri request)))))
 
-(comment (select-locale-from-uri {:uri "/foo/bar/locale/en/"}))
+(comment (locale-from-uri {:uri "/foo/bar/locale/en/"}))
 
 ;;;; Middleware
 
@@ -68,8 +68,8 @@
       (let [locale (->> [(when locale-selector-fn (locale-selector-fn request))
                          (-> request :session :locale)
                          (-> request :params  :locale)
-                         (select-locale-from-uri     request)
-                         (select-locale-from-headers request)
+                         (locale-from-uri     request)
+                         (locale-from-headers request)
                          :default]
                         (filter tower/parse-Locale)
                         first)]
