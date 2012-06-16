@@ -195,7 +195,7 @@ In addition to locale selection, the middleware provides **automatic dictionary 
 
 ## Tower Supports the ClojureWerkz Project Goals
 
-[ClojureWerkz](http://clojurewerkz.org/) is a growing collection of open-source, batteries-included libraries for Clojure that emphasise modern targets, good documentation, and thorough testing.
+[ClojureWerkz](http://clojurewerkz.org/) is a growing collection of open-source, batteries-included libraries for Clojure that emphasise modern targets, great documentation, and thorough testing.
 
 ## Contact & Contribution
 
