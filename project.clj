@@ -1,4 +1,4 @@
-(defproject tower "0.4.0-SNAPSHOT"
+(defproject tower "0.5.0-SNAPSHOT"
   :description "Simple internationalization (i18n) library for Clojure."
   :url "https://github.com/ptaoussanis/tower"
   :license {:name "Eclipse Public License"}

@@ -1,6 +1,8 @@
 (ns tower.utils
   {:author "Peter Taoussanis"}
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [clojure.java.io :as io])
+  (:import  java.io.File))
 
 (defn leaf-paths
   "Takes a nested map and squashes it into a sequence of paths to leaf nodes.
@@ -51,17 +53,32 @@
        ~(with-meta '[& args] {:tag type-hint})
        (apply memfn# ~'args))))
 
-(defn memoize-ttl
+(defn ttl-memoize
   "Like 'memoize' but invalidates the cache for a set of arguments after TTL
   msecs has elapsed."
   [ttl f]
   (let [cache (atom {})]
     (fn [& args]
-      (let [{:keys [last-cached result]} (get @cache args)
+      (let [{:keys [time-cached d-result]} (get @cache args)
             now (System/currentTimeMillis)]
 
-        (if (and last-cached (< (- now last-cached) ttl))
-          result
-          (let [result (apply f args)]
-            (swap! cache assoc args {:last-cached now :result result})
-            result))))))
+        (if (and time-cached (< (- now time-cached) ttl))
+          @d-result
+          (let [d-result (delay (apply f args))]
+            (swap! cache assoc args {:time-cached now :d-result d-result})
+            @d-result))))))
+
+(def some-file-resources-modified?
+  "Returns true iff any of the files backing given resources have changed
+  since this function was last called. Ignores invalid files."
+  (let [times (atom {})]
+    (fn modified?
+      ([resource-name & more] (some modified? (cons resource-name more)))
+      ([resource-name]
+         (when-let [^File file (try (->> resource-name io/resource io/file)
+                                    (catch Exception _ nil))]
+           (let [last-modified (.lastModified file)]
+             (let [file-name (str file)
+                   modified? (> last-modified (@times file-name 0))]
+               (when modified? (swap! times assoc file-name last-modified))
+               modified?)))))))

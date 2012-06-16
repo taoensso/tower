@@ -2,8 +2,6 @@
 #+TAGS: urgent underway maybe waiting hammock next
 * DOCS
 * API
-** Ring with-locale middleware                                     :underway:
-Grab locale from session, URI, or headers.
 ** Migrate to ICU4J?                                                  :maybe:
 Stronger than native JVM library, esp. for pluralization. But is it worth the
 dependency and added complication?

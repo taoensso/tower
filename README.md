@@ -11,8 +11,8 @@ Tower is an attempt to present a **simple, idiomatic internationalization and lo
  * Rails-like, all-Clojure **translation function**.
  * **Simple, map-based** translation dictionary format. No XML or resource files!
  * Seamless **markdown support** for translators.
+ * **Ring middleware** with **automatic dictionary reloading**.
  * TODO: export/import to allow use with **industry-standard tools for translators**.
- * TODO: **Ring middleware** for rapidly internationalizing web applications.
 
 ## Status [![Build Status](https://secure.travis-ci.org/ptaoussanis/tower.png)](http://travis-ci.org/ptaoussanis/tower)
 
@@ -26,7 +26,7 @@ lein2 all test
 
 ### Leiningen
 
-Depend on `[tower "0.4.0-SNAPSHOT"]` in your `project.clj` and `use` the library:
+Depend on `[tower "0.5.0-SNAPSHOT"]` in your `project.clj` and `use` the library:
 
 ```clojure
 (ns my-app
@@ -108,12 +108,16 @@ If you're not using the provided Ring middleware, you'll need to call localizati
 
 ### Translation
 
-Here Tower diverges from the standard Java resource approach in favour of something simpler and more agile. Let's look at the *default configuration*:
+Here Tower diverges from the standard Java approach in favour of something simpler and more agile. Let's look at the *default configuration*:
 
 ```clojure
-@tower/translation-config
+@tower/config
 =>
-{:dictionary-compiler-options {:escape-undecorated? true}
+{:dev-mode?      true
+ :default-locale :en
+
+ :dictionary-compiler-options {:escape-undecorated? true}
+
  :dictionary
  {:en         {:example {:foo ":en :example/foo text"
                          :bar ":en :example/bar text"
@@ -124,14 +128,13 @@ Here Tower diverges from the standard Java resource approach in favour of someth
   :en_US      {:example {:foo ":en_US :example/foo text"}}
   :en_US_var1 {:example {:foo ":en_US_var1 :example/foo text"}}}
 
-  ;; Cut some other optional/advanced stuff for this example
- }
+ :missing-translation-fn (fn [{:keys [key locale]}] ...)}
 ```
 
-Note the format of the `:dictionary` map since **this is the map you'll change to set your own translations**. Work with the map manually using `set-translation-config!`, or load translations from a ClassLoader resource:
+Note the format of the `:dictionary` map since **this is the map you'll change to set your own translations**. Work with the map in place using `set-config!`, or load translations from a ClassLoader resource:
 
 ```clojure
-(load-dictionary-from-map-resource! "my-dictionary.clj")
+(tower/load-dictionary-from-map-resource! "my-dictionary.clj")
 ```
 
 You can put `my-dictionary.clj` on your classpath or one of Leiningen's resource paths (e.g. `/resources/`).
@@ -174,7 +177,24 @@ But what if a key just doesn't exist at all?
 (with-locale :en (t :this-is-invalid)) => "**:this-is-invalid**"
 ```
 
-The behaviour here is actually controlled by `(:missing-key-fn @translation-config)` and is fully configurable. Please see the source code for further details.
+The behaviour here is actually controlled by `(:missing-translation-fn @tower/config)` and is fully configurable. Please see the source code for further details.
+
+### Ring Middlware
+
+Quickly internationalize your web application by adding `(tower.ring/make-wrap-i18n-middleware)` to your middleware stack.
+
+For each request, an appropriate locale will be selected from one of the following (descending preference):
+ * Your *own locale selector* fn (e.g. for selection by IP address, domain, etc.).
+ * `(-> request :session :locale)`.
+ * `(-> request :params :locale)`, e.g. `"/my-uri?locale=en_US"`.
+ * A URI selector, e.g. `"/my-uri/locale/en_US/"`.
+ * The request's Accept-Language HTTP header.
+
+In addition to locale selection, the middleware provides **automatic dictionary reloading** while in development mode. Just save changes to your dictionary resource file, and those changes will automatically and immediately reflect in your application.
+
+## Tower Supports the ClojureWerkz Project Goals
+
+[ClojureWerkz](http://clojurewerkz.org/) is a growing collection of open-source, batteries-included libraries for Clojure that emphasise modern targets, good documentation, and thorough testing.
 
 ## Contact & Contribution
 

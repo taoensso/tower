@@ -9,13 +9,58 @@
   (:import  [java.util Date Locale TimeZone]
             [java.text Collator NumberFormat DateFormat]))
 
+;;;; Default configuration
+
+(declare compiled-dictionary)
+
+(def config
+  "This map controls everything about the way Tower operates.
+
+  To enable translations, :dictionary should be a map of form
+  {:locale {:ns1 ... {:nsN {:key<.optional-decorator> text}}}}}
+
+  Other important options include:
+    :default-locale which controls fallback locale for 'with-locale' and for
+    default missing-translation function.
+
+    :dev-mode? which controls Ring middleware's automatic dictionary reloading
+    and the behaviour of default missing-translation function.
+
+  See source code for further details."
+  (atom {:dev-mode?      true
+         :default-locale :en
+
+         :dictionary-compiler-options {:escape-undecorated? true}
+
+         ;; Canonical example dictionary used for dev/debug, unit tests,
+         ;; README, etc.
+         :dictionary
+         {:en         {:example {:foo ":en :example/foo text"
+                                 :bar ":en :example/bar text"
+                                 :decorated {:foo.html "<tag>"
+                                             :foo.note "Translator note"
+                                             :bar.md   "**strong**"
+                                             :baz      "<tag>"}}}
+          :en_US      {:example {:foo ":en_US :example/foo text"}}
+          :en_US_var1 {:example {:foo ":en_US_var1 :example/foo text"}}}
+
+         :missing-translation-fn
+         (fn [{:keys [key locale]}]
+           (let [{:keys [dev-mode? default-locale]} @config]
+             (if dev-mode?
+             (str "**" key "**")
+             (do (timbre/error "Missing translation" key "for" locale)
+                 (get-in @compiled-dictionary [default-locale key]
+                         "")))))}))
+
+(defn set-config! [[k & ks] val] (swap! config assoc-in (cons k ks) val))
+
 ;;;; Locales (big L for the Java object)
 
 (defn- make-Locale
   "Creates a Java Locale object with a lowercase ISO-639 language code,
   optional uppercase ISO-3166 country code, and optional vender-specific variant
-  code. Returns JVM's default Locale when called without args."
-  ([]                     (Locale/getDefault))
+  code."
   ([lang]                 (Locale. lang))
   ([lang country]         (Locale. lang country))
   ([lang country variant] (Locale. lang country variant)))
@@ -23,33 +68,31 @@
 (def ^:private available-Locales (set (Locale/getAvailableLocales)))
 
 (defn parse-Locale
-  "Tries to create Locale from name string or keyword:
-    :en, :en_US, :en_US_variant, etc.
+  "Returns valid Locale matching given name string/keyword, or nil if no valid
+  matching Locale could be found. 'locale' should be of form :en, :en_US,
+  :en_US_variant, or :default for config's default."
+  [locale]
+  (when locale
+    (if (= locale :default)
+      (or (parse-Locale (:default-locale @config)) (Locale/getDefault))
+      (let [new-Locale (apply make-Locale (str/split (name locale) #"[_-]"))]
+        (when (available-Locales new-Locale) new-Locale)))))
 
-  Returns JVM's default Locale for nil/blank name or when called without args.
-  Throws an exception when no appropriate Locale can be created."
-  ([] (parse-Locale ""))
-  ([locale]
-     {:post [(available-Locales %)]}
-     (if (or (nil? locale) (str/blank? (name locale)))
-       (make-Locale)
-       (apply make-Locale (str/split (name locale) #"_")))))
-
-(comment (parse-Locale)
-         (parse-Locale :en_US)
-         (parse-Locale :invalid))
+(comment (map parse-Locale [nil :invalid :default :en_US]))
 
 ;;;; Bindings
 
-(def ^:dynamic *Locale* (make-Locale))
+(def ^:dynamic *Locale*            nil)
 (def ^:dynamic *translation-scope* nil)
 
 (defmacro with-locale
   "Executes body within the context of thread-local locale binding, enabling
-  use of translation and localization functions. 'locale' should be a keyword
-  like :en_US_var, or nil for JVM default."
+  use of translation and localization functions. 'locale' should be of form :en,
+  :en_US, :en_US_variant, or :default for config's default."
   [locale & body]
-  `(binding [*Locale* (parse-Locale ~locale)] ~@body))
+  `(binding [*Locale* (or (parse-Locale ~locale)
+                          (throw (Exception. (str "Invalid locale: " ~locale))))]
+     ~@body))
 
 (defmacro with-scope
   "Executes body within the context of thread-local translation-scope binding.
@@ -64,7 +107,7 @@
 (defn l-compare "Localized Unicode comparator."
   [x y] (.compare (get-collator *Locale*) x y))
 
-(comment (with-locale nil (sort l-compare ["a" "d" "c" "b" "f" "_"])))
+(comment (with-locale :default (sort l-compare ["a" "d" "c" "b" "f" "_"])))
 
 (defn normalize
   "Transforms Unicode string into W3C-recommended standard de/composition form
@@ -153,15 +196,15 @@
   "Creates a localized message formatter and parse pattern string, substituting
   given arguments as per MessageFormat spec."
   ^String [pattern & args]
-  (let [formatter     (java.text.MessageFormat. pattern *Locale*)
-        string-buffer (.format formatter (to-array args) (StringBuffer.) nil)]
-    (.toString string-buffer)))
+  (let [formatter (java.text.MessageFormat. pattern *Locale*)]
+    (.format formatter (to-array args))))
 
 (comment
   (with-locale :de (format-msg "foobar {0}!" 102.22))
   (with-locale :de (format-msg "foobar {0,number,integer}!" 102.22))
-  (-> #(format-msg "{0,choice,0#no cats|1#one cat|1<{0,number} cats}" %)
-      (map (range 5))))
+  (with-locale :de
+    (-> #(format-msg "{0,choice,0#no cats|1#one cat|1<{0,number} cats}" %)
+        (map (range 5)) doall)))
 
 ;;;; Localized country & language names
 
@@ -230,7 +273,7 @@
 (def sorted-timezones
   "Returns map containing timezone IDs and corresponding pretty timezone names,
   both sorted by the timezone's offset. Caches result for 3 hours."
-  (utils/memoize-ttl
+  (utils/ttl-memoize
    #=(* 3 60 60 1000) ; 3hr ttl
    (fn []
      (let [;; [timezone-display-name id] seq sorted by timezone's offset
@@ -240,7 +283,7 @@
                         tz      (TimeZone/getTimeZone id)
                         offset  (.getOffset tz instant)]
                     [offset (timezone-display-name id offset) id]))
-                sort
+                (sort-by first)
                 (map (comp vec rest)))]
        {:sorted-names (vec (map first sorted-pairs))
         :sorted-ids   (vec (map second sorted-pairs))}))))
@@ -251,54 +294,11 @@
 ;;;; Dictionary management
 
 (def ^:private compiled-dictionary
-  "Compiled form of (:dictionary @translation-config) that:
+  "Compiled form of (:dictionary @config) that:
     1. Is efficient to store.
     2. Is efficient to access.
     3. Has display-ready, decorator-controlled text values."
   (atom {}))
-
-(def translation-config
-  "To enable translations, dictionary should be a map of form
-  {:locale {:ns1 ... {:nsN {:key<.optional-decorator> text}}}}}
-
-  See source code for further details."
-  (atom {:dictionary-compiler-options {:escape-undecorated? true}
-
-         ;; Canonical example dictionary used for dev/debug, unit tests,
-         ;; README, etc.
-         :dictionary
-         {:en         {:example {:foo ":en :example/foo text"
-                                 :bar ":en :example/bar text"
-                                 :decorated {:foo.html "<tag>"
-                                             :foo.note "Translator note"
-                                             :bar.md   "**strong**"
-                                             :baz      "<tag>"}}}
-          :en_US      {:example {:foo ":en_US :example/foo text"}}
-          :en_US_var1 {:example {:foo ":en_US_var1 :example/foo text"}}}
-
-         ;; Knobs for default missing-key-fn to allow convenient common tweaks
-         ;; without needing to provide an entirely new fn
-         :default-missing-key-fn-opts
-         {:dev-mode?      true
-          :default-locale :en
-          :error-log-fn
-          (fn [key locale] (timbre/error "Missing translation" key "for" locale))}
-
-         :missing-key-fn
-         (fn [{:keys [key locale]}]
-           (let [;; Just grab extra config from atom: missing keys are uncommon
-                 ;; and a more efficient missing-key-fn can be substituted if
-                 ;; necessary
-                 {:keys [dev-mode? default-locale error-log-fn]}
-                 (:default-missing-key-fn-opts @translation-config)]
-             (if dev-mode?
-               (str "**" key "**")
-               (do (error-log-fn key locale)
-                   (get-in @compiled-dictionary [default-locale key]
-                           "")))))}))
-
-(defn set-translation-config!
-  [[k & ks] val] (swap! translation-config assoc-in (cons k ks) val))
 
 (defn load-dictionary-from-map-resource!
   "Sets dictionary by reading Clojure map from named resource. Without any
@@ -306,12 +306,14 @@
   resource paths."
   ([] (load-dictionary-from-map-resource! "tower-dictionary.clj"))
   ([resource-name]
-     (->> resource-name
-          io/resource
-          io/reader
-          slurp
-          read-string
-          (set-translation-config! [:dictionary]))))
+     (try (->> resource-name
+               io/resource
+               io/reader
+               slurp
+               read-string
+               (set-config! [:dictionary]))
+          ;; For Ring middleware auto-reloading:
+          (set-config! [:dict-res-name] resource-name))))
 
 (defn- compile-map-path
   "[:locale :ns1 ... :nsN unscoped-key.decorator translation] =>
@@ -365,7 +367,7 @@
 
   Note the optional key decorators."
   []
-  (let [{:keys [dictionary dictionary-compiler-options]} @translation-config]
+  (let [{:keys [dictionary dictionary-compiler-options]} @config]
     (->> (utils/leaf-paths dictionary)
          (map (partial compile-map-path dictionary-compiler-options))
          (apply merge-with merge) ; 1-level recursive merge
@@ -375,10 +377,12 @@
 
 ;; Automatically re-compile any time dictionary changes
 (add-watch
- translation-config "dictionary-watch"
+ config "dictionary-watch"
  (fn [key ref old-state new-state]
-   (when (not= (:dictionary old-state)
-               (:dictionary new-state))
+   (when (or (not= (:dictionary old-state)
+                   (:dictionary new-state))
+             (not= (:dictionary-compiler-options old-state)
+                   (:dictionary-compiler-options new-state)))
      (compile-dictionary!))))
 
 (defn dictionary->xliff [m]) ; TODO Use hiccup?
@@ -408,7 +412,7 @@
        (vec (for [n (range (count parts) 0 -1)]
               (keyword (str/join "_" (take n parts)))))))))
 
-(comment (locales-to-check (locale)))
+(comment (locales-to-check (parse-Locale :en_US)))
 
 (defn t ; translate
   "Localized text translator. Takes a namespaced key :nsA/.../nsN within a scope
@@ -431,8 +435,9 @@
        (or (get-in cdict-snap [lchoice1 fully-scoped-key])
            (when lchoice2 (get-in cdict-snap [lchoice2 fully-scoped-key]))
            (when lchoice3 (get-in cdict-snap [lchoice3 fully-scoped-key]))
-           ((:missing-key-fn @translation-config) {:key     fully-scoped-key
-                                                   :locale *Locale*})))))
+           ((:missing-translation-fn @config) {:key     fully-scoped-key
+                                               :locale *Locale*})))))
 
 (comment (with-locale :en_ZA (t :example/foo))
-         (with-locale :en_ZA (with-scope :example (t :foo))))
+         (with-locale :en_ZA (with-scope :example (t :foo)))
+         (with-locale :en_ZA (t :invalid)))
