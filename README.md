@@ -1,7 +1,5 @@
 # Tower, a simple internationalization (i18n) library for Clojure.
 
-# PREVIEW RELEASE
-
 The Java platform provides some very capable tools for writing internationalized applications. Unfortunately, these tools can be disappointingly cumbersome when taken into a Clojure context.
 
 Tower is an attempt to present a **simple, idiomatic internationalization and localization** story for Clojure. It wraps standard Java functionality where possible, but it isn't afraid to step away from Java conventions when there's a good reason to.
@@ -26,7 +24,7 @@ lein2 all test
 
 ### Leiningen
 
-Depend on `[tower "0.5.0-SNAPSHOT"]` in your `project.clj` and `use` the library:
+Depend on `[com.taoensso/tower "0.5.0-SNAPSHOT"]` in your `project.clj` and `use` the library:
 
 ```clojure
 (ns my-app
