@@ -1,3 +1,11 @@
+# NOTICE
+
+The Tower Clojars group was recently changed. Please update your `project.clj` to use:
+
+```clojure
+[com.taoensso/tower "{VERSION}"]
+```
+
 # Tower, a simple internationalization (i18n) library for Clojure.
 
 The Java platform provides some very capable tools for writing internationalized applications. Unfortunately, these tools can be disappointingly cumbersome when taken into a Clojure context.
@@ -24,7 +32,13 @@ lein2 all test
 
 ### Leiningen
 
-Depend on `[com.taoensso/tower "0.5.0-SNAPSHOT"]` in your `project.clj` and `use` the library:
+Depend on Tower in your `project.clj`:
+
+```clojure
+[com.taoensso/tower "0.5.0"]
+```
+
+and `require` the library:
 
 ```clojure
 (ns my-app
