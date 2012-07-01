@@ -20,7 +20,7 @@ Tower is an attempt to present a **simple, idiomatic internationalization and lo
  * **Ring middleware** with **automatic dictionary reloading**.
  * TODO: export/import to allow use with **industry-standard tools for translators**.
 
-## Status [![Build Status](https://secure.travis-ci.org/ptaoussanis/tower.png)](http://travis-ci.org/ptaoussanis/tower)
+## Status [![Build Status](https://secure.travis-ci.org/ptaoussanis/tower.png?branch=master)](http://travis-ci.org/ptaoussanis/tower)
 
 Tower is still currently *experimental*. It **has not yet been thoroughly tested in production** and its API is subject to change. To run tests against all supported Clojure versions, use:
 
