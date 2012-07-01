@@ -35,7 +35,7 @@ lein2 all test
 Depend on Tower in your `project.clj`:
 
 ```clojure
-[com.taoensso/tower "0.5.0"]
+[com.taoensso/tower "0.5.1"]
 ```
 
 and `require` the library:
