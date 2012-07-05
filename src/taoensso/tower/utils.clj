@@ -1,8 +1,8 @@
-(ns tower.utils
+(ns taoensso.tower.utils
   {:author "Peter Taoussanis"}
   (:require [clojure.string :as str]
             [clojure.java.io :as io])
-  (:import  java.io.File))
+  (:import  [java.io File]))
 
 (defn leaf-paths
   "Takes a nested map and squashes it into a sequence of paths to leaf nodes.
@@ -54,7 +54,7 @@
        (apply memfn# ~'args))))
 
 (defn ttl-memoize
-  "Like 'memoize' but invalidates the cache for a set of arguments after TTL
+  "Like `memoize` but invalidates the cache for a set of arguments after TTL
   msecs has elapsed."
   [ttl f]
   (let [cache (atom {})]

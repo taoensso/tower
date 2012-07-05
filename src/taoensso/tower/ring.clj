@@ -1,8 +1,8 @@
-(ns tower.ring "Tower i18n middleware for Ring."
+(ns taoensso.tower.ring "Tower i18n middleware for Ring."
     {:author "Peter Taoussanis"}
     (:require [clojure.string :as str]
-              [tower.core  :as tower]
-              [tower.utils :as utils]))
+              [taoensso.tower :as tower]
+              [taoensso.tower.utils :as utils]))
 
 ;;;; Parsers, etc.
 
@@ -49,7 +49,7 @@
   (tower/parse-Locale (locale-selector-fn request)), session, query params,
   URI, or headers.
 
-  'locale-selector-fn' can be used to select a locale by IP address, subdomain,
+  `locale-selector-fn` can be used to select a locale by IP address, subdomain,
   top-level domain, etc.
 
   If :dev-mode? is set in tower/config and if dictionary was loaded using

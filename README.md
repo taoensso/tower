@@ -1,9 +1,7 @@
-# NOTICE
-
-The Tower Clojars group was recently changed. Please update your `project.clj` to use:
+Current version:
 
 ```clojure
-[com.taoensso/tower "{VERSION}"]
+[com.taoensso/tower "0.6.0"] ; Please note that the repo and ns have changed recently
 ```
 
 # Tower, a simple internationalization (i18n) library for Clojure.
@@ -20,7 +18,7 @@ Tower is an attempt to present a **simple, idiomatic internationalization and lo
  * **Ring middleware** with **automatic dictionary reloading**.
  * TODO: export/import to allow use with **industry-standard tools for translators**.
 
-## Status [![Build Status](https://secure.travis-ci.org/ptaoussanis/tower.png)](http://travis-ci.org/ptaoussanis/tower)
+## Status [![Build Status](https://secure.travis-ci.org/ptaoussanis/tower.png?branch=master)](http://travis-ci.org/ptaoussanis/tower)
 
 Tower is still currently *experimental*. It **has not yet been thoroughly tested in production** and its API is subject to change. To run tests against all supported Clojure versions, use:
 
@@ -35,14 +33,14 @@ lein2 all test
 Depend on Tower in your `project.clj`:
 
 ```clojure
-[com.taoensso/tower "0.5.1"]
+[com.taoensso/tower "0.6.0"]
 ```
 
 and `require` the library:
 
 ```clojure
 (ns my-app
-  (:use [tower.core :as tower :only (with-locale with-scope t style)])
+  (:use [taoensso.tower :as tower :only (with-locale with-scope t style)])
 ```
 
 Note that in practice you'll usually use `:only (t)`. We're importing a few extra things here to help with the examples.
@@ -121,7 +119,7 @@ If you're not using the provided Ring middleware, you'll need to call localizati
 
 ### Translation
 
-Here Tower diverges from the standard Java approach in favour of something simpler and more agile. Let's look at the *default configuration*:
+Here Tower diverges from the standard Java approach in favour of something simpler and more agile. Let's look at the default config:
 
 ```clojure
 @tower/config
@@ -194,7 +192,7 @@ The behaviour here is actually controlled by `(:missing-translation-fn @tower/co
 
 ### Ring Middlware
 
-Quickly internationalize your web application by adding `(tower.ring/make-wrap-i18n-middleware)` to your middleware stack.
+Quickly internationalize your web application by adding `(taoensso.tower.ring/make-wrap-i18n-middleware)` to your middleware stack.
 
 For each request, an appropriate locale will be selected from one of the following (descending preference):
  * Your *own locale selector* fn (e.g. for selection by IP address, domain, etc.).
