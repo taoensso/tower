@@ -327,7 +327,7 @@
 
         ;; Check for possible decorator
         [unscoped-k decorator]
-        (->> (str/split (name (peek (pop path))) #"[\._]")
+        (->> (str/split (name (peek (pop path))) #"\.")
              (map keyword))
 
         ;; [:ns1 ... :nsN :unscoped-key] => :ns1/.../nsN/unscoped-key
