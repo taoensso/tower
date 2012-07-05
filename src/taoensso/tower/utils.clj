@@ -1,4 +1,4 @@
-(ns tower.utils
+(ns taoensso.tower.utils
   {:author "Peter Taoussanis"}
   (:require [clojure.string :as str]
             [clojure.java.io :as io])

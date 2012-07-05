@@ -1,8 +1,8 @@
-(ns tower.test.core
+(ns test-taoensso.tower
   (:use [clojure.test]
-        [tower.core :as tower :only (with-locale with-scope t)]))
+        [taoensso.tower :as tower :only (with-locale with-scope t)]))
 
-;; TODO Tests (help would be welcome!!)
+;; TODO Tests
 
 (defmacro wza [& body] `(with-locale :en_ZA ~@body))
 
@@ -15,14 +15,8 @@
   (is (= "R 1,000.10" (wza (tower/format-currency 1000.10)))))
 
 (deftest test-number-parsing)
-
 (deftest test-dt-formatting)
 (deftest test-dt-parsing)
-
 (deftest test-text-formatting)
-
 (deftest test-dictionary-compiler)
-
-;; TODO Use default :dictionary for testing
-
 (deftest test-translations)

@@ -40,7 +40,7 @@ and `require` the library:
 
 ```clojure
 (ns my-app
-  (:use [tower.core :as tower :only (with-locale with-scope t style)])
+  (:use [taoensso.tower :as tower :only (with-locale with-scope t style)])
 ```
 
 Note that in practice you'll usually use `:only (t)`. We're importing a few extra things here to help with the examples.
@@ -192,7 +192,7 @@ The behaviour here is actually controlled by `(:missing-translation-fn @tower/co
 
 ### Ring Middlware
 
-Quickly internationalize your web application by adding `(tower.ring/make-wrap-i18n-middleware)` to your middleware stack.
+Quickly internationalize your web application by adding `(taoensso.tower.ring/make-wrap-i18n-middleware)` to your middleware stack.
 
 For each request, an appropriate locale will be selected from one of the following (descending preference):
  * Your *own locale selector* fn (e.g. for selection by IP address, domain, etc.).

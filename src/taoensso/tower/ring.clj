@@ -1,8 +1,8 @@
-(ns tower.ring "Tower i18n middleware for Ring."
+(ns taoensso.tower.ring "Tower i18n middleware for Ring."
     {:author "Peter Taoussanis"}
     (:require [clojure.string :as str]
-              [tower.core  :as tower]
-              [tower.utils :as utils]))
+              [taoensso.tower :as tower]
+              [taoensso.tower.utils :as utils]))
 
 ;;;; Parsers, etc.
 

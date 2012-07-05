@@ -1,11 +1,11 @@
-(ns tower.core
+(ns taoensso.tower
   "Simple internationalization (i18n) library for Clojure. Wraps standard Java
   functionality when possible, removing unnecessary boilerplate."
   {:author "Peter Taoussanis"}
   (:require [clojure.string  :as str]
             [clojure.java.io :as io]
             [timbre.core     :as timbre])
-  (:use     [tower.utils     :as utils :only (defmem-)])
+  (:use     [taoensso.tower.utils :as utils :only (defmem-)])
   (:import  [java.util Date Locale TimeZone]
             [java.text Collator NumberFormat DateFormat]))
 
