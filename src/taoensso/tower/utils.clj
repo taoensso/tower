@@ -82,3 +82,21 @@
                    modified? (> last-modified (@times file-name 0))]
                (when modified? (swap! times assoc file-name last-modified))
                modified?)))))))
+
+(defn parse-http-accept-header
+  "Parses HTTP Accept header and returns sequence of [choice weight] pairs
+  sorted by weight."
+  [header]
+  (->> (for [choice (->> (str/split (str header) #",")
+                         (filter (complement str/blank?)))]
+         (let [[lang q] (str/split choice #";")]
+           [(-> lang str/trim)
+            (or (when q (Float/parseFloat (second (str/split q #"="))))
+                1)]))
+       (sort-by second) reverse))
+
+(comment (parse-http-accept-header nil)
+         (parse-http-accept-header "en-GB")
+         (parse-http-accept-header "en-GB,en;q=0.8,en-US;q=0.6")
+         (parse-http-accept-header "en-GB  ,  en; q=0.8, en-US;  q=0.6")
+         (parse-http-accept-header "a,"))
