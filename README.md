@@ -1,4 +1,4 @@
-Current version:
+Current [semantic](http://semver.org/) version:
 
 ```clojure
 [com.taoensso/tower "0.6.0"] ; Please note that the repo and ns have changed recently
