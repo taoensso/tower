@@ -20,7 +20,7 @@
   {:locale {:ns1 ... {:nsN {:key<.optional-decorator> text}}}}}
 
   Other important options include:
-    :default-locale which controls fallback locale for 'with-locale' and for
+    :default-locale which controls fallback locale for `with-locale` and for
     default missing-translation function.
 
     :dev-mode? which controls Ring middleware's automatic dictionary reloading
@@ -69,7 +69,7 @@
 
 (defn parse-Locale
   "Returns valid Locale matching given name string/keyword, or nil if no valid
-  matching Locale could be found. 'locale' should be of form :en, :en_US,
+  matching Locale could be found. `locale` should be of form :en, :en_US,
   :en_US_variant, or :default for config's default."
   [locale]
   (when locale
@@ -87,7 +87,7 @@
 
 (defmacro with-locale
   "Executes body within the context of thread-local locale binding, enabling
-  use of translation and localization functions. 'locale' should be of form :en,
+  use of translation and localization functions. `locale` should be of form :en,
   :en_US, :en_US_variant, or :default for config's default."
   [locale & body]
   `(binding [*Locale* (or (parse-Locale ~locale)
@@ -96,7 +96,7 @@
 
 (defmacro with-scope
   "Executes body within the context of thread-local translation-scope binding.
-  'translation-scope' should be a keyword like :example/greetings, or nil."
+  `translation-scope` should be a keyword like :example/greetings, or nil."
   [translation-scope & body]
   `(binding [*translation-scope* ~translation-scope] ~@body))
 
@@ -302,7 +302,7 @@
 
 (defn load-dictionary-from-map-resource!
   "Sets dictionary by reading Clojure map from named resource. Without any
-  arguments, searches for 'tower-dictionary.clj' in classpath and Leiningen's
+  arguments, searches for `tower-dictionary.clj` in classpath and Leiningen's
   resource paths."
   ([] (load-dictionary-from-map-resource! "tower-dictionary.clj"))
   ([resource-name]
@@ -391,7 +391,7 @@
 ;;;; Translation
 
 (defn- fqname
-  "Like 'name' but nil-safe and returns fully-qualified name."
+  "Like `name` but nil-safe and returns fully-qualified name."
   [keyword]
   (when keyword
     (if-let [ns (namespace keyword)]

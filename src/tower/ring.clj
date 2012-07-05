@@ -49,7 +49,7 @@
   (tower/parse-Locale (locale-selector-fn request)), session, query params,
   URI, or headers.
 
-  'locale-selector-fn' can be used to select a locale by IP address, subdomain,
+  `locale-selector-fn` can be used to select a locale by IP address, subdomain,
   top-level domain, etc.
 
   If :dev-mode? is set in tower/config and if dictionary was loaded using

@@ -1,9 +1,7 @@
-# NOTICE
-
-The Tower Clojars group was recently changed. Please update your `project.clj` to use:
+Current version:
 
 ```clojure
-[com.taoensso/tower "{VERSION}"]
+[com.taoensso/tower "0.5.1"] ; Please note that the repo and ns have changed recently
 ```
 
 # Tower, a simple internationalization (i18n) library for Clojure.
