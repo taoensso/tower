@@ -1,4 +1,5 @@
 (ns test-taoensso.tower
+  (:require [taoensso.tower.ring :as ring])
   (:use [clojure.test]
         [taoensso.tower :as tower :only (with-locale with-scope t)]))
 
