@@ -203,7 +203,7 @@ For each request, an appropriate locale will be selected from one of the followi
 
 In addition to locale selection, the middleware provides **automatic dictionary reloading** while in development mode. Just save changes to your dictionary resource file, and those changes will automatically and immediately reflect in your application.
 
-## Tower Supports the ClojureWerkz Project Goals
+## Tower supports the ClojureWerkz Project Goals
 
 ClojureWerkz is a growing collection of open-source, batteries-included [Clojure libraries](http://clojurewerkz.org/) that emphasise modern targets, great documentation, and thorough testing.
 
