@@ -69,11 +69,12 @@
             @d-result))))))
 
 (def some-file-resources-modified?
-  "Returns true iff any of the files backing given resources have changed
+  "Returns true iff any of the files backing given named resources have changed
   since this function was last called. Ignores invalid files."
   (let [times (atom {})]
     (fn modified?
-      ([resource-name & more] (some modified? (cons resource-name more)))
+      ([resource-name & more] (seq (filter modified? (cons resource-name more)))
+         (some modified? (cons resource-name more)))
       ([resource-name]
          (when-let [^File file (try (->> resource-name io/resource io/file)
                                     (catch Exception _ nil))]
