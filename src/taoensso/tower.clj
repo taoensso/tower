@@ -13,21 +13,21 @@
 
 (declare compiled-dictionary)
 
-(defonce
-  ^{:doc "This map controls everything about the way Tower operates.
+(defonce config
+  ^{:doc
+    "This map controls everything about the way Tower operates.
 
-  To enable translations, :dictionary should be a map of form
-  {:locale {:ns1 ... {:nsN {:key<.optional-decorator> text}}}}}
+    To enable translations, :dictionary should be a map of form
+    {:locale {:ns1 ... {:nsN {:key<.optional-decorator> text}}}}}
 
-  Other important options include:
-    :default-locale which controls fallback locale for `with-locale` and for
-    default missing-translation function.
+    Other important options include:
+      :default-locale which controls fallback locale for `with-locale` and for
+      default missing-translation function.
 
-    :dev-mode? which controls Ring middleware's automatic dictionary reloading
-    and the behaviour of default missing-translation function.
+      :dev-mode? which controls Ring middleware's automatic dictionary reloading
+      and the behaviour of default missing-translation function.
 
-  See source code for further details."}
-  config
+    See source code for further details."}
   (atom {:dev-mode?      true
          :default-locale :en
 
