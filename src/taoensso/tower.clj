@@ -3,8 +3,7 @@
   functionality when possible, removing unnecessary boilerplate."
   {:author "Peter Taoussanis"}
   (:require [clojure.string  :as str]
-            [clojure.java.io :as io]
-            [taoensso.timbre :as timbre])
+            [clojure.java.io :as io])
   (:use     [taoensso.tower.utils :as utils :only (defmem-)])
   (:import  [java.util Date Locale TimeZone]
             [java.text Collator NumberFormat DateFormat]))
@@ -49,7 +48,7 @@
            (let [{:keys [dev-mode? default-locale]} @config]
              (if dev-mode?
              (str "**" key "**")
-             (do (timbre/error "Missing translation" key "for" locale)
+             (do (println "Missing translation" key "for" locale)
                  (get-in @compiled-dictionary [default-locale key]
                          "")))))}))
 
