@@ -274,7 +274,7 @@
 (def sorted-timezones
   "Returns map containing timezone IDs and corresponding pretty timezone names,
   both sorted by the timezone's offset. Caches result for 3 hours."
-  (utils/ttl-memoize
+  (utils/memoize-ttl
    #=(* 3 60 60 1000) ; 3hr ttl
    (fn []
      (let [;; [timezone-display-name id] seq sorted by timezone's offset

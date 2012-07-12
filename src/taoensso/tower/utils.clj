@@ -53,7 +53,7 @@
        ~(with-meta '[& args] {:tag type-hint})
        (apply memfn# ~'args))))
 
-(defn ttl-memoize
+(defn memoize-ttl
   "Like `memoize` but invalidates the cache for a set of arguments after TTL
   msecs has elapsed."
   [ttl f]
