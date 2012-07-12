@@ -13,8 +13,8 @@
 
 (declare compiled-dictionary)
 
-(def config
-  "This map controls everything about the way Tower operates.
+(defonce
+  ^{:doc "This map controls everything about the way Tower operates.
 
   To enable translations, :dictionary should be a map of form
   {:locale {:ns1 ... {:nsN {:key<.optional-decorator> text}}}}}
@@ -26,7 +26,8 @@
     :dev-mode? which controls Ring middleware's automatic dictionary reloading
     and the behaviour of default missing-translation function.
 
-  See source code for further details."
+  See source code for further details."}
+  config
   (atom {:dev-mode?      true
          :default-locale :en
 
