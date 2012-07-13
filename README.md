@@ -1,8 +1,13 @@
 Current [semantic](http://semver.org/) version:
 
 ```clojure
-[com.taoensso/tower "0.6.0"] ; Please note that the repo and ns have changed recently
+[com.taoensso/tower "0.6.0"]
 ```
+
+**Breaking changes** since _0.6.x_ (see updated [Timbre](https://github.com/ptaoussanis/timbre) README examples for any necessary changes):
+ * Affecting **users of Timbre's standard email appender**:
+   * Postal appender moved to own ns: `taoensso.timbre.appenders.postal`.
+   * `com.draines/postal` no longer automatically included as a dependency.
 
 # Tower, a simple internationalization (i18n) library for Clojure.
 
