@@ -53,7 +53,7 @@
        ~(with-meta '[& args] {:tag type-hint})
        (apply memfn# ~'args))))
 
-(defn ttl-memoize
+(defn memoize-ttl
   "Like `memoize` but invalidates the cache for a set of arguments after TTL
   msecs has elapsed."
   [ttl f]
@@ -69,11 +69,12 @@
             @d-result))))))
 
 (def some-file-resources-modified?
-  "Returns true iff any of the files backing given resources have changed
+  "Returns true iff any of the files backing given named resources have changed
   since this function was last called. Ignores invalid files."
   (let [times (atom {})]
     (fn modified?
-      ([resource-name & more] (some modified? (cons resource-name more)))
+      ([resource-name & more] (seq (filter modified? (cons resource-name more)))
+         (some modified? (cons resource-name more)))
       ([resource-name]
          (when-let [^File file (try (->> resource-name io/resource io/file)
                                     (catch Exception _ nil))]
@@ -82,3 +83,21 @@
                    modified? (> last-modified (@times file-name 0))]
                (when modified? (swap! times assoc file-name last-modified))
                modified?)))))))
+
+(defn parse-http-accept-header
+  "Parses HTTP Accept header and returns sequence of [choice weight] pairs
+  sorted by weight."
+  [header]
+  (->> (for [choice (->> (str/split (str header) #",")
+                         (filter (complement str/blank?)))]
+         (let [[lang q] (str/split choice #";")]
+           [(-> lang str/trim)
+            (or (when q (Float/parseFloat (second (str/split q #"="))))
+                1)]))
+       (sort-by second) reverse))
+
+(comment (parse-http-accept-header nil)
+         (parse-http-accept-header "en-GB")
+         (parse-http-accept-header "en-GB,en;q=0.8,en-US;q=0.6")
+         (parse-http-accept-header "en-GB  ,  en; q=0.8, en-US;  q=0.6")
+         (parse-http-accept-header "a,"))

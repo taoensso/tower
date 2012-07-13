@@ -1,8 +1,13 @@
-Current version:
+Current [semantic](http://semver.org/) version:
 
 ```clojure
-[com.taoensso/tower "0.6.0"] ; Please note that the repo and ns have changed recently
+[com.taoensso/tower "0.7.0"]
 ```
+
+**Breaking changes** since _0.6.x_ (see updated [Timbre](https://github.com/ptaoussanis/timbre) README examples for any necessary changes):
+ * Affecting **users of Timbre's standard email appender**:
+   * Postal appender moved to own ns: `taoensso.timbre.appenders.postal`.
+   * `com.draines/postal` no longer automatically included as a dependency.
 
 # Tower, a simple internationalization (i18n) library for Clojure.
 
@@ -33,7 +38,7 @@ lein2 all test
 Depend on Tower in your `project.clj`:
 
 ```clojure
-[com.taoensso/tower "0.6.0"]
+[com.taoensso/tower "0.7.0"]
 ```
 
 and `require` the library:
@@ -203,7 +208,7 @@ For each request, an appropriate locale will be selected from one of the followi
 
 In addition to locale selection, the middleware provides **automatic dictionary reloading** while in development mode. Just save changes to your dictionary resource file, and those changes will automatically and immediately reflect in your application.
 
-## Tower Supports the ClojureWerkz Project Goals
+## Tower supports the ClojureWerkz Project Goals
 
 ClojureWerkz is a growing collection of open-source, batteries-included [Clojure libraries](http://clojurewerkz.org/) that emphasise modern targets, great documentation, and thorough testing.
 
