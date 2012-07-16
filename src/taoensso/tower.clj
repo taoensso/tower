@@ -156,8 +156,8 @@
        (throw (Exception. (str "Unknown style: " style))))))
 
 (defn format-date
-  ([d]       (format-date (style) d))
-  ([style d] (.format (f-date style *Locale*) d)))
+  ([^Date d]       (format-date (style) d))
+  ([^clojure.lang.Keyword style ^Date d] (.format (f-date style *Locale*) d)))
 
 (defn format-time
   ([t]       (format-time (style) t))
