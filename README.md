@@ -4,10 +4,9 @@ Current [semantic](http://semver.org/) version:
 [com.taoensso/tower "0.7.0"]
 ```
 
-**Breaking changes** since _0.6.x_ (see updated [Timbre](https://github.com/ptaoussanis/timbre) README examples for any necessary changes):
- * Affecting **users of Timbre's standard email appender**:
-   * Postal appender moved to own ns: `taoensso.timbre.appenders.postal`.
-   * `com.draines/postal` no longer automatically included as a dependency.
+**Breaking changes** since _0.7.x_:
+ * Affecting **users of Tower's translation feature**:
+   * Changed locale keyword format from `:en_US_var1` to [IETF](http://en.wikipedia.org/wiki/IETF_language_tag)-style `:en-US-var`. Please update your translation dictionary keys. Note that `with-locale` will continue to accept both formats.
 
 # Tower, a simple internationalization (i18n) library for Clojure.
 
@@ -57,8 +56,8 @@ If you're not using the provided Ring middleware, you'll need to call localizati
 #### Numbers
 
 ```clojure
-(with-locale :en_ZA (tower/format-currency 200)) => "R 200.00"
-(with-locale :en_US (tower/format-currency 200)) => "$200.00"
+(with-locale :en-ZA (tower/format-currency 200)) => "R 200.00"
+(with-locale :en-US (tower/format-currency 200)) => "$200.00"
 
 (with-locale :de (tower/format-number 2000.1))   => "2.000,1"
 (with-locale :de (tower/parse-number "2.000,1")) => 2000.1
@@ -141,8 +140,8 @@ Here Tower diverges from the standard Java approach in favour of something simpl
                                      :foo.note "Translator note"
                                      :bar.md   "**strong**"
                                      :baz      "<tag>"}}}
-  :en_US      {:example {:foo ":en_US :example/foo text"}}
-  :en_US_var1 {:example {:foo ":en_US_var1 :example/foo text"}}}
+  :en-US      {:example {:foo ":en-US :example/foo text"}}
+  :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
 
  :missing-translation-fn (fn [{:keys [key locale]}] ...)}
 ```
@@ -158,7 +157,7 @@ You can put `my-dictionary.clj` on your classpath or one of Leiningen's resource
 For now let's play with the default dictionary to see how Tower handles translation:
 
 ```clojure
-(with-locale :en_US (t :example/foo)) => ":en_US :example/foo text"
+(with-locale :en-US (t :example/foo)) => ":en-US :example/foo text"
 (with-locale :en (t :example/foo))    => ":en :example/foo text"
 ```
 
@@ -182,10 +181,10 @@ If you're calling the translate fn repeatedly within a specific namespace contex
 What happens if we request a key that doesn't exist?
 
 ```clojure
-(with-locale :en_US (t :example/bar)) => ":en :example/bar text"
+(with-locale :en-US (t :example/bar)) => ":en :example/bar text"
 ```
 
-So the request for an `:en_US` translation fell back to the parent `:en` translation. This is great for sparse dictionaries (for example if you have only a few differences between your `:en_US` and `:en_UK` content).
+So the request for an `:en-US` translation fell back to the parent `:en` translation. This is great for sparse dictionaries (for example if you have only a few differences between your `:en-US` and `:en-UK` content).
 
 But what if a key just doesn't exist at all?
 
@@ -202,8 +201,8 @@ Quickly internationalize your web application by adding `(taoensso.tower.ring/ma
 For each request, an appropriate locale will be selected from one of the following (descending preference):
  * Your *own locale selector* fn (e.g. for selection by IP address, domain, etc.).
  * `(-> request :session :locale)`.
- * `(-> request :params :locale)`, e.g. `"/my-uri?locale=en_US"`.
- * A URI selector, e.g. `"/my-uri/locale/en_US/"`.
+ * `(-> request :params :locale)`, e.g. `"/my-uri?locale=en-US"`.
+ * A URI selector, e.g. `"/my-uri/locale/en-US/"`.
  * The request's Accept-Language HTTP header.
 
 In addition to locale selection, the middleware provides **automatic dictionary reloading** while in development mode. Just save changes to your dictionary resource file, and those changes will automatically and immediately reflect in your application.
