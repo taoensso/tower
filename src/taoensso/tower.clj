@@ -12,7 +12,34 @@
 ;;;; Default configuration
 
 (declare compiled-dictionary)
+(declare config)
 
+(defonce config-defaults
+  {:dev-mode?      true
+   :default-locale :en
+
+   :dictionary-compiler-options {:escape-undecorated? true}
+
+   ;; Canonical example dictionary used for dev/debug, unit tests,
+   ;; README, etc.
+   :dictionary
+   {:en         {:example {:foo ":en :example/foo text"
+                           :bar ":en :example/bar text"
+                           :decorated {:foo.html "<tag>"
+                                       :foo.note "Translator note"
+                                       :bar.md   "**strong**"
+                                       :baz      "<tag>"}}}
+    :en_US      {:example {:foo ":en_US :example/foo text"}}
+    :en_US_var1 {:example {:foo ":en_US_var1 :example/foo text"}}}
+
+   :missing-translation-fn
+   (fn [{:keys [key locale]}]
+     (let [{:keys [dev-mode? default-locale]} @config]
+       (if dev-mode?
+         (str "**" key "**")
+         (do (timbre/error "Missing translation" key "for" locale)
+             (get-in @compiled-dictionary [default-locale key]
+                     "")))))})
 (defonce config
   ^{:doc
     "This map controls everything about the way Tower operates.
@@ -28,31 +55,7 @@
       and the behaviour of default missing-translation function.
 
     See source code for further details."}
-  (atom {:dev-mode?      true
-         :default-locale :en
-
-         :dictionary-compiler-options {:escape-undecorated? true}
-
-         ;; Canonical example dictionary used for dev/debug, unit tests,
-         ;; README, etc.
-         :dictionary
-         {:en         {:example {:foo ":en :example/foo text"
-                                 :bar ":en :example/bar text"
-                                 :decorated {:foo.html "<tag>"
-                                             :foo.note "Translator note"
-                                             :bar.md   "**strong**"
-                                             :baz      "<tag>"}}}
-          :en_US      {:example {:foo ":en_US :example/foo text"}}
-          :en_US_var1 {:example {:foo ":en_US_var1 :example/foo text"}}}
-
-         :missing-translation-fn
-         (fn [{:keys [key locale]}]
-           (let [{:keys [dev-mode? default-locale]} @config]
-             (if dev-mode?
-             (str "**" key "**")
-             (do (timbre/error "Missing translation" key "for" locale)
-                 (get-in @compiled-dictionary [default-locale key]
-                         "")))))}))
+  (atom config-defaults))
 
 (defn set-config! [[k & ks] val] (swap! config assoc-in (cons k ks) val))
 
@@ -156,8 +159,8 @@
        (throw (Exception. (str "Unknown style: " style))))))
 
 (defn format-date
-  ([d]       (format-date (style) d))
-  ([style d] (.format (f-date style *Locale*) d)))
+  ([^Date d]       (format-date (style) d))
+  ([^clojure.lang.Keyword style ^Date d] (.format (f-date style *Locale*) d)))
 
 (defn format-time
   ([t]       (format-time (style) t))
