@@ -2,9 +2,14 @@
   (:import  [java.util Date])
   (:require [taoensso.tower.ring :as ring])
   (:use [clojure.test]
-        [taoensso.tower :as tower :only (with-locale with-scope parse-number t)]))
+        [taoensso.tower :as tower :only (with-locale with-scope parse-number t set-config! config-defaults)]))
 
-;; TODO Tests
+
+(use-fixtures :each
+  (fn [f]
+    (reset! tower/config tower/config-defaults)
+    (f)
+    (reset! tower/config tower/config-defaults)))
 
 (defmacro wza [& body] `(with-locale :en_ZA ~@body))
 (defmacro wus [& body] `(with-locale :en_US ~@body))
@@ -215,7 +220,27 @@
          2012 2 1  "Mittwoch, 1. Februar 2012"
          2012 3 25 "Sonntag, 25. März 2012")))
 
-(deftest test-dt-parsing)
+(deftest t-parse-locale
+  (is (= "en" (.toString (tower/parse-Locale :en))))
+  (is (= "en_US" (.toString (tower/parse-Locale :en_US))))
+  (is (= "en_GB" (.toString (tower/parse-Locale :en_GB))))
+  (is (= "de" (.toString (tower/parse-Locale :de))))
+  (is (= "de_DE" (.toString (tower/parse-Locale :de_DE)))))
+
+(deftest test-translations
+  (testing "When dictionary is still empty"
+    (is (= "**:foo/bar**" (wza (tower/t :foo/bar)))))
+
+  (testing "When items are present in dictionary"
+    (tower/set-config! [:dictionary] {:en_ZA { :foo { :bar "Test Word" }}})
+    (is (= "Test Word" (wza (tower/t :foo/bar))))
+    (is (= "**:foo**" (wde (tower/t :foo))))
+    (is (= "**:foo/bar**" (wde (tower/t :foo/bar)))))
+  (testing "Decorated values"
+    (tower/set-config! [:dictionary] {:en_ZA { :foo { :decorated { :bar.html "<tag>"
+                                                                   :bar.md   "**strong**"} }}})
+    (is (= "<tag>" (wza (tower/t :foo/decorated/bar.html))))
+    (is (= "<strong>tag</strong>" (wza (tower/t :foo/decorated/bar.md))))))
+
 (deftest test-text-formatting)
-(deftest test-dictionary-compiler)
 (deftest test-translations)
