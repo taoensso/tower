@@ -42,8 +42,8 @@
                                              :foo.note "Translator note"
                                              :bar.md   "**strong**"
                                              :baz      "<tag>"}}}
-          :en_US      {:example {:foo ":en_US :example/foo text"}}
-          :en_US_var1 {:example {:foo ":en_US_var1 :example/foo text"}}}
+          :en-US      {:example {:foo ":en-US :example/foo text"}}
+          :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
 
          :missing-translation-fn
          (fn [{:keys [key locale]}]
@@ -70,16 +70,16 @@
 
 (defn parse-Locale
   "Returns valid Locale matching given name string/keyword, or nil if no valid
-  matching Locale could be found. `locale` should be of form :en, :en_US,
-  :en_US_variant, or :default for config's default."
+  matching Locale could be found. `locale` should be of form :en, :en-US,
+  :en-US-variant, or :default for config's default."
   [locale]
   (when locale
     (if (= locale :default)
       (or (parse-Locale (:default-locale @config)) (Locale/getDefault))
-      (let [new-Locale (apply make-Locale (str/split (name locale) #"[_-]"))]
+      (let [new-Locale (apply make-Locale (str/split (name locale) #"[-_]"))]
         (when (available-Locales new-Locale) new-Locale)))))
 
-(comment (map parse-Locale [nil :invalid :default :en_US]))
+(comment (map parse-Locale [nil :invalid :default :en-US]))
 
 ;;;; Bindings
 
@@ -89,7 +89,7 @@
 (defmacro with-locale
   "Executes body within the context of thread-local locale binding, enabling
   use of translation and localization functions. `locale` should be of form :en,
-  :en_US, :en_US_variant, or :default for config's default."
+  :en-US, :en-US-variant, or :default for config's default."
   [locale & body]
   `(binding [*Locale* (or (parse-Locale ~locale)
                           (throw (Exception. (str "Invalid locale: " ~locale))))]
@@ -133,8 +133,8 @@
 (defn parse-percent   [s] (.parse (f-percent  *Locale*) s))
 (defn parse-currency  [s] (.parse (f-currency *Locale*) s))
 
-(comment (with-locale :en_ZA (format-currency 200))
-         (with-locale :en_ZA (parse-currency "R 200.33")))
+(comment (with-locale :en-ZA (format-currency 200))
+         (with-locale :en-ZA (parse-currency "R 200.33")))
 
 ;;;; Localized date/time formatting
 
@@ -181,10 +181,10 @@
   ([date-style time-style s]
      (.parse (f-dt date-style time-style *Locale*) s)))
 
-(comment (with-locale :en_ZA (format-date (Date.)))
-         (with-locale :en_ZA (format-date (style :full) (Date.)))
-         (with-locale :en_ZA (format-time (style :short) (Date.)))
-         (with-locale :en_ZA (format-dt (style :full) (style :full) (Date.))))
+(comment (with-locale :en-ZA (format-date (Date.)))
+         (with-locale :en-ZA (format-date (style :full) (Date.)))
+         (with-locale :en-ZA (format-time (style :short) (Date.)))
+         (with-locale :en-ZA (format-dt (style :full) (style :full) (Date.))))
 
 ;;;; Localized text formatting
 
@@ -404,16 +404,16 @@
 (def ^:private locales-to-check
   "Given a Locale, returns vector of dictionary locale names to check, in order
   of preference:
-    #<Locale en_US_var1> => [:en_US_var1 :en_US :en]
-    #<Locale en_US>      => [:en_US :en]
+    #<Locale en_US_var1> => [:en-US-var1 :en-US :en]
+    #<Locale en_US>      => [:en-US :en]
     #<Locale en>         => [:en]"
   (memoize
-   (fn [Locale]
-     (let [parts (str/split (str Locale) #"_")]
+   (fn [Loc]
+     (let [parts (str/split (str Loc) #"_")]
        (vec (for [n (range (count parts) 0 -1)]
-              (keyword (str/join "_" (take n parts)))))))))
+              (keyword (str/join "-" (take n parts)))))))))
 
-(comment (locales-to-check (parse-Locale :en_US)))
+(comment (locales-to-check (parse-Locale :en-US)))
 
 (defn t ; translate
   "Localized text translator. Takes a namespaced key :nsA/.../nsN within a scope
@@ -439,6 +439,6 @@
            ((:missing-translation-fn @config) {:key     fully-scoped-key
                                                :locale *Locale*})))))
 
-(comment (with-locale :en_ZA (t :example/foo))
-         (with-locale :en_ZA (with-scope :example (t :foo)))
-         (with-locale :en_ZA (t :invalid)))
+(comment (with-locale :en-ZA (t :example/foo))
+         (with-locale :en-ZA (with-scope :example (t :foo)))
+         (with-locale :en-ZA (t :invalid)))

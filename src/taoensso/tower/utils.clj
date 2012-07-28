@@ -59,7 +59,7 @@
   [ttl f]
   (let [cache (atom {})]
     (fn [& args]
-      (let [{:keys [time-cached d-result]} (get @cache args)
+      (let [{:keys [time-cached d-result]} (@cache args)
             now (System/currentTimeMillis)]
 
         (if (and time-cached (< (- now time-cached) ttl))
