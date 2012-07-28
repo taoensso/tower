@@ -5,8 +5,10 @@ Current [semantic](http://semver.org/) version:
 ```
 
 **Breaking changes** since _0.7.x_:
- * Affecting **users of Tower's translation feature**:
+ * Affecting users of Tower's translation feature:
    * Changed locale keyword format from `:en_US_var1` to [IETF](http://en.wikipedia.org/wiki/IETF_language_tag)-style `:en-US-var`. Please update your translation dictionary keys. Note that `with-locale` will continue to accept both formats.
+ * Affecting [Timbre](https://github.com/ptaoussanis/timbre) users:
+   * Bumped dependency to Timbre 0.8.0. Please see [README](https://github.com/ptaoussanis/timbre/blob/2f52e709e789cf37f3d1f0e39e141468799db8c6/README.md) for changes.
 
 # Tower, a simple internationalization (i18n) library for Clojure.
 
