@@ -49,10 +49,10 @@
          (fn [{:keys [key locale]}]
            (let [{:keys [dev-mode? default-locale]} @config]
              (if dev-mode?
-             (str "**" key "**")
-             (do (timbre/error "Missing translation" key "for" locale)
-                 (get-in @compiled-dictionary [default-locale key]
-                         "")))))}))
+               (str "**" key "**")
+               (do (timbre/error "Missing translation" key "for" locale)
+                   (get-in @compiled-dictionary [default-locale key]
+                           "")))))}))
 
 (defn set-config! [[k & ks] val] (swap! config assoc-in (cons k ks) val))
 
@@ -436,7 +436,7 @@
        (or (get-in cdict-snap [lchoice1 fully-scoped-key])
            (when lchoice2 (get-in cdict-snap [lchoice2 fully-scoped-key]))
            (when lchoice3 (get-in cdict-snap [lchoice3 fully-scoped-key]))
-           ((:missing-translation-fn @config) {:key     fully-scoped-key
+           ((:missing-translation-fn @config) {:key    fully-scoped-key
                                                :locale *Locale*})))))
 
 (comment (with-locale :en-ZA (t :example/foo))
