@@ -28,21 +28,10 @@
   URI, or headers.
 
   `locale-selector-fn` can be used to select a locale by IP address, subdomain,
-  top-level domain, etc.
-
-  If :dev-mode? is set in tower/config and if dictionary was loaded using
-  tower/load-dictionary-from-map-resource!, dictionary will be automatically
-  reloaded each time the resource's file changes."
+  top-level domain, etc."
   [& {:keys [locale-selector-fn]}]
   (fn [handler]
     (fn [request]
-
-      ;; Dictionary resource reloading
-      (let [{:keys [dev-mode? dict-res-name]} @tower/config]
-        (when (and dev-mode? dict-res-name
-                   (utils/some-file-resources-modified? dict-res-name))
-          (tower/load-dictionary-from-map-resource! dict-res-name)))
-
       (let [locale (->> [(when locale-selector-fn (locale-selector-fn request))
                          (-> request :session :locale)
                          (-> request :params  :locale)

@@ -24,8 +24,8 @@
       :default-locale which controls fallback locale for `with-locale` and for
       default missing-translation function.
 
-      :dev-mode? which controls Ring middleware's automatic dictionary reloading
-      and the behaviour of default missing-translation function.
+      :dev-mode? which controls automatic dictionary reloading and the behaviour
+      of default missing-translation function.
 
     See source code for further details."}
   (atom {:dev-mode?      true
@@ -49,10 +49,10 @@
          (fn [{:keys [key locale]}]
            (let [{:keys [dev-mode? default-locale]} @config]
              (if dev-mode?
-             (str "**" key "**")
-             (do (timbre/error "Missing translation" key "for" locale)
-                 (get-in @compiled-dictionary [default-locale key]
-                         "")))))}))
+               (str "**" key "**")
+               (do (timbre/error "Missing translation" key "for" locale)
+                   (get-in @compiled-dictionary [default-locale key]
+                           "")))))}))
 
 (defn set-config! [[k & ks] val] (swap! config assoc-in (cons k ks) val))
 
@@ -313,7 +313,7 @@
                slurp
                read-string
                (set-config! [:dictionary]))
-          ;; For Ring middleware auto-reloading:
+          ;; For automatic dictionary reloading:
           (set-config! [:dict-res-name] resource-name))))
 
 (defn- compile-map-path
@@ -421,9 +421,20 @@
   locale.
 
   With additional arguments, treats translated text as pattern for message
-  formatting."
+  formatting.
+
+  If :dev-mode? is set in tower/config and if dictionary was loaded using
+  tower/load-dictionary-from-map-resource!, dictionary will be automatically
+  reloaded each time the resource file changes."
   ([scoped-dict-key & args] (apply format-msg (t scoped-dict-key) args))
   ([scoped-dict-key]
+
+     ;; Automatic dictionary reloading
+     (let [{:keys [dev-mode? dict-res-name]} @config]
+       (when (and dev-mode? dict-res-name
+                  (utils/some-file-resources-modified? dict-res-name))
+         (load-dictionary-from-map-resource! dict-res-name)))
+
      (let [fully-scoped-key ; :ns1/.../nsM/nsA/.../nsN = :ns1/.../nsN
            (if *translation-scope*
              (keyword (str (fqname *translation-scope*) "/"
@@ -436,7 +447,7 @@
        (or (get-in cdict-snap [lchoice1 fully-scoped-key])
            (when lchoice2 (get-in cdict-snap [lchoice2 fully-scoped-key]))
            (when lchoice3 (get-in cdict-snap [lchoice3 fully-scoped-key]))
-           ((:missing-translation-fn @config) {:key     fully-scoped-key
+           ((:missing-translation-fn @config) {:key    fully-scoped-key
                                                :locale *Locale*})))))
 
 (comment (with-locale :en-ZA (t :example/foo))
