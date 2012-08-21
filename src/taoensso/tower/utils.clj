@@ -68,21 +68,24 @@
             (swap! cache assoc args {:time-cached now :d-result d-result})
             @d-result))))))
 
-(def some-file-resources-modified?
-  "Returns true iff any of the files backing given named resources have changed
-  since this function was last called. Ignores invalid files."
-  (let [times (atom {})]
-    (fn modified?
-      ([resource-name & more] (seq (filter modified? (cons resource-name more)))
-         (some modified? (cons resource-name more)))
-      ([resource-name]
-         (when-let [^File file (try (->> resource-name io/resource io/file)
-                                    (catch Exception _ nil))]
-           (let [last-modified (.lastModified file)]
-             (let [file-name (str file)
-                   modified? (> last-modified (@times file-name 0))]
-               (when modified? (swap! times assoc file-name last-modified))
-               modified?)))))))
+(defn file-resource-last-modified
+  "Returns last-modified time for file backing given named resource, or nil if
+  file doesn't exist."
+  [resource-name]
+  (when-let [^File file (try (->> resource-name io/resource io/file)
+                             (catch Exception _ nil))]
+    (.lastModified file)))
+
+(def file-resource-modified?
+  "Returns true iff the file backing given named resource has changed since this
+  function was last called."
+  (let [;; {file1 time1, file2 time2, ...}
+        previous-times (atom {})]
+    (fn [resource-name]
+      (let [time (file-resource-last-modified resource-name)]
+        (if-not (= time (get @previous-times resource-name))
+          (do (swap! previous-times assoc resource-name time) true)
+          false)))))
 
 (defn parse-http-accept-header
   "Parses HTTP Accept header and returns sequence of [choice weight] pairs
