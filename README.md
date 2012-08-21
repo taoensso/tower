@@ -20,8 +20,9 @@ Tower is an attempt to present a **simple, idiomatic internationalization and lo
  * Consistent, lightweight wrappers for standard Java **localization functions**.
  * Rails-like, all-Clojure **translation function**.
  * **Simple, map-based** translation dictionary format. No XML or resource files!
+ * Automatic dev-mode **dictionary reloading** for rapid REPL development.
  * Seamless **markdown support** for translators.
- * **Ring middleware** with **automatic dictionary reloading**.
+ * **Ring middleware**.
  * TODO: export/import to allow use with **industry-standard tools for translators**.
 
 ## Status [![Build Status](https://secure.travis-ci.org/ptaoussanis/tower.png?branch=master)](http://travis-ci.org/ptaoussanis/tower)
@@ -206,8 +207,6 @@ For each request, an appropriate locale will be selected from one of the followi
  * `(-> request :params :locale)`, e.g. `"/my-uri?locale=en-US"`.
  * A URI selector, e.g. `"/my-uri/locale/en-US/"`.
  * The request's Accept-Language HTTP header.
-
-In addition to locale selection, the middleware provides **automatic dictionary reloading** while in development mode. Just save changes to your dictionary resource file, and those changes will automatically and immediately reflect in your application.
 
 ## Tower supports the ClojureWerkz Project Goals
 
