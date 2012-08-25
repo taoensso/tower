@@ -432,7 +432,7 @@
      ;; Automatic dictionary reloading
      (let [{:keys [dev-mode? dict-res-name]} @config]
        (when (and dev-mode? dict-res-name
-                  (utils/some-file-resources-modified? dict-res-name))
+                  (utils/file-resource-modified? dict-res-name))
          (load-dictionary-from-map-resource! dict-res-name)))
 
      (let [fully-scoped-key ; :ns1/.../nsM/nsA/.../nsN = :ns1/.../nsN

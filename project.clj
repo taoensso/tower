@@ -1,4 +1,4 @@
-(defproject com.taoensso/tower "0.8.1"
+(defproject com.taoensso/tower "0.8.2"
   :description "Simple internationalization (i18n) library for Clojure."
   :url "https://github.com/ptaoussanis/tower"
   :license {:name "Eclipse Public License"}

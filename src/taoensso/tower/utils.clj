@@ -29,20 +29,30 @@
 (comment (escape-html "\"Word\" & <tag>"))
 
 (defn inline-markdown->html
-  "Uses regex to parse given markdown string into HTML. Supports only strong,
-  emph, and a context-spexific alternative style tag. Doesn't do any escaping."
+  "Uses regex to parse given markdown string into HTML. Doesn't do any escaping.
+
+    **x** => <strong>x</strong>
+    *x*   => <emph>x</emph>
+
+    __x__ => <b>x</b>
+    _x_   => <i>x</i>
+
+    ~~x~~ => <span class=\"alt1\">x</span>
+    ~x~   => <span class=\"alt2\">x</span>"
   [markdown]
 
   (-> markdown
       (str/replace #"\*\*(.+?)\*\*" "<strong>$1</strong>")
-      (str/replace #"__(.+?)__"     "<strong>$1</strong>")
       (str/replace #"\*(.+?)\*"     "<emph>$1</emph>")
-      (str/replace #"_(.+?)_"       "<emph>$1</emph>")
 
-      ;; "alt" span (define in surrounding CSS scope)
-      (str/replace #"~~(.+?)~~" "<span class=\"alt\">$1</span>")))
+      (str/replace #"__(.+?)__"     "<b>$1</b>")
+      (str/replace #"_(.+?)_"       "<i>$1</i>")
 
-(comment (inline-markdown->html "**strong** *emph* ~~alt~~ <tag>"))
+      (str/replace #"~~(.+?)~~"     "<span class=\"alt1\">$1</span>")
+      (str/replace #"~(.+?)~"       "<span class=\"alt2\">$1</span>")))
+
+(comment (inline-markdown->html "**strong** __b__ ~~alt1~~ <tag>")
+         (inline-markdown->html "*emph* _i_ ~alt2~ <tag>"))
 
 (defmacro defmem-
   "Defines a type-hinted, private memoized fn."
@@ -68,21 +78,24 @@
             (swap! cache assoc args {:time-cached now :d-result d-result})
             @d-result))))))
 
-(def some-file-resources-modified?
-  "Returns true iff any of the files backing given named resources have changed
-  since this function was last called. Ignores invalid files."
-  (let [times (atom {})]
-    (fn modified?
-      ([resource-name & more] (seq (filter modified? (cons resource-name more)))
-         (some modified? (cons resource-name more)))
-      ([resource-name]
-         (when-let [^File file (try (->> resource-name io/resource io/file)
-                                    (catch Exception _ nil))]
-           (let [last-modified (.lastModified file)]
-             (let [file-name (str file)
-                   modified? (> last-modified (@times file-name 0))]
-               (when modified? (swap! times assoc file-name last-modified))
-               modified?)))))))
+(defn file-resource-last-modified
+  "Returns last-modified time for file backing given named resource, or nil if
+  file doesn't exist."
+  [resource-name]
+  (when-let [^File file (try (->> resource-name io/resource io/file)
+                             (catch Exception _ nil))]
+    (.lastModified file)))
+
+(def file-resource-modified?
+  "Returns true iff the file backing given named resource has changed since this
+  function was last called."
+  (let [;; {file1 time1, file2 time2, ...}
+        previous-times (atom {})]
+    (fn [resource-name]
+      (let [time (file-resource-last-modified resource-name)]
+        (if-not (= time (get @previous-times resource-name))
+          (do (swap! previous-times assoc resource-name time) true)
+          false)))))
 
 (defn parse-http-accept-header
   "Parses HTTP Accept header and returns sequence of [choice weight] pairs
