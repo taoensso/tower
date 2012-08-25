@@ -29,20 +29,30 @@
 (comment (escape-html "\"Word\" & <tag>"))
 
 (defn inline-markdown->html
-  "Uses regex to parse given markdown string into HTML. Supports only strong,
-  emph, and a context-spexific alternative style tag. Doesn't do any escaping."
+  "Uses regex to parse given markdown string into HTML. Doesn't do any escaping.
+
+    **x** => <strong>x</strong>
+    *x*   => <emph>x</emph>
+
+    __x__ => <b>x</b>
+    _x_   => <i>x</i>
+
+    ~~x~~ => <span class=\"alt1\">x</span>
+    ~x~   => <span class=\"alt2\">x</span>"
   [markdown]
 
   (-> markdown
       (str/replace #"\*\*(.+?)\*\*" "<strong>$1</strong>")
-      (str/replace #"__(.+?)__"     "<strong>$1</strong>")
       (str/replace #"\*(.+?)\*"     "<emph>$1</emph>")
-      (str/replace #"_(.+?)_"       "<emph>$1</emph>")
 
-      ;; "alt" span (define in surrounding CSS scope)
-      (str/replace #"~~(.+?)~~" "<span class=\"alt\">$1</span>")))
+      (str/replace #"__(.+?)__"     "<b>$1</b>")
+      (str/replace #"_(.+?)_"       "<i>$1</i>")
 
-(comment (inline-markdown->html "**strong** *emph* ~~alt~~ <tag>"))
+      (str/replace #"~~(.+?)~~"     "<span class=\"alt1\">$1</span>")
+      (str/replace #"~(.+?)~"       "<span class=\"alt2\">$1</span>")))
+
+(comment (inline-markdown->html "**strong** __b__ ~~alt1~~ <tag>")
+         (inline-markdown->html "*emph* _i_ ~alt2~ <tag>"))
 
 (defmacro defmem-
   "Defines a type-hinted, private memoized fn."
