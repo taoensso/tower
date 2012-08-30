@@ -9,6 +9,11 @@
   (:import  [java.util Date Locale TimeZone]
             [java.text Collator NumberFormat DateFormat]))
 
+;;;; TODO
+;; * TODOs here.
+;; * README (incl. breaking update).
+;; * Tests.
+
 ;;;; Default configuration
 
 (declare compiled-dictionary)
@@ -18,7 +23,7 @@
     "This map controls everything about the way Tower operates.
 
     To enable translations, :dictionary should be a map of form
-    {:locale {:ns1 ... {:nsN {:key<.optional-decorator> text}}}}}
+    {:locale {:ns1 ... {:nsN {:key<_decorator> text}}}}}
 
     Other important options include:
       :default-locale which controls fallback locale for `with-locale` and for
@@ -36,14 +41,14 @@
          ;; Canonical example dictionary used for dev/debug, unit tests,
          ;; README, etc.
          :dictionary
-         {:en         {:example {:foo ":en :example/foo text"
-                                 :bar ":en :example/bar text"
-                                 :decorated {:foo.html "<tag>"
-                                             :foo.note "Translator note"
-                                             :bar.md   "**strong**"
+         {:en         {:example {:foo ":en :example.foo text"
+                                 :bar ":en :example.bar text"
+                                 :decorated {:foo_html "<tag>"
+                                             :foo_note "Translator note"
+                                             :bar_md   "**strong**"
                                              :baz      "<tag>"}}}
-          :en-US      {:example {:foo ":en-US :example/foo text"}}
-          :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
+          :en-US      {:example {:foo ":en-US :example.foo text"}}
+          :en-US-var1 {:example {:foo ":en-US-var1 :example.foo text"}}}
 
          :missing-translation-fn
          (fn [{:keys [key locale]}]
@@ -97,7 +102,7 @@
 
 (defmacro with-scope
   "Executes body within the context of thread-local translation-scope binding.
-  `translation-scope` should be a keyword like :example/greetings, or nil."
+  `translation-scope` should be a keyword like :example.greetings, or nil."
   [translation-scope & body]
   `(binding [*translation-scope* ~translation-scope] ~@body))
 
@@ -317,8 +322,8 @@
           (set-config! [:dict-res-name] resource-name))))
 
 (defn- compile-map-path
-  "[:locale :ns1 ... :nsN unscoped-key.decorator translation] =>
-  {:locale {:ns1/.../nsN/unscoped-key (f translation decorator)}}"
+  "[:locale :ns1 ... :nsN unscoped-key<_decorator> translation] =>
+  {:locale {:ns1.<...>.nsN.unscoped-key (f translation decorator)}}"
   [{:keys [escape-undecorated?] :as compiler-options} path]
   {:pre [(seq path) (>= (count path) 3)]}
   (let [path        (vec path)
@@ -328,14 +333,14 @@
 
         ;; Check for possible decorator
         [unscoped-k decorator]
-        (->> (str/split (name (peek (pop path))) #"\.")
+        (->> (str/split (name (peek (pop path))) #"_")
              (map keyword))
 
-        ;; [:ns1 ... :nsN :unscoped-key] => :ns1/.../nsN/unscoped-key
+        ;; [:ns1 ... :nsN :unscoped-key] => :ns1.<...>.nsN.unscoped-key
         scoped-key (->> (conj scope-ks unscoped-k)
                         (map name)
-                        (str/join "/")
-                        (keyword))]
+                        (str/join ".")
+                        keyword)]
 
     (when (not= decorator :note) ; Discard translator notes
       {locale-name
@@ -344,9 +349,9 @@
           :html translation ; HTML-safe, leave unchanged
 
           ;; Escape and parse as inline markdown
-          :md (-> (str translation)
-                  (utils/escape-html)
-                  (utils/inline-markdown->html))
+          :md (-> translation
+                  utils/escape-html
+                  utils/inline-markdown->html)
 
           ;; No decorator
           (if escape-undecorated?
@@ -357,14 +362,14 @@
   "Compiles text translations stored in simple development-friendly Clojure map
   into form required by localized text translator.
 
-    {:en {:example {:foo.html \"<tag>\"
-                    :foo.note \"Translator note\"
-                    :bar.md   \"**strong**\"
+    {:en {:example {:foo_html \"<tag>\"
+                    :foo_note \"Translator note\"
+                    :bar_md   \"**strong**\"
                     :baz      \"<tag>\"}}}
     =>
-    {:en {:example/foo \"<tag>\"
-          :example/bar \"<strong>strong</strong>\"
-          :example/baz \"&lt;tag&gt;\"}}
+    {:en {:example.foo \"<tag>\"
+          :example.bar \"<strong>strong</strong>\"
+          :example.baz \"&lt;tag&gt;\"}}
 
   Note the optional key decorators."
   []
@@ -391,16 +396,6 @@
 
 ;;;; Translation
 
-(defn- fqname
-  "Like `name` but nil-safe and returns fully-qualified name."
-  [keyword]
-  (when keyword
-    (if-let [ns (namespace keyword)]
-      (str ns "/" (name keyword))
-      (name keyword))))
-
-(comment (fqname :a/b/c/d))
-
 (def ^:private locales-to-check
   "Given a Locale, returns vector of dictionary locale names to check, in order
   of preference:
@@ -416,9 +411,9 @@
 (comment (locales-to-check (parse-Locale :en-US)))
 
 (defn t ; translate
-  "Localized text translator. Takes a namespaced key :nsA/.../nsN within a scope
-  :ns1/.../nsM and returns the best dictionary translation available for working
-  locale.
+  "Localized text translator. Takes a namespaced key :nsA.<...>.nsN within a
+  scope :ns1.<...>.nsM and returns the best dictionary translation available for
+  working locale.
 
   With additional arguments, treats translated text as pattern for message
   formatting.
@@ -435,10 +430,10 @@
                   (utils/file-resource-modified? dict-res-name))
          (load-dictionary-from-map-resource! dict-res-name)))
 
-     (let [fully-scoped-key ; :ns1/.../nsM/nsA/.../nsN = :ns1/.../nsN
+     (let [fully-scoped-key ; :ns1.<...>.nsM.nsA.<...>.nsN = :ns1.<...>.nsN
            (if *translation-scope*
-             (keyword (str (fqname *translation-scope*) "/"
-                           (fqname scoped-dict-key)))
+             (keyword (str (name *translation-scope*) "."
+                           (name scoped-dict-key)))
              scoped-dict-key)
 
            [lchoice1 lchoice2 lchoice3] (locales-to-check *Locale*)
@@ -450,6 +445,6 @@
            ((:missing-translation-fn @config) {:key    fully-scoped-key
                                                :locale *Locale*})))))
 
-(comment (with-locale :en-ZA (t :example/foo))
+(comment (with-locale :en-ZA (t :example.foo))
          (with-locale :en-ZA (with-scope :example (t :foo)))
          (with-locale :en-ZA (t :invalid)))

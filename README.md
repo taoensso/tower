@@ -137,14 +137,14 @@ Here Tower diverges from the standard Java approach in favour of something simpl
  :dictionary-compiler-options {:escape-undecorated? true}
 
  :dictionary
- {:en         {:example {:foo ":en :example/foo text"
-                         :bar ":en :example/bar text"
-                         :decorated {:foo.html "<tag>"
-                                     :foo.note "Translator note"
-                                     :bar.md   "**strong**"
+ {:en         {:example {:foo ":en :example.foo text"
+                         :bar ":en :example.bar text"
+                         :decorated {:foo_html "<tag>"
+                                     :foo_note "Translator note"
+                                     :bar_md   "**strong**"
                                      :baz      "<tag>"}}}
-  :en-US      {:example {:foo ":en-US :example/foo text"}}
-  :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
+  :en-US      {:example {:foo ":en-US :example.foo text"}}
+  :en-US-var1 {:example {:foo ":en-US-var1 :example.foo text"}}}
 
  :missing-translation-fn (fn [{:keys [key locale]}] ...)}
 ```
@@ -160,16 +160,16 @@ You can put `my-dictionary.clj` on your classpath or one of Leiningen's resource
 For now let's play with the default dictionary to see how Tower handles translation:
 
 ```clojure
-(with-locale :en-US (t :example/foo)) => ":en-US :example/foo text"
-(with-locale :en (t :example/foo))    => ":en :example/foo text"
+(with-locale :en-US (t :example.foo)) => ":en-US :example.foo text"
+(with-locale :en (t :example.foo))    => ":en :example.foo text"
 ```
 
 So that's as expected. Note that the decorator suffixes (.html, .md, etc.) control cached **HTML escaping, Markdown rendering, etc.**:
 
 ```clojure
-(with-locale :en (t :example/decorated/foo)) => "<tag>"
-(with-locale :en (t :example/decorated/bar)) => "<strong>strong</strong>"
-(with-locale :en (t :example/decorated/baz)) => "&lt;tag&gt;"
+(with-locale :en (t :example.decorated.foo)) => "<tag>"
+(with-locale :en (t :example.decorated.bar)) => "<strong>strong</strong>"
+(with-locale :en (t :example.decorated.baz)) => "&lt;tag&gt;"
 ```
 
 If you're calling the translate fn repeatedly within a specific namespace context, you can specify a **translation scope**:
@@ -178,13 +178,13 @@ If you're calling the translate fn repeatedly within a specific namespace contex
 (with-locale :en
   (with-scope :example
     (list (t :foo)
-          (t :bar)))) => (":en :example/foo text" ":en :example/bar text")
+          (t :bar)))) => (":en :example.foo text" ":en :example.bar text")
 ```
 
 What happens if we request a key that doesn't exist?
 
 ```clojure
-(with-locale :en-US (t :example/bar)) => ":en :example/bar text"
+(with-locale :en-US (t :example.bar)) => ":en :example.bar text"
 ```
 
 So the request for an `:en-US` translation fell back to the parent `:en` translation. This is great for sparse dictionaries (for example if you have only a few differences between your `:en-US` and `:en-UK` content).
