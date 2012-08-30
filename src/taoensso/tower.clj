@@ -37,7 +37,7 @@
          ;; README, etc.
          :dictionary
          {:en         {:example {:foo ":en :example.foo text"
-                                 :bar ":en :example.bar text"
+                                 :bar {:baz ":en :example.bar.baz text"}
                                  :decorated {:foo_html "<tag>"
                                              :foo_note "Translator note"
                                              :bar_md   "**strong**"

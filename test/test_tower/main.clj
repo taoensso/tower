@@ -120,4 +120,28 @@
 (deftest test-dt-parsing)
 (deftest test-text-formatting)
 (deftest test-dictionary-compiler)
-(deftest test-translations)
+
+(deftest test-translations
+
+  ;;; Locale selection & fallback
+  (is (= (with-locale :en      (t :example.foo)) ":en :example.foo text"))
+  (is (= (with-locale :en-US   (t :example.foo)) ":en-US :example.foo text"))
+  (is (= (with-locale :en-GB   (t :example.foo)) ":en :example.foo text"))
+  (is (= (with-locale :default (t :example.foo)) ":en :example.foo text"))
+
+  ;; Scoping
+  (with-locale :en
+    (is (= (t :example.foo)     ":en :example.foo text"))
+    (is (= (t :example.bar.baz) ":en :example.bar.baz text"))
+    (is (= (with-scope :example (t :foo))     (t :example.foo)))
+    (is (= (with-scope :example.bar (t :baz)) (t :example.bar.baz))))
+
+  ;; Missing
+  (is (= (t :invalid/foobar)) "**:invalid/foobar**")
+
+  ;; Decorators
+  (with-locale :en
+    (is (= (t :example.decorated.html)) "<tag>")
+    (is (= (t :example.decorated.note)  "**:example.decorated.note**"))
+    (is (= (t :example.decorated.md))   "<strong>strong</strong>")
+    (is (= (t :example.decorated.baz))  "&lt;tag&gt;")))
