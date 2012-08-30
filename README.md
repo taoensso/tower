@@ -1,14 +1,14 @@
 Current [semantic](http://semver.org/) version:
 
 ```clojure
-[com.taoensso/tower "0.8.2"]
+[com.taoensso/tower "0.9.0"]
 ```
 
-**Breaking changes** since _0.7.x_:
- * Affecting users of Tower's translation feature:
-   * Changed locale keyword format from `:en_US_var1` to [IETF](http://en.wikipedia.org/wiki/IETF_language_tag)-style `:en-US-var`. Please update your translation dictionary keys. Note that `with-locale` will continue to accept both formats.
- * Affecting [Timbre](https://github.com/ptaoussanis/timbre) users:
-   * Bumped dependency to Timbre 0.8.0. Please see [README](https://github.com/ptaoussanis/timbre/blob/2f52e709e789cf37f3d1f0e39e141468799db8c6/README.md) for changes.
+**Breaking changes** since _0.8.x_:
+ * Affecting `with-scope`:
+   * Changed scope format from `:example/foo` to `:example.foo`.
+ * Affecting translation decorators:
+   * Changed decorator format from `:foo.html` to `:foo_html`.
 
 # Tower, a simple internationalization (i18n) library for Clojure.
 
@@ -40,7 +40,7 @@ lein2 all test
 Depend on Tower in your `project.clj`:
 
 ```clojure
-[com.taoensso/tower "0.8.2"]
+[com.taoensso/tower "0.9.0"]
 ```
 
 and `require` the library:
