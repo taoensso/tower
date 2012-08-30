@@ -136,7 +136,7 @@ Here Tower diverges from the standard Java approach in favour of something simpl
 
  :dictionary
  {:en         {:example {:foo ":en :example.foo text"
-                         :bar ":en :example.bar text"
+                         :bar {:baz ":en :example.bar.baz text"}
                          :decorated {:foo_html "<tag>"
                                      :foo_note "Translator note"
                                      :bar_md   "**strong**"
@@ -176,13 +176,13 @@ If you're calling the translate fn repeatedly within a specific namespace contex
 (with-locale :en
   (with-scope :example
     (list (t :foo)
-          (t :bar)))) => (":en :example.foo text" ":en :example.bar text")
+          (t :bar.baz)))) => (":en :example.foo text" ":en :example.bar.baz text")
 ```
 
-What happens if we request a key that doesn't exist?
+What happens if we request a translation that doesn't exist?
 
 ```clojure
-(with-locale :en-US (t :example.bar)) => ":en :example.bar text"
+(with-locale :en-US (t :example.bar.baz)) => ":en :example.bar.baz text"
 ```
 
 So the request for an `:en-US` translation fell back to the parent `:en` translation. This is great for sparse dictionaries (for example if you have only a few differences between your `:en-US` and `:en-UK` content).
