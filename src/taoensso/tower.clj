@@ -9,11 +9,6 @@
   (:import  [java.util Date Locale TimeZone]
             [java.text Collator NumberFormat DateFormat]))
 
-;;;; TODO
-;; * TODOs here.
-;; * README (incl. breaking update).
-;; * Tests.
-
 ;;;; Default configuration
 
 (declare compiled-dictionary)
@@ -84,7 +79,7 @@
       (let [new-Locale (apply make-Locale (str/split (name locale) #"[-_]"))]
         (when (available-Locales new-Locale) new-Locale)))))
 
-(comment (map parse-Locale [nil :invalid :default :en-US]))
+(comment (map parse-Locale [nil :invalid :default :en-US :en-US-var1]))
 
 ;;;; Bindings
 
