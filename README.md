@@ -5,10 +5,8 @@ Current [semantic](http://semver.org/) version:
 ```
 
 **Breaking changes** since _0.8.x_:
- * Affecting `with-scope`:
-   * Changed scope format from `:example/foo` to `:example.foo`.
- * Affecting translation decorators:
-   * Changed decorator format from `:foo.html` to `:foo_html`.
+ * Affecting `with-scope`: changed scope format from `:example/foo` to `:example.foo`.
+ * Affecting translation decorators: changed decorator format from `:foo.html` to `:foo_html`.
 
 # Tower, a simple internationalization (i18n) library for Clojure.
 
