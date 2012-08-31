@@ -36,14 +36,14 @@
          ;; Canonical example dictionary used for dev/debug, unit tests,
          ;; README, etc.
          :dictionary
-         {:en         {:example {:foo ":en :example.foo text"
-                                 :bar {:baz ":en :example.bar.baz text"}
+         {:en         {:example {:foo       ":en :example/foo text"
+                                 :bar {:baz ":en :example.bar/baz text"}
                                  :decorated {:foo_html "<tag>"
                                              :foo_note "Translator note"
                                              :bar_md   "**strong**"
                                              :baz      "<tag>"}}}
-          :en-US      {:example {:foo ":en-US :example.foo text"}}
-          :en-US-var1 {:example {:foo ":en-US-var1 :example.foo text"}}}
+          :en-US      {:example {:foo ":en-US :example/foo text"}}
+          :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
 
          :missing-translation-fn
          (fn [{:keys [key locale]}]
@@ -83,7 +83,7 @@
 
 ;;;; Bindings
 
-(def ^:dynamic *Locale*            (parse-Locale :default))
+(def ^:dynamic *Locale* (parse-Locale :default))
 (def ^:dynamic *translation-scope* nil)
 
 (defmacro with-locale
@@ -318,7 +318,7 @@
 
 (defn- compile-map-path
   "[:locale :ns1 ... :nsN unscoped-key<_decorator> translation] =>
-  {:locale {:ns1.<...>.nsN.unscoped-key (f translation decorator)}}"
+  {:locale {:ns1.<...>.nsN/unscoped-key (f translation decorator)}}"
   [{:keys [escape-undecorated?] :as compiler-options} path]
   {:pre [(seq path) (>= (count path) 3)]}
   (let [path        (vec path)
@@ -331,11 +331,9 @@
         (->> (str/split (name (peek (pop path))) #"_")
              (map keyword))
 
-        ;; [:ns1 ... :nsN :unscoped-key] => :ns1.<...>.nsN.unscoped-key
-        scoped-key (->> (conj scope-ks unscoped-k)
-                        (map name)
-                        (str/join ".")
-                        keyword)]
+        ;; [:ns1 ... :nsN :unscoped-key] => :ns1.<...>.nsN/unscoped-key
+        scoped-key (keyword (str/join "." (map name scope-ks))
+                            (name unscoped-k))]
 
     (when (not= decorator :note) ; Discard translator notes
       {locale-name
@@ -362,9 +360,9 @@
                     :bar_md   \"**strong**\"
                     :baz      \"<tag>\"}}}
     =>
-    {:en {:example.foo \"<tag>\"
-          :example.bar \"<strong>strong</strong>\"
-          :example.baz \"&lt;tag&gt;\"}}
+    {:en {:example/foo \"<tag>\"
+          :example/bar \"<strong>strong</strong>\"
+          :example/baz \"&lt;tag&gt;\"}}
 
   Note the optional key decorators."
   []
@@ -405,10 +403,26 @@
 
 (comment (locales-to-check (parse-Locale :en-US)))
 
+(defn- scoped-key
+  "(scoped-key :a.b.c :k)     => :a.b.c/k
+   (scoped-key :a.b.c :d.e/k) => :a.b.c.d.e/k"
+  [root-scope scoped-key]
+  (if root-scope
+    (let [full-scope (str (name root-scope)
+                          (when-let [more (namespace scoped-key)] (str "." more)))
+          unscoped-key (name scoped-key)]
+      (keyword full-scope unscoped-key))
+    scoped-key))
+
+(comment (scoped-key :a.b.c :k)
+         (scoped-key :a.b.c :d.e/k)
+         (scoped-key nil :k)
+         (scoped-key nil :a.b/k))
+
 (defn t ; translate
-  "Localized text translator. Takes a namespaced key :nsA.<...>.nsN within a
-  scope :ns1.<...>.nsM and returns the best dictionary translation available for
-  working locale.
+  "Localized text translator. Takes a (possibly scoped) dictionary key
+  :nsA.<...>.nsN/key within a root scope :ns1.<...>.nsM and returns the best
+  translation available for working locale.
 
   With additional arguments, treats translated text as pattern for message
   formatting.
@@ -425,11 +439,8 @@
                   (utils/file-resource-modified? dict-res-name))
          (load-dictionary-from-map-resource! dict-res-name)))
 
-     (let [fully-scoped-key ; :ns1.<...>.nsM.nsA.<...>.nsN = :ns1.<...>.nsN
-           (if *translation-scope*
-             (keyword (str (name *translation-scope*) "."
-                           (name scoped-dict-key)))
-             scoped-dict-key)
+     (let [;; :ns1.<...>.nsM.nsA.<...>/nsN = :ns1.<...>.nsN/key
+           fully-scoped-key (scoped-key *translation-scope* scoped-dict-key)
 
            [lchoice1 lchoice2 lchoice3] (locales-to-check *Locale*)
            cdict-snap @compiled-dictionary]
@@ -440,6 +451,6 @@
            ((:missing-translation-fn @config) {:key    fully-scoped-key
                                                :locale *Locale*})))))
 
-(comment (with-locale :en-ZA (t :example.foo))
+(comment (with-locale :en-ZA (t :example/foo))
          (with-locale :en-ZA (with-scope :example (t :foo)))
          (with-locale :en-ZA (t :invalid)))
