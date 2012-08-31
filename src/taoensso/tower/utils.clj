@@ -30,29 +30,37 @@
 
 (defn inline-markdown->html
   "Uses regex to parse given markdown string into HTML. Doesn't do any escaping.
-
     **x** => <strong>x</strong>
     *x*   => <emph>x</emph>
-
     __x__ => <b>x</b>
     _x_   => <i>x</i>
-
     ~~x~~ => <span class=\"alt1\">x</span>
     ~x~   => <span class=\"alt2\">x</span>"
-  [markdown]
+  [& strs]
+  (-> (apply str strs)
+      ;; Unescaped X is (?<!\\)X
+      (str/replace #"(?<!\\)\*\*(.+?)(?<!\\)\*\*" "<strong>$1</strong>")
+      (str/replace #"(?<!\\)\*(.+?)(?<!\\)\*"     "<emph>$1</emph>")
+      (str/replace #"\\\*" "*") ; Unescape \*s
 
-  (-> markdown
-      (str/replace #"\*\*(.+?)\*\*" "<strong>$1</strong>")
-      (str/replace #"\*(.+?)\*"     "<emph>$1</emph>")
+      (str/replace #"(?<!\\)__(.+?)(?<!\\)__" "<b>$1</b>")
+      (str/replace #"(?<!\\)_(.+?)(?<!\\)__"  "<i>$1</i>")
+      (str/replace #"\\\_" "_") ; Unescape \_s
 
-      (str/replace #"__(.+?)__"     "<b>$1</b>")
-      (str/replace #"_(.+?)_"       "<i>$1</i>")
+      (str/replace #"(?<!\\)~~(.+?)(?<!\\)~~" "<span class=\"alt1\">$1</span>")
+      (str/replace #"(?<!\\)~(.+?)(?<!\\)~"   "<span class=\"alt2\">$1</span>")
+      (str/replace #"\\\~" "~") ; Unescape \~s
+      ))
 
-      (str/replace #"~~(.+?)~~"     "<span class=\"alt1\">$1</span>")
-      (str/replace #"~(.+?)~"       "<span class=\"alt2\">$1</span>")))
-
-(comment (inline-markdown->html "**strong** __b__ ~~alt1~~ <tag>")
-         (inline-markdown->html "*emph* _i_ ~alt2~ <tag>"))
+(comment (println "[^\\\\]") ;; Note need to double-escape (Clojure+Regex)
+         (inline-markdown->html "**strong** __b__ ~~alt1~~ <tag>")
+         (inline-markdown->html "*emph* _i_ ~alt2~ <tag>")
+         (println "**foo\\*bar**")
+         (println "**foo\\*bar**")
+         (println (inline-markdown->html "**foo\\*bar**"))
+         (println (inline-markdown->html "*foo\\*bar*"))
+         (println (inline-markdown->html "\\*foo\\*bar*"))
+         (println "This\\* is starred, and *this* is emphasized."))
 
 (defmacro defmem-
   "Defines a type-hinted, private memoized fn."

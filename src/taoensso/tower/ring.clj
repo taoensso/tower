@@ -23,9 +23,9 @@
 (comment (locale-from-uri {:uri "/foo/bar/locale/en/"}))
 
 (defn make-wrap-i18n-middleware
-  "Sets i18n bindings for request after determining locale preference from
-  (tower/parse-Locale (locale-selector-fn request)), session, query params,
-  URI, or headers.
+  "Returns Ring middleware that sets i18n bindings for request after determining
+  locale preference from (tower/parse-Locale (locale-selector-fn request)),
+  session, query params, URI, or headers.
 
   `locale-selector-fn` can be used to select a locale by IP address, subdomain,
   top-level domain, etc."
