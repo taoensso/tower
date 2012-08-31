@@ -125,18 +125,18 @@
 
   ;; Locale selection & fallback
   (are [locale expected]
-       (= (with-locale locale (t :example.foo)) expected)
-       :en      ":en :example.foo text"
-       :en-US   ":en-US :example.foo text"
-       :en-GB   ":en :example.foo text"
-       :default ":en :example.foo text")
+       (= (with-locale locale (t :example/foo)) expected)
+       :en      ":en :example/foo text"
+       :en-US   ":en-US :example/foo text"
+       :en-GB   ":en :example/foo text"
+       :default ":en :example/foo text")
 
   ;; Scoping
   (with-locale :en
-    (is (= (t :example.foo)     ":en :example.foo text"))
-    (is (= (t :example.bar.baz) ":en :example.bar.baz text"))
-    (is (= (with-scope :example     (t :foo)) (t :example.foo)))
-    (is (= (with-scope :example.bar (t :baz)) (t :example.bar.baz))))
+    (is (= (t :example/foo)     ":en :example/foo text"))
+    (is (= (t :example.bar/baz) ":en :example.bar/baz text"))
+    (is (= (with-scope :example     (t :foo)) (t :example/foo)))
+    (is (= (with-scope :example.bar (t :baz)) (t :example.bar/baz))))
 
   ;; Missing
   (is (= (t :invalid/foobar)) "**:invalid/foobar**")
@@ -144,7 +144,6 @@
   ;; Decorators
   (with-locale :en
     (are [key expected] (= (t key) expected)
-         :example.decorated.html "<tag>"
-         :example.decorated.note "**:example.decorated.note**"
-         :example.decorated.md   "<strong>strong</strong>"
-         :example.decorated.baz  "&lt;tag&gt;")))
+         :example.decorated/foo "<tag>"
+         :example.decorated/bar "<strong>strong</strong>"
+         :example.decorated/baz  "&lt;tag&gt;")))
