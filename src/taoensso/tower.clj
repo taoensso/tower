@@ -83,7 +83,7 @@
 
 ;;;; Bindings
 
-(def ^:dynamic *Locale*            nil)
+(def ^:dynamic *Locale*            (parse-Locale :default))
 (def ^:dynamic *translation-scope* nil)
 
 (defmacro with-locale
