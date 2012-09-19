@@ -131,16 +131,12 @@ Here Tower diverges from the standard Java approach in favour of something simpl
 =>
 {:dev-mode?      true
  :default-locale :en
-
- :dictionary-compiler-options {:escape-undecorated? true}
-
  :dictionary
  {:en         {:example {:foo       ":en :example/foo text"
                          :bar {:baz ":en :example.bar/baz text"}
-                         :decorated {:foo_html "<tag>"
-                                     :foo_note "Translator note"
-                                     :bar_md   "**strong**"
-                                     :baz      "<tag>"}}}
+                         :decorated {:foo!     "<tag>**strong**</tag>"
+                                     :bar      "<tag>**strong**</tag>"
+                                     :bar_note "Translator note"}}}
   :en-US      {:example {:foo ":en-US :example/foo text"}}
   :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
 
@@ -162,12 +158,11 @@ For now let's play with the default dictionary to see how Tower handles translat
 (with-locale :en    (t :example/foo)) => ":en :example/foo text"
 ```
 
-So that's as expected. Note that the decorator suffixes (.html, .md, etc.) control cached **HTML escaping, Markdown rendering, etc.**:
+Translation strings are escaped and parsed as inline [Markdown](http://daringfireball.net/projects/markdown/) unless suffixed with `!`:
 
 ```clojure
-(with-locale :en (t :example.decorated/foo)) => "<tag>"
-(with-locale :en (t :example.decorated/bar)) => "<strong>strong</strong>"
-(with-locale :en (t :example.decorated/baz)) => "&lt;tag&gt;"
+(with-locale :en (t :example.decorated/foo)) => "<tag>**strong**</tag>"
+(with-locale :en (t :example.decorated/bar)) => "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
 ```
 
 If you're calling the translate fn repeatedly within a specific namespace context, you can specify a **translation scope**:

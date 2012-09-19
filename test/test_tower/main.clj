@@ -144,6 +144,5 @@
   ;; Decorators
   (with-locale :en
     (are [key expected] (= (t key) expected)
-         :example.decorated/foo "<tag>"
-         :example.decorated/bar "<strong>strong</strong>"
-         :example.decorated/baz  "&lt;tag&gt;")))
+         :example.decorated/foo "<tag>**strong**</tag>"
+         :example.decorated/bar "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;")))

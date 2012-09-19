@@ -18,7 +18,7 @@
     "This map controls everything about the way Tower operates.
 
     To enable translations, :dictionary should be a map of form
-    {:locale {:ns1 ... {:nsN {:key<_decorator> text}}}}}
+    {:locale {:ns1 ... {:nsN {:key<decorator> text}}}}}
 
     Other important options include:
       :default-locale which controls fallback locale for `with-locale` and for
@@ -31,17 +31,14 @@
   (atom {:dev-mode?      true
          :default-locale :en
 
-         :dictionary-compiler-options {:escape-undecorated? true}
-
          ;; Canonical example dictionary used for dev/debug, unit tests,
          ;; README, etc.
          :dictionary
          {:en         {:example {:foo       ":en :example/foo text"
                                  :bar {:baz ":en :example.bar/baz text"}
-                                 :decorated {:foo_html "<tag>"
-                                             :foo_note "Translator note"
-                                             :bar_md   "**strong**"
-                                             :baz      "<tag>"}}}
+                                 :decorated {:foo!     "<tag>**strong**</tag>"
+                                             :bar      "<tag>**strong**</tag>"
+                                             :bar_note "Translator note"}}}
           :en-US      {:example {:foo ":en-US :example/foo text"}}
           :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
 
@@ -203,7 +200,7 @@
 (comment
   (with-locale :de (format-msg "foobar {0}!" 102.22))
   (with-locale :de (format-msg "foobar {0,number,integer}!" 102.22))
-  (with-locale :de
+  (with-locale :de ; Note that choice text must be unescaped!
     (-> #(format-msg "{0,choice,0#no cats|1#one cat|1<{0,number} cats}" %)
         (map (range 5)) doall)))
 
@@ -317,60 +314,47 @@
           (set-config! [:dict-res-name] resource-name))))
 
 (defn- compile-map-path
-  "[:locale :ns1 ... :nsN unscoped-key<_decorator> translation] =>
+  "[:locale :ns1 ... :nsN unscoped-key<decorator> translation] =>
   {:locale {:ns1.<...>.nsN/unscoped-key (f translation decorator)}}"
-  [{:keys [escape-undecorated?] :as compiler-options} path]
+  [path]
   {:pre [(seq path) (>= (count path) 3)]}
   (let [path        (vec path)
         locale-name (first path)
         translation (peek path)
         scope-ks    (subvec path 1 (- (count path) 2)) ; [:ns1 ... :nsN]
 
-        ;; Check for possible decorator
-        [unscoped-k decorator]
-        (->> (str/split (name (peek (pop path))) #"_")
+        [_ unscoped-k decorator] ; Check for possible decorator
+        (->> (re-find #"([^!_]+)([!_].*)*" (name (peek (pop path))))
              (map keyword))
 
         ;; [:ns1 ... :nsN :unscoped-key] => :ns1.<...>.nsN/unscoped-key
         scoped-key (keyword (str/join "." (map name scope-ks))
                             (name unscoped-k))]
 
-    (when (not= decorator :note) ; Discard translator notes
-      {locale-name
-       {scoped-key
-        (case decorator
-          :html translation ; HTML-safe, leave unchanged
-
-          ;; Escape and parse as inline markdown
-          :md (-> translation
-                  utils/escape-html
-                  utils/inline-markdown->html)
-
-          ;; No decorator
-          (if escape-undecorated?
-            (utils/escape-html translation)
-            translation))}})))
+    (when-let [translation (case decorator
+                             :_note      nil
+                             (:_html :!) translation
+                             (-> translation utils/escape-html
+                                 utils/inline-markdown->html))]
+      {locale-name {scoped-key translation}})))
 
 (defn- compile-dictionary!
   "Compiles text translations stored in simple development-friendly Clojure map
   into form required by localized text translator.
 
-    {:en {:example {:foo_html \"<tag>\"
-                    :foo_note \"Translator note\"
-                    :bar_md   \"**strong**\"
-                    :baz      \"<tag>\"}}}
+    {:en {:example {:foo!     \"<tag>**strong**</tag>\"
+                    :bar      \"<tag>**strong**</tag>\"
+                    :bar_note \"Translator note\"}}}
     =>
-    {:en {:example/foo \"<tag>\"
-          :example/bar \"<strong>strong</strong>\"
-          :example/baz \"&lt;tag&gt;\"}}
+    {:en {:example/foo \"<tag>**strong**</tag>\"
+          :example/bar \"&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;\"}}
 
   Note the optional key decorators."
   []
-  (let [{:keys [dictionary dictionary-compiler-options]} @config]
-    (->> (utils/leaf-paths dictionary)
-         (map (partial compile-map-path dictionary-compiler-options))
-         (apply merge-with merge) ; 1-level recursive merge
-         (reset! compiled-dictionary))))
+  (->> (utils/leaf-paths (:dictionary @config))
+       (map compile-map-path)
+       (apply merge-with merge) ; 1-level recursive merge
+       (reset! compiled-dictionary)))
 
 (compile-dictionary!) ; Actually compile default dictionary now
 
