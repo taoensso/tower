@@ -1,12 +1,11 @@
 Current [semantic](http://semver.org/) version:
 
 ```clojure
-[com.taoensso/tower "0.10.0"]
+[com.taoensso/tower "0.11.0"]
 ```
 
-**Breaking changes** since _0.8.x_:
- * Affecting `t`, `with-scope`: changed key format from `:ns1/ns2/key` to `:ns1.ns2/key`.
- * Affecting translation decorators: changed decorator format from `:key.html` to `:key_html`.
+**Breaking changes** since _0.10.x_:
+ * Affecting translations: all translations now escaped and parsed as Markdown by default.
 
 # Tower, a simple internationalization (i18n) library for Clojure.
 
@@ -38,7 +37,7 @@ lein2 all test
 Depend on Tower in your `project.clj`:
 
 ```clojure
-[com.taoensso/tower "0.10.0"]
+[com.taoensso/tower "0.11.0"]
 ```
 
 and `require` the library:
