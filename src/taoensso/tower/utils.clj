@@ -17,6 +17,15 @@
       (cons k w))
     (list (list map))))
 
+(defn take-until
+  "Like `take-while` but always takes first item from coll."
+  ([pred coll] (take-until pred coll true))
+  ([pred coll first?]
+     (lazy-seq
+      (when-let [s (seq coll)]
+        (when (or first? (pred (first s)))
+          (cons (first s) (take-until pred (rest s) false)))))))
+
 (defn escape-html
   "Changes some common special characters into HTML character entities."
   [s]

@@ -438,3 +438,20 @@
 (comment (with-locale :en-ZA (t :example/foo))
          (with-locale :en-ZA (with-scope :example (t :foo)))
          (with-locale :en-ZA (t :invalid)))
+
+(defmacro tstr
+  "EXPERIMENTAL. Like `t` but joins together multiple translations:
+  (tstr :k1 :k2 \"arg1\" \"arg2\" :k3) =>
+  (str/join \" \" (t :k1) (t :k2 \"arg1\" \"arg2\") (t :k3))"
+  ([scoped-dict-key] `(t ~scoped-dict-key))
+  ([scoped-dict-key & ks-and-args]
+     (let [partitions ; Lists of 1 keyword, each followed by optional args
+           (loop [v [] remaining (cons scoped-dict-key ks-and-args)]
+             (if-not (seq remaining)
+               v
+               (let [partition
+                     (vec (utils/take-until (complement keyword?) remaining))]
+                 (recur (conj v partition) (drop (count partition) remaining)))))]
+       `(str/join " " (map #(apply t %) ~partitions)))))
+
+(comment (with-locale :en-ZA (tstr :example/foo :example/bar/baz)))
