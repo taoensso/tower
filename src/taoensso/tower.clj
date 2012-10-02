@@ -456,4 +456,4 @@
                  (recur (conj v partition) (drop (count partition) remaining)))))]
        `(str/join " " (map #(apply t %) ~partitions)))))
 
-(comment (with-locale :en-ZA (tstr :example/greeting "Steve" :example/foo )))
+(comment (with-locale :en-ZA (tstr :example/greeting "Steve" :example/foo)))
