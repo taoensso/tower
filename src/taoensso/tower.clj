@@ -35,10 +35,12 @@
          ;; README, etc.
          :dictionary
          {:en         {:example {:foo       ":en :example/foo text"
+                                 :foo_note  "Hello translator, please do x"
                                  :bar {:baz ":en :example.bar/baz text"}
-                                 :decorated {:foo!     "<tag>**strong**</tag>"
-                                             :bar      "<tag>**strong**</tag>"
-                                             :bar_note "Translator note"}}}
+                                 :greeting  "Hello {0}, how are you?"
+                                 :with-markdown "<tag>**strong**</tag>"
+                                 :with-exclaim! "<tag>**strong**</tag>"}}
+
           :en-US      {:example {:foo ":en-US :example/foo text"}}
           :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
 
@@ -200,7 +202,7 @@
 (comment
   (with-locale :de (format-msg "foobar {0}!" 102.22))
   (with-locale :de (format-msg "foobar {0,number,integer}!" 102.22))
-  (with-locale :de ; Note that choice text must be unescaped!
+  (with-locale :de ; Note that choice text must be unescaped! Use `!` decorator.
     (-> #(format-msg "{0,choice,0#no cats|1#one cat|1<{0,number} cats}" %)
         (map (range 5)) doall)))
 
@@ -342,12 +344,12 @@
   "Compiles text translations stored in simple development-friendly Clojure map
   into form required by localized text translator.
 
-    {:en {:example {:foo!     \"<tag>**strong**</tag>\"
-                    :bar      \"<tag>**strong**</tag>\"
-                    :bar_note \"Translator note\"}}}
+    {:en {:example {:with-markdown \"<tag>**strong**</tag>\"
+                    :with-exclaim! \"<tag>**strong**</tag>\"
+                    :foo_note      \"Hello translator, please do x\"}}}
     =>
-    {:en {:example/foo \"<tag>**strong**</tag>\"
-          :example/bar \"&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;\"}}
+    {:en {:example/with-markdown \"&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;\"
+          :example/with-exclaim! \"<tag>**strong**</tag>\"}}
 
   Note the optional key decorators."
   []
@@ -454,4 +456,4 @@
                  (recur (conj v partition) (drop (count partition) remaining)))))]
        `(str/join " " (map #(apply t %) ~partitions)))))
 
-(comment (with-locale :en-ZA (tstr :example/foo :example/bar/baz)))
+(comment (with-locale :en-ZA (tstr :example/greeting "Steve" :example/foo )))

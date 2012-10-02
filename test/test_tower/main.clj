@@ -141,8 +141,11 @@
   ;; Missing
   (is (= (t :invalid/foobar)) "**:invalid/foobar**")
 
-  ;; Decorators
+  ;; Arg interpolation
+  (is (= (t :example/greeting "Steve") "Hello Steve, how are you?"))
+
+  ;; Decorators (markdown+escape, verbatim, translator note)
   (with-locale :en
     (are [key expected] (= (t key) expected)
-         :example.decorated/foo "<tag>**strong**</tag>"
-         :example.decorated/bar "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;")))
+         :example/with-markdown "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
+         :example/with-exclaim  "<tag>**strong**</tag>")))

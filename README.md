@@ -43,8 +43,7 @@ Depend on Tower in your `project.clj`:
 and `require` the library:
 
 ```clojure
-(ns my-app
-  (:use [taoensso.tower :as tower :only (with-locale with-scope t style)])
+(ns my-app (:use [taoensso.tower :as tower :only (with-locale with-scope t style)])
 ```
 
 Note that in practice you'll usually use `:only (t)`. We're importing a few extra things here to help with the examples.
@@ -132,10 +131,11 @@ Here Tower diverges from the standard Java approach in favour of something simpl
  :default-locale :en
  :dictionary
  {:en         {:example {:foo       ":en :example/foo text"
+                         :foo_note  "Hello translator, please do x"
                          :bar {:baz ":en :example.bar/baz text"}
-                         :decorated {:foo!     "<tag>**strong**</tag>"
-                                     :bar      "<tag>**strong**</tag>"
-                                     :bar_note "Translator note"}}}
+                         :greeting  "Hello {0}, how are you?"
+                         :with-markdown "<tag>**strong**</tag>"
+                         :with-exclaim! "<tag>**strong**</tag>"}}}
   :en-US      {:example {:foo ":en-US :example/foo text"}}
   :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
 
@@ -155,13 +155,14 @@ For now let's play with the default dictionary to see how Tower handles translat
 ```clojure
 (with-locale :en-US (t :example/foo)) => ":en-US :example/foo text"
 (with-locale :en    (t :example/foo)) => ":en :example/foo text"
+(with-locale :en    (t :example/greeting "Steve")) => "Hello Steve, how are you?"
 ```
 
 Translation strings are escaped and parsed as inline [Markdown](http://daringfireball.net/projects/markdown/) unless suffixed with `!`:
 
 ```clojure
-(with-locale :en (t :example.decorated/foo)) => "<tag>**strong**</tag>"
-(with-locale :en (t :example.decorated/bar)) => "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
+(with-locale :en (t :example/with-markdown)) => "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
+(with-locale :en (t :example/with-exclaim!)) => "<tag>**strong**</tag>"
 ```
 
 If you're calling the translate fn repeatedly within a specific namespace context, you can specify a **translation scope**:
@@ -173,7 +174,7 @@ If you're calling the translate fn repeatedly within a specific namespace contex
           (t :bar/baz)))) => (":en :example/foo text" ":en :example.bar/baz text")
 ```
 
-What happens if we request a translation that doesn't exist?
+What happens if we request a translation that doesn't exist for the current locale?
 
 ```clojure
 (with-locale :en-US (t :example.bar/baz)) => ":en :example.bar/baz text"
