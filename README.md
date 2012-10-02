@@ -48,6 +48,76 @@ and `require` the library:
 
 Note that in practice you'll usually use `:only (t)`. We're importing a few extra things here to help with the examples.
 
+### Translation
+
+Here Tower diverges from the standard Java approach in favour of something simpler and more agile. Let's look at the default config:
+
+```clojure
+@tower/config
+=>
+{:dev-mode?      true
+ :default-locale :en
+ :dictionary
+ {:en         {:example {:foo       ":en :example/foo text"
+                         :foo_note  "Hello translator, please do x"
+                         :bar {:baz ":en :example.bar/baz text"}
+                         :greeting  "Hello {0}, how are you?"
+                         :with-markdown "<tag>**strong**</tag>"
+                         :with-exclaim! "<tag>**strong**</tag>"}}}
+  :en-US      {:example {:foo ":en-US :example/foo text"}}
+  :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
+
+ :missing-translation-fn (fn [{:keys [key locale]}] ...)}
+```
+
+Note the format of the `:dictionary` map since **this is the map you'll change to set your own translations**. Work with the map in place using `set-config!`, or load translations from a ClassLoader resource:
+
+```clojure
+(tower/load-dictionary-from-map-resource! "my-dictionary.clj")
+```
+
+You can put `my-dictionary.clj` on your classpath or one of Leiningen's resource paths (e.g. `/resources/`).
+
+For now let's play with the default dictionary to see how Tower handles translation:
+
+```clojure
+(with-locale :en-US (t :example/foo)) => ":en-US :example/foo text"
+(with-locale :en    (t :example/foo)) => ":en :example/foo text"
+(with-locale :en    (t :example/greeting "Steve")) => "Hello Steve, how are you?"
+```
+
+Translation strings are escaped and parsed as inline [Markdown](http://daringfireball.net/projects/markdown/) unless suffixed with `!`:
+
+```clojure
+(with-locale :en (t :example/with-markdown)) => "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
+(with-locale :en (t :example/with-exclaim!)) => "<tag>**strong**</tag>"
+```
+
+If you're calling the translate fn repeatedly within a specific namespace context, you can specify a **translation scope**:
+
+```clojure
+(with-locale :en
+  (with-scope :example
+    (list (t :foo)
+          (t :bar/baz)))) => (":en :example/foo text" ":en :example.bar/baz text")
+```
+
+What happens if we request a translation that doesn't exist for the current locale?
+
+```clojure
+(with-locale :en-US (t :example.bar/baz)) => ":en :example.bar/baz text"
+```
+
+So the request for an `:en-US` translation fell back to the parent `:en` translation. This is great for sparse dictionaries (for example if you have only a few differences between your `:en-US` and `:en-UK` content).
+
+But what if a key just doesn't exist at all?
+
+```clojure
+(with-locale :en (t :this-is-invalid)) => "**:this-is-invalid**"
+```
+
+The behaviour here is actually controlled by `(:missing-translation-fn @tower/config)` and is fully configurable. Please see the source code for further details.
+
 ### Localization
 
 If you're not using the provided Ring middleware, you'll need to call localization and translation functions from within a `with-locale` body:
@@ -119,76 +189,6 @@ If you're not using the provided Ring middleware, you'll need to call localizati
 => {:sorted-ids   ["Pacific/Midway" "Pacific/Niue" ...]
     :sorted-names ["(GMT -11:00) Midway" "(GMT -11:00) Niue" ...]
 ```
-
-### Translation
-
-Here Tower diverges from the standard Java approach in favour of something simpler and more agile. Let's look at the default config:
-
-```clojure
-@tower/config
-=>
-{:dev-mode?      true
- :default-locale :en
- :dictionary
- {:en         {:example {:foo       ":en :example/foo text"
-                         :foo_note  "Hello translator, please do x"
-                         :bar {:baz ":en :example.bar/baz text"}
-                         :greeting  "Hello {0}, how are you?"
-                         :with-markdown "<tag>**strong**</tag>"
-                         :with-exclaim! "<tag>**strong**</tag>"}}}
-  :en-US      {:example {:foo ":en-US :example/foo text"}}
-  :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
-
- :missing-translation-fn (fn [{:keys [key locale]}] ...)}
-```
-
-Note the format of the `:dictionary` map since **this is the map you'll change to set your own translations**. Work with the map in place using `set-config!`, or load translations from a ClassLoader resource:
-
-```clojure
-(tower/load-dictionary-from-map-resource! "my-dictionary.clj")
-```
-
-You can put `my-dictionary.clj` on your classpath or one of Leiningen's resource paths (e.g. `/resources/`).
-
-For now let's play with the default dictionary to see how Tower handles translation:
-
-```clojure
-(with-locale :en-US (t :example/foo)) => ":en-US :example/foo text"
-(with-locale :en    (t :example/foo)) => ":en :example/foo text"
-(with-locale :en    (t :example/greeting "Steve")) => "Hello Steve, how are you?"
-```
-
-Translation strings are escaped and parsed as inline [Markdown](http://daringfireball.net/projects/markdown/) unless suffixed with `!`:
-
-```clojure
-(with-locale :en (t :example/with-markdown)) => "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
-(with-locale :en (t :example/with-exclaim!)) => "<tag>**strong**</tag>"
-```
-
-If you're calling the translate fn repeatedly within a specific namespace context, you can specify a **translation scope**:
-
-```clojure
-(with-locale :en
-  (with-scope :example
-    (list (t :foo)
-          (t :bar/baz)))) => (":en :example/foo text" ":en :example.bar/baz text")
-```
-
-What happens if we request a translation that doesn't exist for the current locale?
-
-```clojure
-(with-locale :en-US (t :example.bar/baz)) => ":en :example.bar/baz text"
-```
-
-So the request for an `:en-US` translation fell back to the parent `:en` translation. This is great for sparse dictionaries (for example if you have only a few differences between your `:en-US` and `:en-UK` content).
-
-But what if a key just doesn't exist at all?
-
-```clojure
-(with-locale :en (t :this-is-invalid)) => "**:this-is-invalid**"
-```
-
-The behaviour here is actually controlled by `(:missing-translation-fn @tower/config)` and is fully configurable. Please see the source code for further details.
 
 ### Ring Middlware
 
