@@ -405,41 +405,68 @@
          (scoped-key nil :k)
          (scoped-key nil :a.b/k))
 
+(defn- get-t
+  "Returns the translation corresponding to scoped-dict-key in the current
+  locales. Returns nil if no match is found.
+
+  If :dev-mode? is set in tower/config and if dictionary was loaded using
+  tower/load-dictionary-from-map-resource!, dictionary will be automatically
+  reloaded each time the resource file changes."
+  [scoped-dict-key]
+
+  ;; Automatic dictionary reloading
+  (let [{:keys [dev-mode? dict-res-name]} @config]
+    (when (and dev-mode? dict-res-name
+               (utils/file-resource-modified? dict-res-name))
+      (load-dictionary-from-map-resource! dict-res-name))
+    
+    (let [;; :ns1.<...>.nsM.nsA.<...>/nsN = :ns1.<...>.nsN/key
+          fully-scoped-key (scoped-key *translation-scope* scoped-dict-key)
+          [lchoice1 lchoice2 lchoice3] (locales-to-check *Locale*)
+          cdict-snap @compiled-dictionary]
+      
+      (or (get-in cdict-snap [lchoice1 fully-scoped-key])
+          (when lchoice2 (get-in cdict-snap [lchoice2 fully-scoped-key]))
+          (when lchoice3 (get-in cdict-snap [lchoice3 fully-scoped-key]))))))
+
 (defn t ; translate
   "Localized text translator. Takes a (possibly scoped) dictionary key
   :nsA.<...>.nsN/key within a root scope :ns1.<...>.nsM and returns the best
   translation available for working locale.
 
   With additional arguments, treats translated text as pattern for message
-  formatting.
-
-  If :dev-mode? is set in tower/config and if dictionary was loaded using
-  tower/load-dictionary-from-map-resource!, dictionary will be automatically
-  reloaded each time the resource file changes."
-  ([scoped-dict-key & args] (apply format-msg (t scoped-dict-key) args))
+  formatting."
+  ([scoped-dict-key & args]
+     (apply format-msg (t scoped-dict-key) args))
   ([scoped-dict-key]
-
-     ;; Automatic dictionary reloading
-     (let [{:keys [dev-mode? dict-res-name]} @config]
-       (when (and dev-mode? dict-res-name
-                  (utils/file-resource-modified? dict-res-name))
-         (load-dictionary-from-map-resource! dict-res-name)))
-
-     (let [;; :ns1.<...>.nsM.nsA.<...>/nsN = :ns1.<...>.nsN/key
-           fully-scoped-key (scoped-key *translation-scope* scoped-dict-key)
-
-           [lchoice1 lchoice2 lchoice3] (locales-to-check *Locale*)
-           cdict-snap @compiled-dictionary]
-
-       (or (get-in cdict-snap [lchoice1 fully-scoped-key])
-           (when lchoice2 (get-in cdict-snap [lchoice2 fully-scoped-key]))
-           (when lchoice3 (get-in cdict-snap [lchoice3 fully-scoped-key]))
-           ((:missing-translation-fn @config) {:key    fully-scoped-key
+     (or (get-t scoped-dict-key)
+         (let [fully-scoped-key (scoped-key *translation-scope* scoped-dict-key)]
+           ((:missing-translation-fn @config) {:key fully-scoped-key
                                                :locale *Locale*})))))
 
 (comment (with-locale :en-ZA (t :example/foo))
          (with-locale :en-ZA (with-scope :example (t :foo)))
          (with-locale :en-ZA (t :invalid)))
+
+(defn if-t
+  "Like `t` but does not call the missing translation function, opting instead
+  to return a nil value if no matching translation is found."
+  ([scoped-dict-key & args]
+     (if-let [translation (if-t scoped-dict-key)]
+       (apply format-msg translation args)))
+  ([scoped-dict-key]
+     (get-t scoped-dict-key)))
+
+(defn first-t
+  "Like `t` but accepts a sequence of multiple keys as arguments, returning a
+  translation for the first matching key or the output of the missing
+  translation function called on the last key."
+  ([scoped-dict-keys & args]
+     (apply format-msg (first-t scoped-dict-keys) args))
+  ([scoped-dict-keys]
+     (or (some get-t (drop-last scoped-dict-keys))
+         ;; Default to translation of last key
+         (t (last scoped-dict-keys)))))
 
 (defmacro tstr
   "EXPERIMENTAL. Like `t` but joins together multiple translations:
