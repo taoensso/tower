@@ -1,6 +1,6 @@
 (ns taoensso.tower
-  "Simple internationalization (i18n) library for Clojure. Wraps standard Java
-  functionality when possible, removing unnecessary boilerplate."
+  "Simple internationalization (i18n) and localization (L10n) library for
+  Clojure. Wraps standard Java facilities when possible."
   {:author "Peter Taoussanis"}
   (:require [clojure.string  :as str]
             [clojure.java.io :as io]
@@ -15,19 +15,16 @@
 
 (defonce config
   ^{:doc
-    "This map controls everything about the way Tower operates.
+    "This map atom controls everything about the way Tower operates.
 
     To enable translations, :dictionary should be a map of form
-    {:locale {:ns1 ... {:nsN {:key<decorator> text}}}}}
+    {:locale {:ns1 ... {:nsN {:key<decorator> text}}}}}.
 
-    Other important options include:
-      :default-locale which controls fallback locale for `with-locale` and for
-      default missing-translation function.
+    :default-locale controls fallback locale for `with-locale` and `t`.
+    :dev-mode? controls `t` automatic dictionary reloading and default
+      `log-missing-translation!-fn` behaviour.
 
-      :dev-mode? which controls automatic dictionary reloading and the behaviour
-      of default missing-translation function.
-
-    See source code for further details."}
+    See source code for details."}
   (atom {:dev-mode?      true
          :default-locale :en
 
@@ -39,19 +36,17 @@
                                  :bar {:baz ":en :example.bar/baz text"}
                                  :greeting  "Hello {0}, how are you?"
                                  :with-markdown "<tag>**strong**</tag>"
-                                 :with-exclaim! "<tag>**strong**</tag>"}}
+                                 :with-exclaim! "<tag>**strong**</tag>"}
+                       :missing  "<Translation missing: {0}>"}
 
           :en-US      {:example {:foo ":en-US :example/foo text"}}
           :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
 
-         :missing-translation-fn
-         (fn [{:keys [key locale]}]
-           (let [{:keys [dev-mode? default-locale]} @config]
-             (if dev-mode?
-               (str "**" key "**")
-               (do (timbre/error "Missing translation" key "for" locale)
-                   (get-in @compiled-dictionary [default-locale key]
-                           "")))))}))
+         :log-missing-translation!-fn
+         (fn [{:keys [dev-mode? locale k-or-ks]}]
+           (if dev-mode?
+             (timbre/warn  "Missing translation" k-or-ks "for" locale)
+             (timbre/error "Missing translation" k-or-ks "for" locale)))}))
 
 (defn set-config! [[k & ks] val] (swap! config assoc-in (cons k ks) val))
 
@@ -294,10 +289,8 @@
 ;;;; Dictionary management
 
 (def ^:private compiled-dictionary
-  "Compiled form of (:dictionary @config) that:
-    1. Is efficient to store.
-    2. Is efficient to access.
-    3. Has display-ready, decorator-controlled text values."
+  "Compiled form of (:dictionary @config) for efficiently storable and
+  accessible display-ready text translations."
   (atom {}))
 
 (defn load-dictionary-from-map-resource!
@@ -330,7 +323,7 @@
              (map keyword))
 
         ;; [:ns1 ... :nsN :unscoped-key] => :ns1.<...>.nsN/unscoped-key
-        scoped-key (keyword (str/join "." (map name scope-ks))
+        scoped-key (keyword (when (seq scope-ks) (str/join "." (map name scope-ks)))
                             (name unscoped-k))]
 
     (when-let [translation (case decorator
@@ -389,71 +382,104 @@
 
 (comment (locales-to-check (parse-Locale :en-US)))
 
-(defn- scoped-key
+(def ^:private scoped-key
   "(scoped-key :a.b.c :k)     => :a.b.c/k
    (scoped-key :a.b.c :d.e/k) => :a.b.c.d.e/k"
-  [root-scope scoped-key]
-  (if root-scope
-    (let [full-scope (str (name root-scope)
-                          (when-let [more (namespace scoped-key)] (str "." more)))
-          unscoped-key (name scoped-key)]
-      (keyword full-scope unscoped-key))
-    scoped-key))
+  (memoize
+   (fn [root-scope scoped-key]
+     (if root-scope
+       (let [full-scope
+             (str (name root-scope)
+                  (when-let [more (namespace scoped-key)] (str "." more)))
+             unscoped-key (name scoped-key)]
+         (keyword full-scope unscoped-key))
+       scoped-key))))
 
 (comment (scoped-key :a.b.c :k)
          (scoped-key :a.b.c :d.e/k)
          (scoped-key nil :k)
          (scoped-key nil :a.b/k))
 
-(defn t ; translate
-  "Localized text translator. Takes a (possibly scoped) dictionary key
-  :nsA.<...>.nsN/key within a root scope :ns1.<...>.nsM and returns the best
-  translation available for working locale.
+(defn- translate
+  ([ignore-missing? k-or-ks & interpolation-args]
+     (when-let [pattern (translate ignore-missing? k-or-ks)]
+       (apply format-msg pattern interpolation-args)))
+  ([ignore-missing? k-or-ks]
+     (let [{:keys [dev-mode? default-locale log-missing-translation!-fn
+                   dict-res-name]} @config]
+
+       ;; Automatic dictionary reloading
+       (when (and dev-mode? dict-res-name
+                  (utils/file-resource-modified? dict-res-name))
+         (load-dictionary-from-map-resource! dict-res-name))
+
+       (let [;; :ns1.<...>.nsM.nsA.<...>/nsN = :ns1.<...>.nsN/key
+             sk          (partial scoped-key *translation-scope*)
+             get-in-dict (partial get-in @compiled-dictionary)
+             lchoices    (locales-to-check *Locale*)
+             kchoices    (if (vector? k-or-ks) k-or-ks [k-or-ks])
+             lchoices*   (delay (if-not (some #{default-locale} lchoices)
+                                  (conj lchoices default-locale)
+                                  lchoices))]
+
+         (or
+          ;; Try named keys in named locale, allowing transparent fallback to
+          ;; locale with stripped variation &/or region
+          (some get-in-dict (for [l lchoices k kchoices] [l (sk k)]))
+
+          (when-not ignore-missing?
+            (log-missing-translation!-fn
+             {:dev-mode? dev-mode? :locale *Locale* :k-or-ks k-or-ks})
+
+            ;; Try fall back to named keys in default locale, different to named
+            (when-not (= @lchoices* lchoices)
+              (some get-in-dict (for [k kchoices] [default-locale (sk k)])))
+
+            ;; Try fall back to :missing key in named or default locale
+            (when-let [missing (some get-in-dict (for [l @lchoices*] [l :missing]))]
+              (format-msg missing k-or-ks))))))))
+
+(def t*
+  "Like `t` but doesn't log missing translations or fall back to :missing key."
+  (partial translate true))
+
+(def t
+  "Localized text translator. Takes (possibly scoped) dictionary key (or vector
+  of descending-preference keys) of form :nsA.<...>.nsN/key within a root scope
+  :ns1.<...>.nsM and returns the best translation available for working locale.
 
   With additional arguments, treats translated text as pattern for message
   formatting.
 
-  If :dev-mode? is set in tower/config and if dictionary was loaded using
-  tower/load-dictionary-from-map-resource!, dictionary will be automatically
+  If :dev-mode? is set in `tower/config` and if dictionary was loaded using
+  `tower/load-dictionary-from-map-resource!`, dictionary will be automatically
   reloaded each time the resource file changes."
-  ([scoped-dict-key & args] (apply format-msg (t scoped-dict-key) args))
-  ([scoped-dict-key]
-
-     ;; Automatic dictionary reloading
-     (let [{:keys [dev-mode? dict-res-name]} @config]
-       (when (and dev-mode? dict-res-name
-                  (utils/file-resource-modified? dict-res-name))
-         (load-dictionary-from-map-resource! dict-res-name)))
-
-     (let [;; :ns1.<...>.nsM.nsA.<...>/nsN = :ns1.<...>.nsN/key
-           fully-scoped-key (scoped-key *translation-scope* scoped-dict-key)
-
-           [lchoice1 lchoice2 lchoice3] (locales-to-check *Locale*)
-           cdict-snap @compiled-dictionary]
-
-       (or (get-in cdict-snap [lchoice1 fully-scoped-key])
-           (when lchoice2 (get-in cdict-snap [lchoice2 fully-scoped-key]))
-           (when lchoice3 (get-in cdict-snap [lchoice3 fully-scoped-key]))
-           ((:missing-translation-fn @config) {:key    fully-scoped-key
-                                               :locale *Locale*})))))
+  (partial translate false))
 
 (comment (with-locale :en-ZA (t :example/foo))
          (with-locale :en-ZA (with-scope :example (t :foo)))
-         (with-locale :en-ZA (t :invalid)))
+         (with-locale :en-ZA (t :invalid))
+         (with-locale :en-ZA (t* :invalid))
+         (with-locale :en-ZA (t [:invalid :example/foo]))
+         (time (dotimes [_ 10000] (t :example/foo))) ; +/- 40ms w/o dev-mode?
+         )
 
 (defmacro tstr
   "EXPERIMENTAL. Like `t` but joins together multiple translations:
-  (tstr :k1 :k2 \"arg1\" \"arg2\" :k3) =>
-  (str/join \" \" (t :k1) (t :k2 \"arg1\" \"arg2\") (t :k3))"
-  ([scoped-dict-key] `(t ~scoped-dict-key))
-  ([scoped-dict-key & ks-and-args]
-     (let [partitions ; Lists of 1 keyword, each followed by optional args
-           (loop [v [] remaining (cons scoped-dict-key ks-and-args)]
+  (tstr :k1 :k2 \"arg1\" \"arg2\" [:k3-choice1 :k3-choice2]) =>
+  (str/join \" \" (t :k1) (t :k2 \"arg1\" \"arg2\") (t [:k3-choice1 :k3-choice2]))"
+  ([k-or-ks] `(t ~k-or-ks))
+  ([k-or-ks & more]
+     (let [;; Lists of 1 k-or-ks, each followed by optional args for interpolation
+           partitions
+           (loop [v [] remaining (cons k-or-ks more)]
              (if-not (seq remaining)
                v
                (let [partition
-                     (vec (utils/take-until (complement keyword?) remaining))]
+                     (vec (utils/take-until
+                           #(and (not (keyword? %)) (not (vector?  %)))
+                           remaining))]
                  (recur (conj v partition) (drop (count partition) remaining)))))]
        `(str/join " " (map #(apply t %) ~partitions)))))
 
-(comment (with-locale :en-ZA (tstr :example/greeting "Steve" :example/foo)))
+(comment (with-locale :en-ZA (tstr :example/greeting "Steve" [:example/foo])))

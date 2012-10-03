@@ -124,8 +124,7 @@
 (deftest test-translations
 
   ;; Locale selection & fallback
-  (are [locale expected]
-       (= (with-locale locale (t :example/foo)) expected)
+  (are [locale expected] (= (with-locale locale (t :example/foo)) expected)
        :en      ":en :example/foo text"
        :en-US   ":en-US :example/foo text"
        :en-GB   ":en :example/foo text"
@@ -138,14 +137,19 @@
     (is (= (with-scope :example     (t :foo)) (t :example/foo)))
     (is (= (with-scope :example.bar (t :baz)) (t :example.bar/baz))))
 
-  ;; Missing
-  (is (= (t :invalid/foobar)) "**:invalid/foobar**")
-
-  ;; Arg interpolation
-  (is (= (t :example/greeting "Steve") "Hello Steve, how are you?"))
-
   ;; Decorators (markdown+escape, verbatim, translator note)
   (with-locale :en
     (are [key expected] (= (t key) expected)
          :example/with-markdown "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
-         :example/with-exclaim  "<tag>**strong**</tag>")))
+         :example/with-exclaim  "<tag>**strong**</tag>"))
+
+  ;; Arg interpolation
+  (with-locale :en
+    (is (= (t :example/greeting "Steve") "Hello Steve, how are you?")))
+
+  ;; Missing keys & key fallback
+  (with-locale :en
+    (is (= (t [:invalid :example/foo] ":en :example/foo text")))
+    (is (= (t :invalid) "&lt;Translation missing: :invalid&gt;"))
+    (is (= (tower/t* :invalid) nil))
+    (is (= (tower/t* :invalid "Steve") nil))))
