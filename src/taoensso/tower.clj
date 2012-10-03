@@ -464,7 +464,7 @@
   ([scoped-dict-keys & args]
      (apply format-msg (first-t scoped-dict-keys) args))
   ([scoped-dict-keys]
-     (or (first (filter identity (map get-t (drop-last scoped-dict-keys))))
+     (or (some get-t (drop-last scoped-dict-keys))
          ;; Default to translation of last key
          (t (last scoped-dict-keys)))))
 
