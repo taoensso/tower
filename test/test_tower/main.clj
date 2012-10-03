@@ -2,7 +2,8 @@
   (:import  [java.util Date GregorianCalendar])
   (:require [taoensso.tower.ring :as ring])
   (:use [clojure.test]
-        [taoensso.tower :as tower :only (with-locale with-scope parse-number t)]))
+        [taoensso.tower :as tower :only (with-locale with-scope parse-number
+                                          t if-t first-t)]))
 
 ;; TODO Tests
 
@@ -136,13 +137,21 @@
     (is (= (t :example/foo)     ":en :example/foo text"))
     (is (= (t :example.bar/baz) ":en :example.bar/baz text"))
     (is (= (with-scope :example     (t :foo)) (t :example/foo)))
-    (is (= (with-scope :example.bar (t :baz)) (t :example.bar/baz))))
+    (is (= (with-scope :example.bar (t :baz)) (t :example.bar/baz)))
+    (is (= (if-t :example/foo) ":en :example/foo text"))
+    (is (= (first-t [:invalid/first :example/foo :example.bar/baz])
+           ":en :example/foo text")))
 
   ;; Missing
-  (is (= (t :invalid/foobar)) "**:invalid/foobar**")
+  (is (= (t :invalid/foobar) "**:invalid/foobar**"))
+  (is (nil? (if-t :invalid/foobar)))
+  (is (= (first-t [:invalid/first :invalid/second]) "**:invalid/second**"))
 
   ;; Arg interpolation
   (is (= (t :example/greeting "Steve") "Hello Steve, how are you?"))
+  (is (= (if-t :example/greeting "Steve") "Hello Steve, how are you?"))
+  (is (= (first-t [:invalid/first :example/greeting :example/foo] "Steve")
+         "Hello Steve, how are you?"))
 
   ;; Decorators (markdown+escape, verbatim, translator note)
   (with-locale :en
