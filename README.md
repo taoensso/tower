@@ -1,11 +1,12 @@
 Current [semantic](http://semver.org/) version:
 
 ```clojure
-[com.taoensso/tower "0.11.0"]
+[com.taoensso/tower "0.12.0"]
 ```
 
 **Breaking changes** since _0.10.x_:
  * Affecting translations: all translations now escaped and parsed as Markdown by default.
+ * `:missing-translation-fn` config option has been removed. See [commit](http://goo.gl/sFAI7) for more info.
 
 # Tower, a simple internationalization (i18n) library for Clojure.
 
@@ -37,7 +38,7 @@ lein2 all test
 Depend on Tower in your `project.clj`:
 
 ```clojure
-[com.taoensso/tower "0.11.0"]
+[com.taoensso/tower "0.12.0"]
 ```
 
 and `require` the library:
