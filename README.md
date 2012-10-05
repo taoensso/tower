@@ -1,11 +1,12 @@
 Current [semantic](http://semver.org/) version:
 
 ```clojure
-[com.taoensso/tower "0.11.0"]
+[com.taoensso/tower "0.12.0"]
 ```
 
 **Breaking changes** since _0.10.x_:
  * Affecting translations: all translations now escaped and parsed as Markdown by default.
+ * `:missing-translation-fn` config option has been removed. See [commit](http://goo.gl/sFAI7) for more info.
 
 # Tower, a simple internationalization (i18n) library for Clojure.
 
@@ -37,7 +38,7 @@ lein2 all test
 Depend on Tower in your `project.clj`:
 
 ```clojure
-[com.taoensso/tower "0.11.0"]
+[com.taoensso/tower "0.12.0"]
 ```
 
 and `require` the library:
@@ -45,8 +46,6 @@ and `require` the library:
 ```clojure
 (ns my-app (:use [taoensso.tower :as tower :only (with-locale with-scope t style)])
 ```
-
-Note that in practice you'll usually use `:only (t)`. We're importing a few extra things here to help with the examples.
 
 ### Translation
 
@@ -63,11 +62,12 @@ Here Tower diverges from the standard Java approach in favour of something simpl
                          :bar {:baz ":en :example.bar/baz text"}
                          :greeting  "Hello {0}, how are you?"
                          :with-markdown "<tag>**strong**</tag>"
-                         :with-exclaim! "<tag>**strong**</tag>"}}}
+                         :with-exclaim! "<tag>**strong**</tag>"}}
+               :missing  "<Translation missing: {0}>"}
   :en-US      {:example {:foo ":en-US :example/foo text"}}
   :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
 
- :missing-translation-fn (fn [{:keys [key locale]}] ...)}
+ :log-missing-translation-fn! (fn [{:keys [dev-mode? locale k-or-ks]}] ...)}
 ```
 
 Note the format of the `:dictionary` map since **this is the map you'll change to set your own translations**. Work with the map in place using `set-config!`, or load translations from a ClassLoader resource:
@@ -102,21 +102,22 @@ If you're calling the translate fn repeatedly within a specific namespace contex
           (t :bar/baz)))) => (":en :example/foo text" ":en :example.bar/baz text")
 ```
 
-What happens if we request a translation that doesn't exist for the current locale?
+Missing translations are handled gracefully. `(with-scope :en-US (t :example/foo))` searches for a translation as follows:
+ 1. `:example/foo` in the `:en-US` locale.
+ 2. `:example/foo` in the `:en` locale.
+ 3. `:example/foo` in the default locale, `(:default-locale @tower/config)`.
+ 4. `:missing` in any of the above locales.
 
-```clojure
-(with-locale :en-US (t :example.bar/baz)) => ":en :example.bar/baz text"
-```
+You can also specify fallback keys that'll be tried before other locales. `(with-scope :en-US (t [:example/foo :example/bar]))` searches:
+ 1. `:example/foo` in the `:en-US` locale.
+ 2. `:example/bar` in the `:en-US` locale.
+ 3. `:example/foo` in the `:en` locale.
+ 4. `:example/bar` in the `:en` locale.
+ 5. `:example/foo` in the default locale.
+ 6. `:example/bar` in the default locale.
+ 7. `:missing` in any of the above locales.
 
-So the request for an `:en-US` translation fell back to the parent `:en` translation. This is great for sparse dictionaries (for example if you have only a few differences between your `:en-US` and `:en-UK` content).
-
-But what if a key just doesn't exist at all?
-
-```clojure
-(with-locale :en (t :this-is-invalid)) => "**:this-is-invalid**"
-```
-
-The behaviour here is actually controlled by `(:missing-translation-fn @tower/config)` and is fully configurable. Please see the source code for further details.
+In all cases, translation request is logged upon fallback to default locale or :missing key.
 
 ### Localization
 
