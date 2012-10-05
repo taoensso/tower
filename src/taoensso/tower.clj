@@ -366,7 +366,7 @@
 (defn dictionary->xliff [m]) ; TODO Use hiccup?
 (defn xliff->dictionary [s]) ; TODO Use clojure.xml/parse?
 
-;;;; Translation
+;;;; Translations
 
 (def ^:private locales-to-check
   "Given a Locale, returns vector of dictionary locale names to check, in order
@@ -400,11 +400,21 @@
          (scoped-key nil :k)
          (scoped-key nil :a.b/k))
 
-(defn- translate
-  ([ignore-missing? k-or-ks & interpolation-args]
-     (when-let [pattern (translate ignore-missing? k-or-ks)]
+(defn t ; translate
+  "Localized text translator. Takes (possibly scoped) dictionary key (or vector
+  of descending-preference keys) of form :nsA.<...>.nsN/key within a root scope
+  :ns1.<...>.nsM and returns the best translation available for working locale.
+
+  With additional arguments, treats translated text as pattern for message
+  formatting.
+
+  If :dev-mode? is set in `tower/config` and if dictionary was loaded using
+  `tower/load-dictionary-from-map-resource!`, dictionary will be automatically
+  reloaded each time the resource file changes."
+  ([k-or-ks & interpolation-args]
+     (when-let [pattern (t k-or-ks)]
        (apply format-msg pattern interpolation-args)))
-  ([ignore-missing? k-or-ks]
+  ([k-or-ks]
      (let [{:keys [dev-mode? default-locale log-missing-translation!-fn
                    dict-res-name]} @config]
 
@@ -417,51 +427,44 @@
              sk          (partial scoped-key *translation-scope*)
              get-in-dict (partial get-in @compiled-dictionary)
              lchoices    (locales-to-check *Locale*)
-             kchoices    (if (vector? k-or-ks) k-or-ks [k-or-ks])
              lchoices*   (delay (if-not (some #{default-locale} lchoices)
                                   (conj lchoices default-locale)
-                                  lchoices))]
+                                  lchoices))
+             kchoices*   (if (vector? k-or-ks) k-or-ks [k-or-ks])
+             kchoices    (take-while keyword? kchoices*)]
 
          (or
           ;; Try named keys in named locale, allowing transparent fallback to
           ;; locale with stripped variation &/or region
           (some get-in-dict (for [l lchoices k kchoices] [l (sk k)]))
 
-          (when-not ignore-missing?
-            (log-missing-translation!-fn
-             {:dev-mode? dev-mode? :locale *Locale* :k-or-ks k-or-ks})
+          (let [last-kchoice* (peek kchoices*)]
+            (if-not (keyword? last-kchoice*)
+              last-kchoice* ; Return provided explicit fallback value
 
-            ;; Try fall back to named keys in default locale, different to named
-            (when-not (= @lchoices* lchoices)
-              (some get-in-dict (for [k kchoices] [default-locale (sk k)])))
+              (do (log-missing-translation!-fn
+                   {:dev-mode? dev-mode? :locale *Locale* :k-or-ks k-or-ks})
 
-            ;; Try fall back to :missing key in named or default locale
-            (when-let [missing (some get-in-dict (for [l @lchoices*] [l :missing]))]
-              (format-msg missing k-or-ks))))))))
+                  ;; Try fall back to named keys in (different) default locale
+                  (when-not (= @lchoices* lchoices)
+                    (some get-in-dict (for [k kchoices] [default-locale (sk k)])))
 
-(def t
-  "Localized text translator. Takes (possibly scoped) dictionary key (or vector
-  of descending-preference keys) of form :nsA.<...>.nsN/key within a root scope
-  :ns1.<...>.nsM and returns the best translation available for working locale.
-
-  With additional arguments, treats translated text as pattern for message
-  formatting.
-
-  If :dev-mode? is set in `tower/config` and if dictionary was loaded using
-  `tower/load-dictionary-from-map-resource!`, dictionary will be automatically
-  reloaded each time the resource file changes."
-  (partial translate false))
-
-(def t*
-  "Like `t` but doesn't log missing translations or fall back to :missing key."
-  (partial translate true))
+                  ;; Try fall back to :missing key in named or default locale
+                  (when-let [pattern (some get-in-dict (for [l @lchoices*]
+                                                         [l :missing]))]
+                    (format-msg pattern k-or-ks))))))))))
 
 (comment (with-locale :en-ZA (t :example/foo))
          (with-locale :en-ZA (with-scope :example (t :foo)))
          (with-locale :en-ZA (t :invalid))
          (with-locale :en-ZA (t* :invalid))
          (with-locale :en-ZA (t [:invalid :example/foo]))
-         (time (dotimes [_ 10000] (t :example/foo))) ; +/- 40ms w/o dev-mode?
+         (with-locale :en-ZA (t [:invalid "Explicit fallback"]))
+
+         ;; Benchmarks (dev-mode disabled):
+         (time (dotimes [_ 10000] (t :example/foo)))            ; +/- 35ms
+         (time (dotimes [_ 10000] (t [:invalid :example/foo]))) ; +/- 60ms
+         (time (dotimes [_ 10000] (t [:invalid nil])))          ; +/- 45ms
          )
 
 (defmacro tstr
