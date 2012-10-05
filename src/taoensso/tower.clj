@@ -439,10 +439,6 @@
             (when-let [missing (some get-in-dict (for [l @lchoices*] [l :missing]))]
               (format-msg missing k-or-ks))))))))
 
-(def t*
-  "Like `t` but doesn't log missing translations or fall back to :missing key."
-  (partial translate true))
-
 (def t
   "Localized text translator. Takes (possibly scoped) dictionary key (or vector
   of descending-preference keys) of form :nsA.<...>.nsN/key within a root scope
@@ -455,6 +451,10 @@
   `tower/load-dictionary-from-map-resource!`, dictionary will be automatically
   reloaded each time the resource file changes."
   (partial translate false))
+
+(def t*
+  "Like `t` but doesn't log missing translations or fall back to :missing key."
+  (partial translate true))
 
 (comment (with-locale :en-ZA (t :example/foo))
          (with-locale :en-ZA (with-scope :example (t :foo)))
