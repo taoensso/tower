@@ -149,7 +149,7 @@
 
   ;; Missing keys & key fallback
   (with-locale :en
-    (is (= (t [:invalid :example/foo] ":en :example/foo text")))
     (is (= (t :invalid) "&lt;Translation missing: :invalid&gt;"))
-    (is (= (tower/t* :invalid) nil))
-    (is (= (tower/t* :invalid "Steve") nil))))
+    (is (= (t [:invalid :example/foo]) ":en :example/foo text"))
+    (is (= (t [:invalid "Explicit fallback"]) "Explicit fallback"))
+    (is (= (t [:invalid nil]) nil))))

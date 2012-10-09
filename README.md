@@ -1,7 +1,7 @@
 Current [semantic](http://semver.org/) version:
 
 ```clojure
-[com.taoensso/tower "0.12.0"]
+[com.taoensso/tower "0.12.1"]
 ```
 
 **Breaking changes** since _0.10.x_:
@@ -38,7 +38,7 @@ lein2 all test
 Depend on Tower in your `project.clj`:
 
 ```clojure
-[com.taoensso/tower "0.12.0"]
+[com.taoensso/tower "0.12.1"]
 ```
 
 and `require` the library:
