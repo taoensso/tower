@@ -1,7 +1,7 @@
 Current [semantic](http://semver.org/) version:
 
 ```clojure
-[com.taoensso/tower "0.12.1"]
+[com.taoensso/tower "0.12.2"]
 ```
 
 **Breaking changes** since _0.10.x_:
@@ -28,7 +28,7 @@ Tower is an attempt to present a **simple, idiomatic internationalization and lo
 Tower is still currently *experimental*. It **has not yet been thoroughly tested in production** and its API is subject to change. To run tests against all supported Clojure versions, use:
 
 ```bash
-lein2 all test
+lein all test
 ```
 
 ## Getting Started
@@ -38,7 +38,7 @@ lein2 all test
 Depend on Tower in your `project.clj`:
 
 ```clojure
-[com.taoensso/tower "0.12.1"]
+[com.taoensso/tower "0.12.2"]
 ```
 
 and `require` the library:
