@@ -46,7 +46,7 @@
          (fn [{:keys [dev-mode? locale k-or-ks]}]
            (if dev-mode?
              (timbre/warn  "Missing translation" k-or-ks "for" locale)
-             (timbre/error "Missing translation" k-or-ks "for" locale)))}))
+             (timbre/debug "Missing translation" k-or-ks "for" locale)))}))
 
 (defn set-config! [[k & ks] val] (swap! config assoc-in (cons k ks) val))
 
@@ -442,17 +442,19 @@
             (if-not (keyword? last-kchoice*)
               last-kchoice* ; Return provided explicit fallback value
 
-              (do (log-missing-translation!-fn
-                   {:dev-mode? dev-mode? :locale *Locale* :k-or-ks k-or-ks})
+              (do
+                (log-missing-translation!-fn
+                 {:dev-mode? dev-mode? :locale *Locale* :k-or-ks k-or-ks})
 
-                  ;; Try fall back to named keys in (different) default locale
-                  (when-not (= @lchoices* lchoices)
-                    (some get-in-dict (for [k kchoices] [default-locale (sk k)])))
+                (or
+                 ;; Try fall back to named keys in (different) default locale
+                 (when-not (= @lchoices* lchoices)
+                   (some get-in-dict (for [k kchoices] [default-locale (sk k)])))
 
-                  ;; Try fall back to :missing key in named or default locale
-                  (when-let [pattern (some get-in-dict (for [l @lchoices*]
-                                                         [l :missing]))]
-                    (format-msg pattern k-or-ks))))))))))
+                 ;; Try fall back to :missing key in named or default locale
+                 (when-let [pattern (some get-in-dict (for [l @lchoices*]
+                                                        [l :missing]))]
+                   (format-msg pattern k-or-ks)))))))))))
 
 (comment (with-locale :en-ZA (t :example/foo))
          (with-locale :en-ZA (with-scope :example (t :foo)))
