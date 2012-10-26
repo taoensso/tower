@@ -128,7 +128,8 @@
        :en      ":en :example/foo text"
        :en-US   ":en-US :example/foo text"
        :en-GB   ":en :example/foo text"
-       :default ":en :example/foo text")
+       :default ":en :example/foo text"
+       :zh-CN   ":en :example/foo text")
 
   ;; Scoping
   (with-locale :en
