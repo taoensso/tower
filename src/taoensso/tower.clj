@@ -46,7 +46,7 @@
          (fn [{:keys [dev-mode? locale k-or-ks]}]
            (if dev-mode?
              (timbre/warn  "Missing translation" k-or-ks "for" locale)
-             (timbre/error "Missing translation" k-or-ks "for" locale)))}))
+             (timbre/debug "Missing translation" k-or-ks "for" locale)))}))
 
 (defn set-config! [[k & ks] val] (swap! config assoc-in (cons k ks) val))
 
