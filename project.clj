@@ -1,5 +1,5 @@
-(defproject com.taoensso/tower "0.12.3"
-  :description "Simple internationalization and localization library for Clojure."
+(defproject com.taoensso/tower "1.0.0"
+  :description "Clojure internationalization & translation library"
   :url "https://github.com/ptaoussanis/tower"
   :license {:name "Eclipse Public License"}
   :dependencies [[org.clojure/clojure "1.3.0"]
