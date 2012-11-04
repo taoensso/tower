@@ -1,20 +1,17 @@
 Current [semantic](http://semver.org/) version:
 
 ```clojure
-[com.taoensso/tower "0.12.3"]
+[com.taoensso/tower "1.0.0"]
 ```
 
-**Breaking changes** since _0.10.x_:
- * Affecting translations: all translations now escaped and parsed as Markdown by default.
- * `:missing-translation-fn` config option has been removed. See [commit](http://goo.gl/sFAI7) for more info.
-
-# Tower, a simple internationalization (i18n) library for Clojure.
+# Tower, a Clojure internationalization & translation library
 
 The Java platform provides some very capable tools for writing internationalized applications. Unfortunately, these tools can be disappointingly cumbersome when taken into a Clojure context.
 
 Tower is an attempt to present a **simple, idiomatic internationalization and localization** story for Clojure. It wraps standard Java functionality where possible, but it isn't afraid to step away from Java conventions when there's a good reason to.
 
 ## What's In The Box?
+ * Small, uncomplicated **all-Clojure** library.
  * Consistent, lightweight wrappers for standard Java **localization functions**.
  * Rails-like, all-Clojure **translation function**.
  * **Simple, map-based** translation dictionary format. No XML or resource files!
@@ -23,14 +20,6 @@ Tower is an attempt to present a **simple, idiomatic internationalization and lo
  * **Ring middleware**.
  * TODO: export/import to allow use with **industry-standard tools for translators**.
 
-## Status [![Build Status](https://secure.travis-ci.org/ptaoussanis/tower.png?branch=master)](http://travis-ci.org/ptaoussanis/tower)
-
-Tower is still currently *experimental*. It **has not yet been thoroughly tested in production** and its API is subject to change. To run tests against all supported Clojure versions, use:
-
-```bash
-lein all test
-```
-
 ## Getting Started
 
 ### Leiningen
@@ -38,7 +27,7 @@ lein all test
 Depend on Tower in your `project.clj`:
 
 ```clojure
-[com.taoensso/tower "0.12.3"]
+[com.taoensso/tower "1.0.0"]
 ```
 
 and `require` the library:
@@ -208,12 +197,8 @@ ClojureWerkz is a growing collection of open-source, batteries-included [Clojure
 
 ## Contact & Contribution
 
-Reach me (Peter Taoussanis) at *ptaoussanis at gmail.com* for questions/comments/suggestions/whatever. I'm very open to ideas if you have any!
-
-I'm also on Twitter: [@ptaoussanis](https://twitter.com/#!/ptaoussanis).
+Reach me (Peter Taoussanis) at *ptaoussanis at gmail.com* for questions/comments/suggestions/whatever. I'm very open to ideas if you have any! I'm also on Twitter: [@ptaoussanis](https://twitter.com/#!/ptaoussanis).
 
 ## License
 
-Copyright &copy; 2012 Peter Taoussanis
-
-Distributed under the [Eclipse Public License](http://www.eclipse.org/legal/epl-v10.html), the same as Clojure.
+Copyright &copy; 2012 Peter Taoussanis. Distributed under the [Eclipse Public License](http://www.eclipse.org/legal/epl-v10.html), the same as Clojure.
