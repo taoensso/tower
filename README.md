@@ -191,9 +191,11 @@ For each request, an appropriate locale will be selected from one of the followi
  * A URI selector, e.g. `"/my-uri/locale/en-US/"`.
  * The request's Accept-Language HTTP header.
 
-## Tower supports the ClojureWerkz Project Goals
+## Tower Supports the ClojureWerkz and CDS Project Goals
 
 ClojureWerkz is a growing collection of open-source, batteries-included [Clojure libraries](http://clojurewerkz.org/) that emphasise modern targets, great documentation, and thorough testing.
+
+CDS (Clojure Documentation Site) is a contributor-friendly community project aimed at producing top-notch [Clojure tutorials](http://clojure-doc.org/) and documentation.
 
 ## Contact & Contribution
 
