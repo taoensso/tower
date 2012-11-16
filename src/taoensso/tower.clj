@@ -306,13 +306,17 @@
                read-string
                (set-config! [:dictionary]))
           ;; For automatic dictionary reloading:
-          (set-config! [:dict-res-name] resource-name))))
+          (set-config! [:dict-res-name] resource-name)
+          (catch Exception _
+            (throw (Exception. (str "Failed to load dictionary from resource: "
+                                    resource-name)))))))
 
 (defn- compile-map-path
   "[:locale :ns1 ... :nsN unscoped-key<decorator> translation] =>
   {:locale {:ns1.<...>.nsN/unscoped-key (f translation decorator)}}"
   [path]
-  {:pre [(seq path) (>= (count path) 3)]}
+  (when-not (and (seq path) (>= (count path) 3))
+    (throw (Exception. "Failed to compile dictionary: malformed")))
   (let [path        (vec path)
         locale-name (first path)
         translation (peek path)
