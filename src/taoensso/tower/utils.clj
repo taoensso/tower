@@ -53,7 +53,7 @@
       (str/replace #"\\\*" "*") ; Unescape \*s
 
       (str/replace #"(?<!\\)__(.+?)(?<!\\)__" "<b>$1</b>")
-      (str/replace #"(?<!\\)_(.+?)(?<!\\)__"  "<i>$1</i>")
+      (str/replace #"(?<!\\)_(.+?)(?<!\\)_"  "<i>$1</i>")
       (str/replace #"\\\_" "_") ; Unescape \_s
 
       (str/replace #"(?<!\\)~~(.+?)(?<!\\)~~" "<span class=\"alt1\">$1</span>")
