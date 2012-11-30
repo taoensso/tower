@@ -40,7 +40,7 @@
 (defn inline-markdown->html
   "Uses regex to parse given markdown string into HTML. Doesn't do any escaping.
     **x** => <strong>x</strong>
-    *x*   => <emph>x</emph>
+    *x*   => <em>x</em>
     __x__ => <b>x</b>
     _x_   => <i>x</i>
     ~~x~~ => <span class=\"alt1\">x</span>
@@ -49,11 +49,11 @@
   (-> (apply str strs)
       ;; Unescaped X is (?<!\\)X
       (str/replace #"(?<!\\)\*\*(.+?)(?<!\\)\*\*" "<strong>$1</strong>")
-      (str/replace #"(?<!\\)\*(.+?)(?<!\\)\*"     "<emph>$1</emph>")
+      (str/replace #"(?<!\\)\*(.+?)(?<!\\)\*"     "<em>$1</em>")
       (str/replace #"\\\*" "*") ; Unescape \*s
 
       (str/replace #"(?<!\\)__(.+?)(?<!\\)__" "<b>$1</b>")
-      (str/replace #"(?<!\\)_(.+?)(?<!\\)_"  "<i>$1</i>")
+      (str/replace #"(?<!\\)_(.+?)(?<!\\)_"   "<i>$1</i>")
       (str/replace #"\\\_" "_") ; Unescape \_s
 
       (str/replace #"(?<!\\)~~(.+?)(?<!\\)~~" "<span class=\"alt1\">$1</span>")
