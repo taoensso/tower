@@ -1,8 +1,17 @@
 (ns taoensso.tower.utils
   {:author "Peter Taoussanis"}
-  (:require [clojure.string :as str]
-            [clojure.java.io :as io])
+  (:require [clojure.string      :as str]
+            [clojure.java.io     :as io]
+            [clojure.tools.macro :as macro])
   (:import  [java.io File]))
+
+(defmacro defonce*
+  "Like `clojure.core/defonce` but supports optional docstring and attributes
+  map for name symbol."
+  {:arglists '([name expr])}
+  [name & sigs]
+  (let [[name [expr]] (macro/name-with-attributes name sigs)]
+    `(clojure.core/defonce ~name ~expr)))
 
 (defn leaf-paths
   "Takes a nested map and squashes it into a sequence of paths to leaf nodes.

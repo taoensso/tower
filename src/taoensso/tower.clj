@@ -13,18 +13,17 @@
 
 (declare compiled-dictionary)
 
-(defonce config
-  ^{:doc
-    "This map atom controls everything about the way Tower operates.
+(utils/defonce* config
+  "This map atom controls everything about the way Tower operates.
 
-    To enable translations, :dictionary should be a map of form
-    {:locale {:ns1 ... {:nsN {:key<decorator> text}}}}}.
+  To enable translations, :dictionary should be a map of form
+  {:locale {:ns1 ... {:nsN {:key<decorator> text}}}}}.
 
-    :default-locale controls fallback locale for `with-locale` and `t`.
-    :dev-mode? controls `t` automatic dictionary reloading and default
-      `log-missing-translation!-fn` behaviour.
+  :default-locale controls fallback locale for `with-locale` and `t`.
+  :dev-mode? controls `t` automatic dictionary reloading and default
+    `log-missing-translation!-fn` behaviour.
 
-    See source code for details."}
+  See source code for details."
   (atom {:dev-mode?      true
          :default-locale :en
 
