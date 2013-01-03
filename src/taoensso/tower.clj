@@ -423,7 +423,7 @@
 
        ;; Automatic dictionary reloading
        (when (and dev-mode? dict-res-name
-                  (utils/file-resource-modified? dict-res-name))
+                  (utils/file-resources-modified? dict-res-name))
          (load-dictionary-from-map-resource! dict-res-name))
 
        (let [;; :ns1.<...>.nsM.nsA.<...>/nsN = :ns1.<...>.nsN/key

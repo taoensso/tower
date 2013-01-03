@@ -109,19 +109,22 @@
   file doesn't exist."
   [resource-name]
   (when-let [^File file (try (->> resource-name io/resource io/file)
-                             (catch Exception _ nil))]
+                             (catch Exception _))]
     (.lastModified file)))
 
-(def file-resource-modified?
-  "Returns true iff the file backing given named resource has changed since this
-  function was last called."
-  (let [;; {file1 time1, file2 time2, ...}
-        previous-times (atom {})]
-    (fn [resource-name]
-      (let [time (file-resource-last-modified resource-name)]
-        (if-not (= time (get @previous-times resource-name))
-          (do (swap! previous-times assoc resource-name time) true)
-          false)))))
+(def file-resources-modified?
+  "Returns true iff any files backing the given group of named resources
+  have changed since this function was last called."
+  (let [;; {#{file1A file1B ...#} (time1A time1A ...),
+        ;;  #{file2A file2B ...#} (time2A time2B ...), ...}
+        group-times (atom {})]
+    (fn [& resource-names]
+      (let [file-group (into (sorted-set) resource-names)
+            file-times (map file-resource-last-modified file-group)
+            last-file-times (get @group-times file-group)]
+        (when-not (= file-times last-file-times)
+          (swap! group-times assoc file-group file-times)
+          (boolean last-file-times))))))
 
 (defn parse-http-accept-header
   "Parses HTTP Accept header and returns sequence of [choice weight] pairs
