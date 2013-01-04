@@ -1,8 +1,17 @@
 (ns taoensso.tower.utils
   {:author "Peter Taoussanis"}
-  (:require [clojure.string :as str]
-            [clojure.java.io :as io])
+  (:require [clojure.string      :as str]
+            [clojure.java.io     :as io]
+            [clojure.tools.macro :as macro])
   (:import  [java.io File]))
+
+(defmacro defonce*
+  "Like `clojure.core/defonce` but supports optional docstring and attributes
+  map for name symbol."
+  {:arglists '([name expr])}
+  [name & sigs]
+  (let [[name [expr]] (macro/name-with-attributes name sigs)]
+    `(clojure.core/defonce ~name ~expr)))
 
 (defn leaf-paths
   "Takes a nested map and squashes it into a sequence of paths to leaf nodes.
@@ -40,7 +49,7 @@
 (defn inline-markdown->html
   "Uses regex to parse given markdown string into HTML. Doesn't do any escaping.
     **x** => <strong>x</strong>
-    *x*   => <emph>x</emph>
+    *x*   => <em>x</em>
     __x__ => <b>x</b>
     _x_   => <i>x</i>
     ~~x~~ => <span class=\"alt1\">x</span>
@@ -49,11 +58,11 @@
   (-> (apply str strs)
       ;; Unescaped X is (?<!\\)X
       (str/replace #"(?<!\\)\*\*(.+?)(?<!\\)\*\*" "<strong>$1</strong>")
-      (str/replace #"(?<!\\)\*(.+?)(?<!\\)\*"     "<emph>$1</emph>")
+      (str/replace #"(?<!\\)\*(.+?)(?<!\\)\*"     "<em>$1</em>")
       (str/replace #"\\\*" "*") ; Unescape \*s
 
       (str/replace #"(?<!\\)__(.+?)(?<!\\)__" "<b>$1</b>")
-      (str/replace #"(?<!\\)_(.+?)(?<!\\)__"  "<i>$1</i>")
+      (str/replace #"(?<!\\)_(.+?)(?<!\\)_"   "<i>$1</i>")
       (str/replace #"\\\_" "_") ; Unescape \_s
 
       (str/replace #"(?<!\\)~~(.+?)(?<!\\)~~" "<span class=\"alt1\">$1</span>")
@@ -100,19 +109,22 @@
   file doesn't exist."
   [resource-name]
   (when-let [^File file (try (->> resource-name io/resource io/file)
-                             (catch Exception _ nil))]
+                             (catch Exception _))]
     (.lastModified file)))
 
-(def file-resource-modified?
-  "Returns true iff the file backing given named resource has changed since this
-  function was last called."
-  (let [;; {file1 time1, file2 time2, ...}
-        previous-times (atom {})]
-    (fn [resource-name]
-      (let [time (file-resource-last-modified resource-name)]
-        (if-not (= time (get @previous-times resource-name))
-          (do (swap! previous-times assoc resource-name time) true)
-          false)))))
+(def file-resources-modified?
+  "Returns true iff any files backing the given group of named resources
+  have changed since this function was last called."
+  (let [;; {#{file1A file1B ...#} (time1A time1A ...),
+        ;;  #{file2A file2B ...#} (time2A time2B ...), ...}
+        group-times (atom {})]
+    (fn [& resource-names]
+      (let [file-group (into (sorted-set) resource-names)
+            file-times (map file-resource-last-modified file-group)
+            last-file-times (get @group-times file-group)]
+        (when-not (= file-times last-file-times)
+          (swap! group-times assoc file-group file-times)
+          (boolean last-file-times))))))
 
 (defn parse-http-accept-header
   "Parses HTTP Accept header and returns sequence of [choice weight] pairs
@@ -131,3 +143,23 @@
          (parse-http-accept-header "en-GB,en;q=0.8,en-US;q=0.6")
          (parse-http-accept-header "en-GB  ,  en; q=0.8, en-US;  q=0.6")
          (parse-http-accept-header "a,"))
+
+(defn deep-merge-with ; From clojure.contrib.map-utils
+  "Like `merge-with` but merges maps recursively, applying the given fn
+  only when there's a non-map at a particular level.
+
+  (deepmerge-with + {:a {:b {:c 1 :d {:x 1 :y 2}} :e 3} :f 4}
+                    {:a {:b {:c 2 :d {:z 9} :z 3} :e 100}})
+  => {:a {:b {:z 3, :c 3, :d {:z 9, :x 1, :y 2}}, :e 103}, :f 4}"
+  [f & maps]
+  (apply
+   (fn m [& maps]
+     (if (every? map? maps)
+       (apply merge-with m maps)
+       (apply f maps)))
+   maps))
+
+(def deep-merge (partial deep-merge-with (fn [x y] y)))
+
+(comment (deep-merge {:a {:b {:c {:d :D :e :E}}}}
+                     {:a {:b {:g :G :c {:c {:f :F}}}}}))

@@ -13,18 +13,19 @@
 
 (declare compiled-dictionary)
 
-(defonce config
-  ^{:doc
-    "This map atom controls everything about the way Tower operates.
+(utils/defonce* config
+  "This map atom controls everything about the way Tower operates.
 
-    To enable translations, :dictionary should be a map of form
-    {:locale {:ns1 ... {:nsN {:key<decorator> text}}}}}.
+  To enable translations, :dictionary should be a map of form
+  {:locale {:ns1 ... {:nsN {:key<decorator> text}}}}}.
 
-    :default-locale controls fallback locale for `with-locale` and `t`.
-    :dev-mode? controls `t` automatic dictionary reloading and default
-      `log-missing-translation!-fn` behaviour.
+  :default-locale controls fallback locale for `with-locale` and `t`.
+  :dev-mode? controls `t` automatic dictionary reloading and default
+    `log-missing-translation!-fn` behaviour.
 
-    See source code for details."}
+  See source code for details.
+  See `set-config!`, `merge-config!` for convenient config/dictionary
+  editing."
   (atom {:dev-mode?      true
          :default-locale :en
 
@@ -48,7 +49,8 @@
              (timbre/warn  "Missing translation" k-or-ks "for" locale)
              (timbre/debug "Missing translation" k-or-ks "for" locale)))}))
 
-(defn set-config! [[k & ks] val] (swap! config assoc-in (cons k ks) val))
+(defn set-config!   [[k & ks] val] (swap! config assoc-in (cons k ks) val))
+(defn merge-config! [& maps] (apply swap! config utils/deep-merge maps))
 
 ;;;; Locales (big L for the Java object)
 
@@ -306,13 +308,17 @@
                read-string
                (set-config! [:dictionary]))
           ;; For automatic dictionary reloading:
-          (set-config! [:dict-res-name] resource-name))))
+          (set-config! [:dict-res-name] resource-name)
+          (catch Exception _
+            (throw (Exception. (str "Failed to load dictionary from resource: "
+                                    resource-name)))))))
 
 (defn- compile-map-path
   "[:locale :ns1 ... :nsN unscoped-key<decorator> translation] =>
   {:locale {:ns1.<...>.nsN/unscoped-key (f translation decorator)}}"
   [path]
-  {:pre [(seq path) (>= (count path) 3)]}
+  (when-not (and (seq path) (>= (count path) 3))
+    (throw (Exception. "Failed to compile dictionary: malformed")))
   (let [path        (vec path)
         locale-name (first path)
         translation (peek path)
@@ -420,7 +426,7 @@
 
        ;; Automatic dictionary reloading
        (when (and dev-mode? dict-res-name
-                  (utils/file-resource-modified? dict-res-name))
+                  (utils/file-resources-modified? dict-res-name))
          (load-dictionary-from-map-resource! dict-res-name))
 
        (let [;; :ns1.<...>.nsM.nsA.<...>/nsN = :ns1.<...>.nsN/key
