@@ -23,7 +23,9 @@
   :dev-mode? controls `t` automatic dictionary reloading and default
     `log-missing-translation!-fn` behaviour.
 
-  See source code for details."
+  See source code for details.
+  See `set-config!`, `merge-config!` for convenient config/dictionary
+  editing."
   (atom {:dev-mode?      true
          :default-locale :en
 
@@ -47,7 +49,8 @@
              (timbre/warn  "Missing translation" k-or-ks "for" locale)
              (timbre/debug "Missing translation" k-or-ks "for" locale)))}))
 
-(defn set-config! [[k & ks] val] (swap! config assoc-in (cons k ks) val))
+(defn set-config!   [[k & ks] val] (swap! config assoc-in (cons k ks) val))
+(defn merge-config! [& maps] (apply swap! config utils/deep-merge maps))
 
 ;;;; Locales (big L for the Java object)
 

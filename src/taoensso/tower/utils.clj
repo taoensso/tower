@@ -143,3 +143,23 @@
          (parse-http-accept-header "en-GB,en;q=0.8,en-US;q=0.6")
          (parse-http-accept-header "en-GB  ,  en; q=0.8, en-US;  q=0.6")
          (parse-http-accept-header "a,"))
+
+(defn deep-merge-with ; From clojure.contrib.map-utils
+  "Like `merge-with` but merges maps recursively, applying the given fn
+  only when there's a non-map at a particular level.
+
+  (deepmerge-with + {:a {:b {:c 1 :d {:x 1 :y 2}} :e 3} :f 4}
+                    {:a {:b {:c 2 :d {:z 9} :z 3} :e 100}})
+  => {:a {:b {:z 3, :c 3, :d {:z 9, :x 1, :y 2}}, :e 103}, :f 4}"
+  [f & maps]
+  (apply
+   (fn m [& maps]
+     (if (every? map? maps)
+       (apply merge-with m maps)
+       (apply f maps)))
+   maps))
+
+(def deep-merge (partial deep-merge-with (fn [x y] y)))
+
+(comment (deep-merge {:a {:b {:c {:d :D :e :E}}}}
+                     {:a {:b {:g :G :c {:c {:f :F}}}}}))
