@@ -296,18 +296,18 @@
   (atom {}))
 
 (defn load-dictionary-from-map-resource!
-  "Sets dictionary by reading Clojure map from named resource. Without any
-  arguments, searches for `tower-dictionary.clj` in classpath and Leiningen's
-  resource paths."
+  "Sets dictionary by reading and merging Clojure map from named resource.
+  Without any arguments, searches for `tower-dictionary.clj` in classpath and
+  Leiningen's resource paths."
   ([] (load-dictionary-from-map-resource! "tower-dictionary.clj"))
   ([resource-name]
-     (try (->> resource-name
-               io/resource
-               io/reader
-               slurp
-               read-string
-               (set-config! [:dictionary]))
-          ;; For automatic dictionary reloading:
+     (try (merge-config!
+           {:dict-res-name  resource-name ; For automatic reloading
+            :dictionary (-> resource-name
+                            io/resource
+                            io/reader
+                            slurp
+                            read-string)})
           (set-config! [:dict-res-name] resource-name)
           (catch Exception _
             (throw (Exception. (str "Failed to load dictionary from resource: "
