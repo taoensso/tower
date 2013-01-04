@@ -1,7 +1,7 @@
 Current [semantic](http://semver.org/) version:
 
 ```clojure
-[com.taoensso/tower "1.1.0"]
+[com.taoensso/tower "1.2.0"]
 ```
 
 # Tower, a Clojure internationalization & translation library
@@ -27,7 +27,7 @@ Tower is an attempt to present a **simple, idiomatic internationalization and lo
 Depend on Tower in your `project.clj`:
 
 ```clojure
-[com.taoensso/tower "1.1.0"]
+[com.taoensso/tower "1.2.0"]
 ```
 
 and `require` the library:
