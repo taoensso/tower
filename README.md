@@ -33,7 +33,7 @@ Depend on Tower in your `project.clj`:
 and `require` the library:
 
 ```clojure
-(ns my-app (:use [taoensso.tower :as tower :only (with-locale with-scope t style)])
+(ns my-app (:use [taoensso.tower :as tower :only (with-locale with-scope t style)]))
 ```
 
 ### Translation
