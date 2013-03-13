@@ -44,10 +44,9 @@
           :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
 
          :log-missing-translation!-fn
-         (fn [{:keys [dev-mode? locale k-or-ks]}]
-           (if dev-mode?
-             (timbre/warn  "Missing translation" k-or-ks "for" locale)
-             (timbre/debug "Missing translation" k-or-ks "for" locale)))}))
+         (fn [{:keys [dev-mode? locale k-or-ks scope]}]
+           (timbre/log (if dev-mode? :warn :debug)
+            "Missing translation" k-or-ks "for" locale "in scope" scope))}))
 
 (defn set-config!   [[k & ks] val] (swap! config assoc-in (cons k ks) val))
 (defn merge-config! [& maps] (apply swap! config utils/deep-merge maps))
@@ -450,7 +449,8 @@
 
               (do
                 (log-missing-translation!-fn
-                 {:dev-mode? dev-mode? :locale *Locale* :k-or-ks k-or-ks})
+                 {:dev-mode? dev-mode? :locale *Locale* :scope *translation-scope*
+                  :k-or-ks k-or-ks})
 
                 (or
                  ;; Try fall back to named keys in (different) default locale
