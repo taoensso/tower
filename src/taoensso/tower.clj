@@ -308,7 +308,7 @@
                             slurp
                             read-string)})
           (set-config! [:dict-res-name] resource-name)
-          (utils/file-resources-modified? resource-name)
+          (utils/file-resources-modified? resource-name) ; Prime diff cache
           (catch Exception e
             (throw (Exception. (str "Failed to load dictionary from resource: "
                                     resource-name) e))))))
