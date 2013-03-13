@@ -38,16 +38,15 @@
                                  :greeting  "Hello {0}, how are you?"
                                  :with-markdown "<tag>**strong**</tag>"
                                  :with-exclaim! "<tag>**strong**</tag>"}
-                       :missing  "<Translation missing: {0}>"}
+                       :missing  "<Missing translation: {0}>"}
 
           :en-US      {:example {:foo ":en-US :example/foo text"}}
           :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
 
          :log-missing-translation!-fn
-         (fn [{:keys [dev-mode? locale k-or-ks]}]
-           (if dev-mode?
-             (timbre/warn  "Missing translation" k-or-ks "for" locale)
-             (timbre/debug "Missing translation" k-or-ks "for" locale)))}))
+         (fn [{:keys [dev-mode? locale k-or-ks scope] :as args}]
+           (timbre/log (if dev-mode? :warn :debug)
+             "Missing translation" args))}))
 
 (defn set-config!   [[k & ks] val] (swap! config assoc-in (cons k ks) val))
 (defn merge-config! [& maps] (apply swap! config utils/deep-merge maps))
@@ -309,9 +308,10 @@
                             slurp
                             read-string)})
           (set-config! [:dict-res-name] resource-name)
-          (catch Exception _
+          (utils/file-resources-modified? resource-name)
+          (catch Exception e
             (throw (Exception. (str "Failed to load dictionary from resource: "
-                                    resource-name)))))))
+                                    resource-name) e))))))
 
 (defn- compile-map-path
   "[:locale :ns1 ... :nsN unscoped-key<decorator> translation] =>
@@ -437,7 +437,10 @@
                                   (conj lchoices default-locale)
                                   lchoices))
              kchoices*   (if (vector? k-or-ks) k-or-ks [k-or-ks])
-             kchoices    (take-while keyword? kchoices*)]
+             kchoices    (take-while keyword? kchoices*)
+             missing-args (delay {:locale  (first lchoices)
+                                  :scope   *translation-scope*
+                                  :k-or-ks k-or-ks})]
 
          (or
           ;; Try named keys in named locale, allowing transparent fallback to
@@ -450,7 +453,7 @@
 
               (do
                 (log-missing-translation!-fn
-                 {:dev-mode? dev-mode? :locale *Locale* :k-or-ks k-or-ks})
+                 (assoc @missing-args :dev-mode? dev-mode?))
 
                 (or
                  ;; Try fall back to named keys in (different) default locale
@@ -460,7 +463,7 @@
                  ;; Try fall back to :missing key in named or default locale
                  (when-let [pattern (some get-in-dict (for [l @lchoices*]
                                                         [l :missing]))]
-                   (format-msg pattern k-or-ks)))))))))))
+                   (format-msg pattern @missing-args)))))))))))
 
 (comment (with-locale :en-ZA (t :example/foo))
          (with-locale :en-ZA (with-scope :example (t :foo)))
