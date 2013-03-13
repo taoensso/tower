@@ -308,9 +308,9 @@
                             slurp
                             read-string)})
           (set-config! [:dict-res-name] resource-name)
-          (catch Exception _
+          (catch Exception e
             (throw (Exception. (str "Failed to load dictionary from resource: "
-                                    resource-name)))))))
+                                    resource-name) e))))))
 
 (defn- compile-map-path
   "[:locale :ns1 ... :nsN unscoped-key<decorator> translation] =>
