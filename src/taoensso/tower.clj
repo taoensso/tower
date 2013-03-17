@@ -48,7 +48,7 @@
            (timbre/log (if dev-mode? :warn :debug)
              "Missing translation" args))}))
 
-(defn set-config!   [[k & ks] val] (swap! config assoc-in (cons k ks) val))
+(defn set-config!   [ks val] (swap! config assoc-in ks val))
 (defn merge-config! [& maps] (apply swap! config utils/deep-merge maps))
 
 ;;;; Locales (big L for the Java object)
