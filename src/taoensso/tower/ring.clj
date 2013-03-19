@@ -22,24 +22,26 @@
 
 (comment (locale-from-uri {:uri "/foo/bar/locale/en/"}))
 
-(defn make-wrap-i18n-middleware
-  "Returns Ring middleware that sets i18n bindings for request after determining
+(defn wrap-i18n-middleware
+  "Ring middleware that sets i18n bindings for request after determining
   locale preference from (tower/parse-Locale (locale-selector-fn request)),
   session, query params, URI, or headers.
 
   `locale-selector-fn` can be used to select a locale by IP address, subdomain,
   top-level domain, etc."
-  [& {:keys [locale-selector-fn]}]
-  (fn [handler]
-    (fn [request]
-      (let [locale (->> [(when locale-selector-fn (locale-selector-fn request))
-                         (-> request :session :locale)
-                         (-> request :params  :locale)
-                         (locale-from-uri     request)
-                         (locale-from-headers request)
-                         :default]
-                        (filter tower/parse-Locale)
-                        first)]
+  [handler & {:keys [locale-selector-fn]}]
+  (fn [request]
+    (let [locale (->> [(when locale-selector-fn (locale-selector-fn request))
+                       (-> request :session :locale)
+                       (-> request :params  :locale)
+                       (locale-from-uri     request)
+                       (locale-from-headers request)
+                       :default]
+                      (filter tower/parse-Locale)
+                      first)]
 
-        (tower/with-locale locale
-          (handler request))))))
+      (tower/with-locale locale
+        (handler request)))))
+
+(defn make-wrap-i18n-middleware "DEPRECATED. Please use `wrap-i18n-middleware`."
+  [& args] (fn [handler] (apply wrap-i18n-middleware handler args)))
