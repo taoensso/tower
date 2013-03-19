@@ -48,7 +48,7 @@
            (timbre/log (if dev-mode? :warn :debug)
              "Missing translation" args))}))
 
-(defn set-config!   [[k & ks] val] (swap! config assoc-in (cons k ks) val))
+(defn set-config!   [ks val] (swap! config assoc-in ks val))
 (defn merge-config! [& maps] (apply swap! config utils/deep-merge maps))
 
 ;;;; Locales (big L for the Java object)
@@ -308,7 +308,7 @@
                             slurp
                             read-string)})
           (set-config! [:dict-res-name] resource-name)
-          (utils/file-resources-modified? resource-name)
+          (utils/file-resources-modified? resource-name) ; Prime diff cache
           (catch Exception e
             (throw (Exception. (str "Failed to load dictionary from resource: "
                                     resource-name) e))))))
@@ -453,7 +453,8 @@
 
               (do
                 (log-missing-translation!-fn
-                 (assoc @missing-args :dev-mode? dev-mode?))
+                 (assoc @missing-args :dev-mode? dev-mode?
+                                      :ns        *ns*))
 
                 (or
                  ;; Try fall back to named keys in (different) default locale

@@ -1,7 +1,7 @@
 Current [semantic](http://semver.org/) version:
 
 ```clojure
-[com.taoensso/tower "1.3.0"]
+[com.taoensso/tower "1.4.0"]
 ```
 
 # Tower, a Clojure internationalization & translation library
@@ -27,7 +27,7 @@ Tower is an attempt to present a **simple, idiomatic internationalization and lo
 Depend on Tower in your `project.clj`:
 
 ```clojure
-[com.taoensso/tower "1.3.0"]
+[com.taoensso/tower "1.4.0"]
 ```
 
 and `require` the library:
@@ -182,7 +182,7 @@ If you're not using the provided Ring middleware, you'll need to call localizati
 
 ### Ring Middlware
 
-Quickly internationalize your web application by adding `(taoensso.tower.ring/make-wrap-i18n-middleware)` to your middleware stack.
+Quickly internationalize your web application by adding `(taoensso.tower.ring/wrap-i18n-middleware)` to your middleware stack.
 
 For each request, an appropriate locale will be selected from one of the following (descending preference):
  * Your *own locale selector* fn (e.g. for selection by IP address, domain, etc.).
