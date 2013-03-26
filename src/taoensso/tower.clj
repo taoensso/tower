@@ -96,6 +96,15 @@
   [translation-scope & body]
   `(binding [*translation-scope* ~translation-scope] ~@body))
 
+(def scope "(scope :a.b.c :d.e :f) => :a.b.c.d.e.f"
+  (memoize
+   (fn [& ks]
+     (let [parts (mapcat #(str/split (name %) #"\.") ks)]
+       (keyword (str/join "." parts))))))
+
+(comment (scope :foo.bar :x.y :z)
+         (scope :z))
+
 ;;;; Collation, etc.
 
 (defmem- get-collator Collator [locale] (Collator/getInstance locale))
