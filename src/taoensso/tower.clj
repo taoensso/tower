@@ -473,7 +473,8 @@
                  ;; Try fall back to :missing key in named or default locale
                  (when-let [pattern (some get-in-dict (for [l @lchoices*]
                                                         [l :missing]))]
-                   (format-msg pattern @missing-args)))))))))))
+                   ;; Use 's to escape {}'s for MessageFormat
+                   (format-msg pattern (str "'" @missing-args "'"))))))))))))
 
 (comment (with-locale :en-ZA (t :example/foo))
          (with-locale :en-ZA (with-scope :example (t :foo)))
