@@ -56,7 +56,7 @@ Here Tower diverges from the standard Java approach in favour of something simpl
   :en-US      {:example {:foo ":en-US :example/foo text"}}
   :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
 
- :log-missing-translation-fn! (fn [{:keys [dev-mode? locale k-or-ks]}] ...)}
+ :log-missing-translation!-fn (fn [{:keys [dev-mode? locale k-or-ks]}] ...)}
 ```
 
 Note the format of the `:dictionary` map since **this is the map you'll change to set your own translations**. Work with the map in place using `set-config!`, or load translations from a ClassLoader resource:
