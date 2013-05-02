@@ -74,6 +74,14 @@
       (let [new-Locale (apply make-Locale (str/split (name locale) #"[-_]"))]
         (when (available-Locales new-Locale) new-Locale)))))
 
+(defn parse-Locales
+  "Returns valid Locale sequence matching given string/keyword sequence, or an
+  empty sequence if no valid matching Locales could be found. `locales` should
+  be a sequence of the form :en, :en-US, :en-US-variant, or :default for config's
+  default."
+  [locales]
+  (remove nil? (map parse-Locale locales)))
+
 (comment (map parse-Locale [nil :invalid :default :en-US :en-US-var1]))
 
 ;;;; Bindings
@@ -81,13 +89,22 @@
 (def ^:dynamic *Locale* (parse-Locale :default))
 (def ^:dynamic *translation-scope* nil)
 
+(defmacro with-locales
+  "Executes body within the context of thread-local locale binding, enabling
+  use of translation and localization functions. `locales` should be a sequence of the
+  form :en, en-US, :en-US-variant, or :default for config's default."
+  [locales & body]
+  `(binding [*Locale* (or (parse-Locales ~locales)
+                          (throw (Exception. (str "Invalid locales: " ~locales))))]
+     ~@body))
+
 (defmacro with-locale
   "Executes body within the context of thread-local locale binding, enabling
   use of translation and localization functions. `locale` should be of form :en,
   :en-US, :en-US-variant, or :default for config's default."
   [locale & body]
-  `(binding [*Locale* (or (parse-Locale ~locale)
-                          (throw (Exception. (str "Invalid locale: " ~locale))))]
+  `(binding [*Locale* (or (parse-Locales '(~locale))
+                        (throw (Exception. (str "Invalid locale: " ~locale))))]
      ~@body))
 
 (defmacro with-scope
@@ -383,19 +400,30 @@
 
 ;;;; Translations
 
-(def ^:private locales-to-check
+(def ^:private locale-to-check
   "Given a Locale, returns vector of dictionary locale names to check, in order
   of preference:
     #<Locale en_US_var1> => [:en-US-var1 :en-US :en]
     #<Locale en_US>      => [:en-US :en]
     #<Locale en>         => [:en]"
   (memoize
-   (fn [Loc]
-     (let [parts (str/split (str Loc) #"_")]
-       (vec (for [n (range (count parts) 0 -1)]
-              (keyword (str/join "-" (take n parts)))))))))
+    (fn [Loc]
+      (let [parts (str/split (str Loc) #"_")]
+        (vec (for [n (range (count parts) 0 -1)]
+               (keyword (str/join "-" (take n parts)))))))))
 
-(comment (locales-to-check (parse-Locale :en-US)))
+(def ^:private locales-to-check
+  "Given a Locale sequence, returns vector of dictionary locale names to check,
+   in order of preference:
+    (#<Locale es> #<Locale en_US_var1>) => [:es :en-US-var1 :en-US :en]
+    (#<Locale es> #<Locale en_US>)      => [:es :en-US :en]
+    (#<Locale en>)                      => [:en]
+    (nil)                               => [:en]"
+  (memoize
+   (fn [locales]
+     (vec (distinct (flatten (map locale-to-check locales)))))))
+
+(comment (locale-to-check (parse-Locale :en-US)))
 
 (def ^:private scoped-key
   "(scoped-key :a.b.c :k)     => :a.b.c/k
