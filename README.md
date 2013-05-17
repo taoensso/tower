@@ -75,11 +75,11 @@ For now let's play with the default dictionary to see how Tower handles translat
 (with-locale :en    (t :example/greeting "Steve")) => "Hello Steve, how are you?"
 ```
 
-Translation strings are escaped and parsed as inline [Markdown](http://daringfireball.net/projects/markdown/) unless suffixed with `!`:
+Translation strings are escaped and parsed as inline [Markdown](http://daringfireball.net/projects/markdown/) unless suffixed with `!` in the dictionary map:
 
 ```clojure
 (with-locale :en (t :example/with-markdown)) => "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
-(with-locale :en (t :example/with-exclaim!)) => "<tag>**strong**</tag>"
+(with-locale :en (t :example/with-exclaim)) => "<tag>**strong**</tag>" ; Notice no "!" suffix here, only in dictionary map
 ```
 
 If you're calling the translate fn repeatedly within a specific namespace context, you can specify a **translation scope**:
