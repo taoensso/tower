@@ -37,7 +37,9 @@
                                  :bar {:baz ":en :example.bar/baz text"}
                                  :greeting  "Hello {0}, how are you?"
                                  :with-markdown "<tag>**strong**</tag>"
-                                 :with-exclaim! "<tag>**strong**</tag>"}
+                                 :with-exclaim! "<tag>**strong**</tag>"
+                                 :yo :example/greeting
+                                 :baz2 :example.bar/baz}
                        :missing  "<Missing translation: {0}>"}
 
           :en-US      {:example {:foo ":en-US :example/foo text"}}
@@ -341,11 +343,14 @@
         scoped-key (keyword (when (seq scope-ks) (str/join "." (map name scope-ks)))
                             (name unscoped-k))]
 
-    (when-let [translation (case decorator
-                             :_note      nil
-                             (:_html :!) translation
-                             (-> translation utils/escape-html
-                                 utils/inline-markdown->html))]
+    (when-let [translation
+               (if (keyword? translation)
+                 translation
+                 (case decorator
+                       :_note      nil
+                       (:_html :!) translation
+                       (-> translation utils/escape-html
+                           utils/inline-markdown->html)))]
       {locale-name {scoped-key translation}})))
 
 (defn- compile-dictionary!
@@ -415,6 +420,20 @@
          (scoped-key nil :k)
          (scoped-key nil :a.b/k))
 
+(defn- recursive-get
+  [m k]
+  (loop [ky k seen? #{}]
+    (if (seen? ky)
+      nil
+      (let [v (get m ky)]
+        (if (keyword? v)
+          (recur v (conj seen? ky))
+          v)))))
+
+(defn- recursive-get-in
+  [m ks]
+  (reduce recursive-get m ks))
+
 (defn t ; translate
   "Localized text translator. Takes (possibly scoped) dictionary key (or vector
   of descending-preference keys) of form :nsA.<...>.nsN/key within a root scope
@@ -440,7 +459,7 @@
 
        (let [;; :ns1.<...>.nsM.nsA.<...>/nsN = :ns1.<...>.nsN/key
              sk          (partial scoped-key *translation-scope*)
-             get-in-dict (partial get-in @compiled-dictionary)
+             get-in-dict (partial recursive-get-in @compiled-dictionary)
              lchoices    (locales-to-check *Locale*)
              lchoices*   (delay (if-not (some #{default-locale} lchoices)
                                   (conj lchoices default-locale)
