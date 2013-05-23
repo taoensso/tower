@@ -158,5 +158,5 @@
 
   ;; Aliases
   (with-locale :en
-    (is (= (t :example/yo "Bob") "Hello Bob, how are you?"))
-    (is (= (t :example/baz2) (t :example.bar/baz)))))
+    (is (= (t :example/greeting-alias "Bob") "Hello Bob, how are you?"))
+    (is (= (t :example/baz-alias) (t :example.bar/baz)))))
