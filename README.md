@@ -51,7 +51,9 @@ Here Tower diverges from the standard Java approach in favour of something simpl
                          :bar {:baz ":en :example.bar/baz text"}
                          :greeting  "Hello {0}, how are you?"
                          :with-markdown "<tag>**strong**</tag>"
-                         :with-exclaim! "<tag>**strong**</tag>"}
+                         :with-exclaim! "<tag>**strong**</tag>"
+                         :greeting-alias :example/greeting
+                         :baz-alias      :example.bar/baz}
                :missing  "<Translation missing: {0}>"}
   :en-US      {:example {:foo ":en-US :example/foo text"}}
   :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
