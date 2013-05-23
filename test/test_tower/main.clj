@@ -154,4 +154,9 @@
     (is (= (t :invalid "arg") "&lt;Missing translation: {:locale :en, :scope nil, :k-or-ks :invalid}&gt;"))
     (is (= (t [:invalid :example/foo]) ":en :example/foo text"))
     (is (= (t [:invalid "Explicit fallback"]) "Explicit fallback"))
-    (is (= (t [:invalid nil]) nil))))
+    (is (= (t [:invalid nil]) nil)))
+
+  ;; Aliases
+  (with-locale :en
+    (is (= (t :example/yo "Bob") "Hello Bob, how are you?"))
+    (is (= (t :example/baz2) (t :example.bar/baz)))))
