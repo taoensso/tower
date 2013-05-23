@@ -479,7 +479,7 @@
               (do
                 (log-missing-translation!-fn
                  (assoc @missing-args :dev-mode? dev-mode?
-                                      :ns        *ns*))
+                                      :ns        (str *ns*)))
 
                 (or
                  ;; Try fall back to named keys in (different) default locale
