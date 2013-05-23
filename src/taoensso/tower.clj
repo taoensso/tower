@@ -9,6 +9,11 @@
   (:import  [java.util Date Locale TimeZone]
             [java.text Collator NumberFormat DateFormat]))
 
+;;;; TODO
+;; * `load-dictionary-from-map-resource!` should optionally overwrite rather
+;;   than merge.
+;; * `with-locales` macro and/or `with-locale` locale fallbacks.
+
 ;;;; Default configuration
 
 (declare compiled-dictionary)
