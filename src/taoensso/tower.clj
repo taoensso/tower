@@ -422,17 +422,14 @@
 
 (defn- recursive-get
   [m k]
-  (loop [ky k seen? #{}]
-    (if (seen? ky)
-      nil
-      (let [v (get m ky)]
+  (loop [target k seen? #{}]
+    (when-not (seen? target)
+      (let [v (get m target)]
         (if (keyword? v)
-          (recur v (conj seen? ky))
+          (recur v (conj seen? target))
           v)))))
 
-(defn- recursive-get-in
-  [m ks]
-  (reduce recursive-get m ks))
+(defn- recursive-get-in [m ks] (reduce recursive-get m ks))
 
 (defn t ; translate
   "Localized text translator. Takes (possibly scoped) dictionary key (or vector
