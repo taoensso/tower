@@ -4,13 +4,13 @@ Current [semantic](http://semver.org/) version:
 [com.taoensso/tower "1.6.0"]
 ```
 
-# Tower, a Clojure internationalization & translation library
+# Tower, a Clojure i18n & L10n library
 
 The Java platform provides some very capable tools for writing internationalized applications. Unfortunately, these tools can be disappointingly cumbersome when taken into a Clojure context.
 
 Tower is an attempt to present a **simple, idiomatic internationalization and localization** story for Clojure. It wraps standard Java functionality where possible, but it isn't afraid to step away from Java conventions when there's a good reason to.
 
-## What's In The Box?
+## What's in the box™?
  * Small, uncomplicated **all-Clojure** library.
  * Consistent, lightweight wrappers for standard Java **localization functions**.
  * Rails-like, all-Clojure **translation function**.
@@ -20,20 +20,16 @@ Tower is an attempt to present a **simple, idiomatic internationalization and lo
  * **Ring middleware**.
  * TODO: export/import to allow use with **industry-standard tools for translators**.
 
-## Getting Started
+## Getting started
 
-### Leiningen
+### Dependencies
 
-Depend on Tower in your `project.clj`:
-
-```clojure
-[com.taoensso/tower "1.6.0"]
-```
-
-and `require` the library:
+Add the necessary dependency to your [Leiningen](http://leiningen.org/) `project.clj` and `require` the library in your ns:
 
 ```clojure
-(ns my-app (:use [taoensso.tower :as tower :only (with-locale with-scope t style)]))
+[com.taoensso/tower "1.6.0"] ; project.clj
+(ns my-app (:require [taoensso.tower :as tower
+                      :refer (with-locale with-scope t style)])) ; ns
 ```
 
 ### Translation
@@ -124,7 +120,7 @@ If you're not using the provided Ring middleware, you'll need to call localizati
 (with-locale :de (tower/parse-number "2.000,1")) => 2000.1
 ```
 
-#### Dates and Times
+#### Dates and times
 
 ```clojure
 (with-locale :de (tower/format-date (java.util.Date.))) => "12.06.2012"
@@ -151,7 +147,7 @@ If you're not using the provided Ring middleware, you'll need to call localizati
 => ("no cats" "one cat" "2 cats" "3 cats" "4 cats")
 ```
 
-#### Collation/Sorting
+#### Collation/sorting
 
 ```clojure
 (with-locale :pl
@@ -159,7 +155,7 @@ If you're not using the provided Ring middleware, you'll need to call localizati
 => ("Kraków" "Łódź" "Poznań" "Warsaw" "Wrocław")
 ```
 
-#### Country and Language Names
+#### Country and language names
 
 ```clojure
 (with-locale :pl (tower/sorted-localized-countries ["GB" "DE" "PL"]))
@@ -182,7 +178,7 @@ If you're not using the provided Ring middleware, you'll need to call localizati
     :sorted-names ["(GMT -11:00) Midway" "(GMT -11:00) Niue" ...]
 ```
 
-### Ring Middlware
+### Ring middlware
 
 Quickly internationalize your web application by adding `(taoensso.tower.ring/wrap-i18n-middleware)` to your middleware stack.
 
@@ -193,16 +189,23 @@ For each request, an appropriate locale will be selected from one of the followi
  * A URI selector, e.g. `"/my-uri/locale/en-US/"`.
  * The request's Accept-Language HTTP header.
 
-## Tower Supports the ClojureWerkz and CDS Project Goals
+## Project links
 
-ClojureWerkz is a growing collection of open-source, batteries-included [Clojure libraries](http://clojurewerkz.org/) that emphasise modern targets, great documentation, and thorough testing.
+  * [API documentation](http://ptaoussanis.github.io/tower/).
+  * My other [Clojure libraries](https://www.taoensso.com/clojure-libraries) (Redis & DynamoDB clients, logging+profiling, I18n+L10n, serialization, A/B testing).
 
-CDS (Clojure Documentation Site) is a contributor-friendly community project aimed at producing top-notch [Clojure tutorials](http://clojure-doc.org/) and documentation.
+##### This project supports the **CDS and ClojureWerkz project goals**:
 
-## Contact & Contribution
+  * [CDS](http://clojure-doc.org/), the **Clojure Documentation Site**, is a contributer-friendly community project aimed at producing top-notch Clojure tutorials and documentation.
 
-Reach me (Peter Taoussanis) at [taoensso.com](https://www.taoensso.com) for questions/comments/suggestions/whatever. I'm very open to ideas if you have any! I'm also on Twitter: [@ptaoussanis](https://twitter.com/#!/ptaoussanis).
+  * [ClojureWerkz](http://clojurewerkz.org/) is a growing collection of open-source, batteries-included **Clojure libraries** that emphasise modern targets, great documentation, and thorough testing.
+
+## Contact & contribution
+
+Please use the [project's GitHub issues page](https://github.com/ptaoussanis/tower/issues) for project questions/comments/suggestions/whatever **(pull requests welcome!)**. Am very open to ideas if you have any!
+
+Otherwise reach me (Peter Taoussanis) at [taoensso.com](https://www.taoensso.com) or on Twitter ([@ptaoussanis](https://twitter.com/#!/ptaoussanis)). Cheers!
 
 ## License
 
-Copyright &copy; 2012 Peter Taoussanis. Distributed under the [Eclipse Public License](http://www.eclipse.org/legal/epl-v10.html), the same as Clojure.
+Copyright &copy; 2012, 2013 Peter Taoussanis. Distributed under the [Eclipse Public License](http://www.eclipse.org/legal/epl-v10.html), the same as Clojure.
