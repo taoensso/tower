@@ -192,7 +192,7 @@ For each request, an appropriate locale will be selected from one of the followi
 ## Project links
 
   * [API documentation](http://ptaoussanis.github.io/tower/).
-  * My other [Clojure libraries](https://www.taoensso.com/clojure-libraries) (Redis & DynamoDB clients, logging+profiling, I18n+L10n, serialization, A/B testing).
+  * My other [Clojure libraries](https://www.taoensso.com/clojure-libraries) (Redis & DynamoDB clients, logging+profiling, i18n+L10n, serialization, A/B testing).
 
 ##### This project supports the **CDS and ClojureWerkz project goals**:
 
