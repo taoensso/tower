@@ -9,11 +9,6 @@
   (:import  [java.util Date Locale TimeZone]
             [java.text Collator NumberFormat DateFormat]))
 
-;;;; TODO
-;; * `load-dictionary-from-map-resource!` should optionally overwrite rather
-;;   than merge.
-;; * `with-locales` macro and/or `with-locale` locale fallbacks.
-
 ;;;; Default configuration
 
 (declare compiled-dictionary)
@@ -311,23 +306,26 @@
   (atom {}))
 
 (defn load-dictionary-from-map-resource!
-  "Sets dictionary by reading and merging Clojure map from named resource.
-  Without any arguments, searches for `tower-dictionary.clj` in classpath and
-  Leiningen's resource paths."
+  "Sets dictionary by loading a Clojure map from named resource. Without any
+  arguments, searches for `tower-dictionary.clj` in classpath and Leiningen's
+  resource paths."
   ([] (load-dictionary-from-map-resource! "tower-dictionary.clj"))
-  ([resource-name]
-     (try (merge-config!
-           {:dict-res-name  resource-name ; For automatic reloading
-            :dictionary (-> resource-name
-                            io/resource
-                            io/reader
-                            slurp
-                            read-string)})
-          (set-config! [:dict-res-name] resource-name)
-          (utils/file-resources-modified? resource-name) ; Prime diff cache
-          (catch Exception e
-            (throw (Exception. (str "Failed to load dictionary from resource: "
-                                    resource-name) e))))))
+  ([resource-name & [merge?]]
+     (try
+       (let [new-dictionary (-> resource-name
+                                io/resource
+                                io/reader
+                                slurp
+                                read-string)]
+         (if (= false merge?) ; Backwards-compatible opt
+           (set-config!   [:dictionary] new-dictionary)
+           (merge-config! {:dictionary  new-dictionary})))
+
+       (set-config! [:dict-res-name] resource-name) ; Enable auto reloading
+       (utils/file-resources-modified? resource-name) ; Prime diff cache
+       (catch Exception e
+         (throw (Exception. (str "Failed to load dictionary from resource: "
+                                 resource-name) e))))))
 
 (defn- compile-map-path
   "[:locale :ns1 ... :nsN unscoped-key<decorator> translation] =>
