@@ -1,7 +1,7 @@
 Current [semantic](http://semver.org/) version:
 
 ```clojure
-[com.taoensso/tower "1.7.0"] ; Requires Clojure 1.4+ as of 1.7.0
+[com.taoensso/tower "1.7.1"] ; Requires Clojure 1.4+ as of 1.7.0
 ```
 
 # Tower, a Clojure i18n & L10n library
@@ -27,7 +27,7 @@ Tower is an attempt to present a **simple, idiomatic internationalization and lo
 Add the necessary dependency to your [Leiningen](http://leiningen.org/) `project.clj` and `require` the library in your ns:
 
 ```clojure
-[com.taoensso/tower "1.7.0"] ; project.clj
+[com.taoensso/tower "1.7.1"] ; project.clj
 (ns my-app (:require [taoensso.tower :as tower
                       :refer (with-locale with-scope t style)])) ; ns
 ```

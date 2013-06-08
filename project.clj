@@ -1,4 +1,4 @@
-(defproject com.taoensso/tower "1.7.0"
+(defproject com.taoensso/tower "1.7.1"
   :description "Clojure i18n & L10n library"
   :url "https://github.com/ptaoussanis/tower"
   :license {:name "Eclipse Public License"
