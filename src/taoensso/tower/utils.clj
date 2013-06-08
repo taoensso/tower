@@ -131,18 +131,19 @@
   sorted by weight."
   [header]
   (->> (for [choice (->> (str/split (str header) #",")
-                         (filter (complement str/blank?)))]
+                         (remove str/blank?))]
          (let [[lang q] (str/split choice #";")]
-           [(-> lang str/trim)
+           [(str/trim lang)
             (or (when q (Float/parseFloat (second (str/split q #"="))))
                 1)]))
-       (sort-by second) reverse))
+       (sort-by second >)))
 
 (comment (parse-http-accept-header nil)
          (parse-http-accept-header "en-GB")
          (parse-http-accept-header "en-GB,en;q=0.8,en-US;q=0.6")
          (parse-http-accept-header "en-GB  ,  en; q=0.8, en-US;  q=0.6")
-         (parse-http-accept-header "a,"))
+         (parse-http-accept-header "a,")
+         (parse-http-accept-header "es-ES, en-US"))
 
 (defn deep-merge-with ; From clojure.contrib.map-utils
   "Like `merge-with` but merges maps recursively, applying the given fn
