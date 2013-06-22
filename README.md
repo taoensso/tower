@@ -1,4 +1,4 @@
-Current [semantic](http://semver.org/) version:
+**[API docs](http://ptaoussanis.github.io/tower/)** | **[CHANGELOG](https://github.com/ptaoussanis/tower/blob/master/CHANGELOG.md)** | [contact & contributing](#contact--contributing) | [other Clojure libs](https://www.taoensso.com/clojure-libraries) | [Twitter](https://twitter.com/#!/ptaoussanis) | current [semantic](http://semver.org/) version:
 
 ```clojure
 [com.taoensso/tower "1.7.1"] ; Requires Clojure 1.4+ as of 1.7.0
@@ -189,16 +189,11 @@ For each request, an appropriate locale will be selected from one of the followi
  * A URI selector, e.g. `"/my-uri/locale/en-US/"`.
  * The request's Accept-Language HTTP header.
 
-## Project links
+## This project supports the CDS and ClojureWerkz goals
 
-  * [API documentation](http://ptaoussanis.github.io/tower/).
-  * My other [Clojure libraries](https://www.taoensso.com/clojure-libraries) (Redis & DynamoDB clients, logging+profiling, i18n+L10n, serialization, A/B testing).
+  * [CDS](http://clojure-doc.org/), the **Clojure Documentation Site**, is a **contributer-friendly** community project aimed at producing top-notch, **beginner-friendly** Clojure tutorials and documentation. Awesome resource.
 
-##### This project supports the **CDS and ClojureWerkz project goals**:
-
-  * [CDS](http://clojure-doc.org/), the **Clojure Documentation Site**, is a contributer-friendly community project aimed at producing top-notch Clojure tutorials and documentation.
-
-  * [ClojureWerkz](http://clojurewerkz.org/) is a growing collection of open-source, batteries-included **Clojure libraries** that emphasise modern targets, great documentation, and thorough testing.
+  * [ClojureWerkz](http://clojurewerkz.org/) is a growing collection of open-source, **batteries-included Clojure libraries** that emphasise modern targets, great documentation, and thorough testing. They've got a ton of great stuff, check 'em out!
 
 ## Contact & contribution
 
