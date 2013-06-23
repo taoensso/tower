@@ -400,8 +400,8 @@
   (memoize
    (fn [Loc]
      (let [parts (str/split (str Loc) #"_")]
-       (vec (for [n (range (count parts) 0 -1)]
-              (keyword (str/join "-" (take n parts)))))))))
+       (mapv #(keyword (str/join "-" %))
+             (take-while identity (iterate butlast parts)))))))
 
 (comment (locales-to-check (parse-Locale :en-US)))
 
