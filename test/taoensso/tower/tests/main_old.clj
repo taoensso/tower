@@ -1,4 +1,4 @@
-(ns test-tower.main
+(ns taoensso.tower.tests.main-old
   (:import  [java.util Date GregorianCalendar])
   (:require [taoensso.tower.ring :as ring])
   (:use [clojure.test]
