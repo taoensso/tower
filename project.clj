@@ -22,7 +22,7 @@
             [codox             "0.6.4"]]
   :plugins [[codox "0.6.4"]]
   :min-lein-version "2.0.0"
-  :warn-on-reflection true
+  :global-vars {*warn-on-reflection* true}
   :repositories
   {"sonatype"
    {:url "http://oss.sonatype.org/content/repositories/releases"
