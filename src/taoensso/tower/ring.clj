@@ -26,8 +26,8 @@
 
   `locale-selector-fn` can be used to select a locale by IP address, subdomain,
   top-level domain, etc."
-  [handler t-config & {:keys [locale-selector-fn default-locale]
-                       :or   {default-locale :jvm-default}}]
+  [handler t-config & [{:keys [locale-selector-fn default-locale]
+                        :or   {default-locale :jvm-default}}]]
   (fn [request]
     (let [locale (some tower/parse-Locale
                        [(when locale-selector-fn (locale-selector-fn request))
