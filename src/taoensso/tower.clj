@@ -25,10 +25,10 @@
   "Returns valid Locale matching given name string/keyword, or nil if no valid
   matching Locale could be found. `locale` should be of form :en, :en-US,
   :en-US-variant, or :jvm-default."
-  [locale & [default]]
+  [locale]
   (when locale
     (cond
-     (= locale :jvm-default)   (Locale/getDefault)
+     (= locale :jvm-default) (Locale/getDefault)
      (instance? Locale locale) locale
      :else
      (let [new-Locale (apply make-Locale (str/split (name locale) #"[-_]"))]
@@ -279,11 +279,9 @@
   [path]
   (assert (and (seq path) (>= (count path) 3))
           (str "Malformed dictionary path: " path))
-  (let [path        (vec path)
-        locale-name (first path)
+  (let [[locale-name :as path] (vec path)
         translation (peek path)
         scope-ks    (subvec path 1 (- (count path) 2)) ; [:ns1 ... :nsN]
-
         [_ unscoped-k decorator] ; Check for possible decorator
         (->> (re-find #"([^!_]+)([!_].*)*" (name (peek (pop path))))
              (map keyword))
