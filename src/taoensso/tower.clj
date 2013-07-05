@@ -27,12 +27,15 @@
   :en-US-variant, or :jvm-default."
   [locale & [default]]
   (when locale
-    (if (= locale :jvm-default)
-      (Locale/getDefault)
-      (let [new-Locale (apply make-Locale (str/split (name locale) #"[-_]"))]
-        (when (available-Locales new-Locale) new-Locale)))))
+    (cond
+     (= locale :jvm-default)   (Locale/getDefault)
+     (instance? Locale locale) locale
+     :else
+     (let [new-Locale (apply make-Locale (str/split (name locale) #"[-_]"))]
+       (when (available-Locales new-Locale) new-Locale)))))
 
-(comment (map parse-Locale [nil :invalid :jvm-default :en-US :en-US-var1]))
+(comment (map parse-Locale [nil :invalid :jvm-default :en-US :en-US-var1
+                            (Locale/getDefault)]))
 
 (def ^:dynamic *Locale* (parse-Locale :jvm-default))
 (defmacro with-locale

@@ -9,10 +9,7 @@
   is valid, or nil if none is."
   [request]
   (let [header (str (get-in request [:headers "accept-language"]))]
-    (->> (utils/parse-http-accept-header header)
-         (map first)
-         (filter tower/parse-Locale)
-         first)))
+    (some tower/parse-Locale (map first (utils/parse-http-accept-header header)))))
 
 (comment (locale-from-headers
           {:headers {"accept-language" "en-GB,en;q=0.8,en-US;q=0.6"}}))
@@ -29,21 +26,15 @@
 
   `locale-selector-fn` can be used to select a locale by IP address, subdomain,
   top-level domain, etc."
-  [handler & {:keys [locale-selector-fn]}]
+  [handler t-config & {:keys [locale-selector-fn default-locale]
+                       :or   {default-locale :jvm-default}}]
   (fn [request]
-    (let [locale (->> [(when locale-selector-fn (locale-selector-fn request))
-                       (-> request :session :locale)
-                       (-> request :params  :locale)
-                       (locale-from-uri     request)
-                       (locale-from-headers request)
-                       ;; TODO optional (own) default first
-                       :jvm-default
-                       ]
-                      (filter tower/parse-Locale)
-                      first)]
-
+    (let [locale (some tower/parse-Locale
+                       [(when locale-selector-fn (locale-selector-fn request))
+                        (-> request :session :locale)
+                        (-> request :params  :locale)
+                        (locale-from-uri     request)
+                        (locale-from-headers request)
+                        default-locale])]
       (tower/with-locale locale
-        (handler request)))))
-
-(defn make-wrap-i18n-middleware "DEPRECATED. Please use `wrap-i18n-middleware`."
-  [& args] (fn [handler] (apply wrap-i18n-middleware handler args)))
+        (handler (assoc request :t (partial tower/t t-config)))))))
