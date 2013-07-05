@@ -4,44 +4,34 @@
               [taoensso.tower :as tower]
               [taoensso.tower.utils :as utils]))
 
-(defn locale-from-headers
-  "Parses HTTP Accept-Language header and returns highest weighted locale that
-  is valid, or nil if none is."
-  [request]
-  (let [header (str (get-in request [:headers "accept-language"]))]
-    (->> (utils/parse-http-accept-header header)
-         (map first)
-         (filter tower/parse-Locale)
-         first)))
+(defn- locale-from-headers [headers]
+  (when-let [header (get headers "accept-language")]
+    (some tower/try-locale (map first (utils/parse-http-accept-header header)))))
 
-(comment (locale-from-headers
-          {:headers {"accept-language" "en-GB,en;q=0.8,en-US;q=0.6"}}))
+(comment (locale-from-headers- {"accept-language" "en-GB,en;q=0.8,en-US;q=0.6"}))
 
-(defn locale-from-uri "\"/foo/bar/locale/en/\" => \"en\""
-  [request] (second (re-find #"\/locale\/([^\/]+)" (str (:uri request)))))
+(defn wrap-tower-middleware
+  "Determines a locale preference for request by attempting to parse a valid
+  locale from (locale-selector request), (:locale session), (:locale params),
+  request headers, etc. `locale-selector` can be used to select locale by IP
+  address, subdomain, TLD, etc.
 
-(comment (locale-from-uri {:uri "/foo/bar/locale/en/"}))
+  Establishes a thread-local locale binding with `tower/*locale*`, and adds
+  `:locale` and `:t` keys to request."
+  [handler & [{:keys [locale-selector fallback-locale tconfig]
+               :or   {fallback-locale :jvm-default
+                      tconfig tower/example-tconfig}}]]
+  (fn [{:keys [session params uri server-name headers] :as request}]
+    (let [loc (some tower/try-locale [(:locale request)
+                                      (when-let [ls locale-selector] (ls request))
+                                      (:locale session)
+                                      (:locale params)
+                                      (locale-from-headers headers)
+                                      fallback-locale])]
+      (tower/with-locale loc
+        (handler (assoc request :locale (tower/loc-key loc)
+                                :t (if tconfig
+                                     (partial tower/t loc tconfig)
+                                     (partial tower/t loc))))))))
 
-(defn wrap-i18n-middleware
-  "Ring middleware that sets i18n bindings for request after determining
-  locale preference from (tower/parse-Locale (locale-selector-fn request)),
-  session, query params, URI, or headers.
-
-  `locale-selector-fn` can be used to select a locale by IP address, subdomain,
-  top-level domain, etc."
-  [handler & {:keys [locale-selector-fn]}]
-  (fn [request]
-    (let [locale (->> [(when locale-selector-fn (locale-selector-fn request))
-                       (-> request :session :locale)
-                       (-> request :params  :locale)
-                       (locale-from-uri     request)
-                       (locale-from-headers request)
-                       :default]
-                      (filter tower/parse-Locale)
-                      first)]
-
-      (tower/with-locale locale
-        (handler request)))))
-
-(defn make-wrap-i18n-middleware "DEPRECATED. Please use `wrap-i18n-middleware`."
-  [& args] (fn [handler] (apply wrap-i18n-middleware handler args)))
+;;;; Deprecated TODO

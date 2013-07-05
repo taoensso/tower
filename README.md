@@ -1,8 +1,11 @@
 **[API docs](http://ptaoussanis.github.io/tower/)** | **[CHANGELOG](https://github.com/ptaoussanis/tower/blob/master/CHANGELOG.md)** | [contact & contributing](#contact--contributing) | [other Clojure libs](https://www.taoensso.com/clojure-libraries) | [Twitter](https://twitter.com/#!/ptaoussanis) | current [semantic](http://semver.org/) version:
 
 ```clojure
-[com.taoensso/tower "1.7.1"] ; Requires Clojure 1.4+ as of 1.7.0
+[com.taoensso/tower "1.7.1"]        ; Stable, needs Clojure 1.4+ as of 1.7.0
+[com.taoensso/tower "2.0.0-alpha5"] ; Development (notes below)
 ```
+
+v2 adds an improved, config-atom-free translation fn (`t`) API. It is a **BREAKING** release for `t` users. See the [CHANGELOG](https://github.com/ptaoussanis/tower/blob/master/CHANGELOG.md) for migration details.
 
 # Tower, a Clojure i18n & L10n library
 

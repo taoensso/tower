@@ -13,27 +13,15 @@
   (let [[name [expr]] (macro/name-with-attributes name sigs)]
     `(clojure.core/defonce ~name ~expr)))
 
-(defn leaf-paths
+(defn leaf-nodes
   "Takes a nested map and squashes it into a sequence of paths to leaf nodes.
-  Based on 'flatten-tree' by James Reaves on Google Groups.
-
-  (leaf-map {:a {:b {:c \"c-data\" :d \"d-data\"}}}) =>
-  ((:a :b :c \"c-data\") (:a :b :d \"d-data\"))"
-  [map]
-  (if (map? map)
-    (for [[k v] map
-          w (leaf-paths v)]
+  Based on 'flatten-tree' by James Reaves on Google Groups."
+  [m]
+  (if (map? m)
+    (for [[k v] m
+          w (leaf-nodes v)]
       (cons k w))
-    (list (list map))))
-
-(defn take-until
-  "Like `take-while` but always takes first item from coll."
-  ([pred coll] (take-until pred coll true))
-  ([pred coll first?]
-     (lazy-seq
-      (when-let [s (seq coll)]
-        (when (or first? (pred (first s)))
-          (cons (first s) (take-until pred (rest s) false)))))))
+    (list (list m))))
 
 (defn escape-html
   "Changes some common special characters into HTML character entities."
@@ -118,7 +106,7 @@
   (let [;; {#{file1A file1B ...#} (time1A time1A ...),
         ;;  #{file2A file2B ...#} (time2A time2B ...), ...}
         group-times (atom {})]
-    (fn [& resource-names]
+    (fn [resource-names]
       (let [file-group (into (sorted-set) resource-names)
             file-times (map file-resource-last-modified file-group)
             last-file-times (get @group-times file-group)]
@@ -145,22 +133,28 @@
          (parse-http-accept-header "a,")
          (parse-http-accept-header "es-ES, en-US"))
 
-(defn deep-merge-with ; From clojure.contrib.map-utils
-  "Like `merge-with` but merges maps recursively, applying the given fn
-  only when there's a non-map at a particular level.
+(defn fq-name "Like `name` but includes namespace in string when present."
+  [x] (if (string? x) x
+          (let [n (name x)]
+            (if-let [ns (namespace x)] (str ns "/" n) n))))
 
-  (deepmerge-with + {:a {:b {:c 1 :d {:x 1 :y 2}} :e 3} :f 4}
-                    {:a {:b {:c 2 :d {:z 9} :z 3} :e 100}})
-  => {:a {:b {:z 3, :c 3, :d {:z 9, :x 1, :y 2}}, :e 103}, :f 4}"
-  [f & maps]
-  (apply
-   (fn m [& maps]
-     (if (every? map? maps)
-       (apply merge-with m maps)
-       (apply f maps)))
-   maps))
+(comment (map fq-name ["foo" :foo :foo.bar/baz]))
 
-(def deep-merge (partial deep-merge-with (fn [x y] y)))
+(defn explode-keyword [k] (str/split (fq-name k) #"[\./]"))
+(comment (explode-keyword :foo.bar/baz))
 
-(comment (deep-merge {:a {:b {:c {:d :D :e :E}}}}
-                     {:a {:b {:g :G :c {:c {:f :F}}}}}))
+(defn merge-keywords [ks & [as-ns?]]
+  (let [parts (->> ks (filterv identity) (mapv explode-keyword) (reduce into []))]
+    (when-not (empty? parts)
+      (if as-ns? ; Don't terminate with /
+        (keyword (str/join "." parts))
+        (let [ppop (pop parts)]
+          (keyword (when-not (empty? ppop) (str/join "." ppop))
+                   (peek parts)))))))
+
+(comment (merge-keywords [:foo.bar nil :baz.qux/end nil])
+         (merge-keywords [:foo.bar nil :baz.qux/end nil] true)
+         (merge-keywords [:a.b.c "d.e/k"])
+         (merge-keywords [:a.b.c :d.e/k])
+         (merge-keywords [nil :k])
+         (merge-keywords [nil]))

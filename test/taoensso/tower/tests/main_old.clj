@@ -122,41 +122,47 @@
 (deftest test-dt-parsing) ; TODO
 
 (deftest test-translations
+  (let [t (partial t tower/example-tconfig)]
 
-  ;; Locale selection & fallback
-  (are [locale expected] (= (with-locale locale (t :example/foo)) expected)
-       :en      ":en :example/foo text"
-       :en-US   ":en-US :example/foo text"
-       :en-GB   ":en :example/foo text"
-       :default ":en :example/foo text"
-       :zh-CN   ":en :example/foo text")
+    ;; Locale selection & fallback
+    (are [locale expected] (= (with-locale locale (t :example/foo)) expected)
+         :en          ":en :example/foo text"
+         :en-US       ":en-US :example/foo text"
+         :en-GB       ":en :example/foo text"
+         :jvm-default ":en-US :example/foo text"
+         :zh-CN       ":en :example/foo text")
 
-  ;; Scoping
-  (with-locale :en
-    (is (= (t :example/foo)     ":en :example/foo text"))
-    (is (= (t :example.bar/baz) ":en :example.bar/baz text"))
-    (is (= (with-scope :example     (t :foo)) (t :example/foo)))
-    (is (= (with-scope :example.bar (t :baz)) (t :example.bar/baz))))
+    (with-locale :de ; Fall back to config's :default-locale
+      (is (= (t :example/foo) ":en :example/foo text")))
 
-  ;; Decorators (markdown+escape, verbatim, translator note)
-  (with-locale :en
-    (are [key expected] (= (t key) expected)
-         :example/with-markdown "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
-         :example/with-exclaim  "<tag>**strong**</tag>"))
+    ;; Scoping
+    (with-locale :en
+      (is (= (t :example/foo)     ":en :example/foo text"))
+      (is (= (t :example.bar/baz) ":en :example.bar/baz text"))
+      (is (= (with-scope :example     (t :foo)) (t :example/foo)))
+      (is (= (with-scope :example.bar (t :baz)) (t :example.bar/baz))))
 
-  ;; Arg interpolation
-  (with-locale :en
-    (is (= (t :example/greeting "Steve") "Hello Steve, how are you?")))
+    ;; Decorators (markdown+escape, verbatim, translator note)
+    (with-locale :en
+      (are [key expected] (= (t key) expected)
+           :example/with-markdown "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
+           :example/with-exclaim  "<tag>**strong**</tag>"))
 
-  ;; Missing keys & key fallback
-  (with-locale :en
-    (is (= (t :invalid) "&lt;Missing translation: '{:locale :en, :scope nil, :k-or-ks :invalid}'&gt;"))
-    (is (= (t :invalid "arg") "&lt;Missing translation: {:locale :en, :scope nil, :k-or-ks :invalid}&gt;"))
-    (is (= (t [:invalid :example/foo]) ":en :example/foo text"))
-    (is (= (t [:invalid "Explicit fallback"]) "Explicit fallback"))
-    (is (= (t [:invalid nil]) nil)))
+    ;; Arg interpolation
+    (with-locale :en
+      (is (= (t :example/greeting "Steve") "Hello Steve, how are you?")))
 
-  ;; Aliases
-  (with-locale :en
-    (is (= (t :example/greeting-alias "Bob") "Hello Bob, how are you?"))
-    (is (= (t :example/baz-alias) (t :example.bar/baz)))))
+    ;; Missing keys & key fallback
+    (with-locale :en
+      (is (= (t :invalid) "&lt;Missing translation: [:en null [:invalid]]&gt;"))
+      (is (= (t :invalid "arg") "&lt;Missing translation: [:en null [:invalid]]&gt;"))
+      (is (= (t [:invalid :example/foo]) ":en :example/foo text"))
+      (is (= (t [:invalid :invalid])
+             "&lt;Missing translation: [:en null [:invalid :invalid]]&gt;"))
+      (is (= (t [:invalid "Explicit fallback"]) "Explicit fallback"))
+      (is (= (t [:invalid nil]) nil)))
+
+    ;; Aliases
+    (with-locale :en
+      (is (= (t :example/greeting-alias "Bob") "Hello Bob, how are you?"))
+      (is (= (t :example/baz-alias) (t :example.bar/baz))))))
