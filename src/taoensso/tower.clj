@@ -4,8 +4,8 @@
   {:author "Peter Taoussanis"}
   (:require [clojure.string  :as str]
             [clojure.java.io :as io]
-            [taoensso.timbre :as timbre])
-  (:use     [taoensso.tower.utils :as utils :only (defmem-)])
+            [taoensso.timbre :as timbre]
+            [taoensso.tower.utils :as utils :refer (defmem-)])
   (:import  [java.util Date Locale TimeZone]
             [java.text Collator NumberFormat DateFormat]))
 
