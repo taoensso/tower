@@ -450,26 +450,5 @@
          (time (dotimes [_ 10000] (t ec [:invalid nil])))          ; ~70ms
          )
 
-(defmacro tstr
-  "EXPERIMENTAL. Like `t` but joins together multiple translations:
-  (tstr :k1 :k2 \"arg1\" \"arg2\" [:k3-choice1 :k3-choice2]) =>
-  (str/join \" \" (t :k1) (t :k2 \"arg1\" \"arg2\") (t [:k3-choice1 :k3-choice2]))"
-  ([config k-or-ks] `(t ~config ~k-or-ks))
-  ([config k-or-ks & more]
-     (let [;; Lists of 1 k-or-ks, each followed by optional args for interpolation
-           partitions
-           (loop [v [] remaining (cons k-or-ks more)]
-             (if-not (seq remaining)
-               v
-               (let [partition
-                     (vec (utils/take-until
-                           #(and (not (keyword? %)) (not (vector?  %)))
-                           remaining))]
-                 (recur (conj v partition) (drop (count partition) remaining)))))]
-       `(str/join " " (map #(apply t ~config %) ~partitions)))))
-
-(comment (with-locale :en-ZA
-           (tstr example-config :example/greeting "Steve" [:example/foo])))
-
 (defn dictionary->xliff [m]) ; TODO Use hiccup?
 (defn xliff->dictionary [s]) ; TODO Use clojure.xml/parse?
