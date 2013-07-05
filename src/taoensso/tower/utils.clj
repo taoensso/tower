@@ -118,7 +118,7 @@
   (let [;; {#{file1A file1B ...#} (time1A time1A ...),
         ;;  #{file2A file2B ...#} (time2A time2B ...), ...}
         group-times (atom {})]
-    (fn [& resource-names]
+    (fn [resource-names]
       (let [file-group (into (sorted-set) resource-names)
             file-times (map file-resource-last-modified file-group)
             last-file-times (get @group-times file-group)]

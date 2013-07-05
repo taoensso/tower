@@ -36,7 +36,9 @@
                        (-> request :params  :locale)
                        (locale-from-uri     request)
                        (locale-from-headers request)
-                       :default]
+                       ;; TODO optional (own) default first
+                       :jvm-default
+                       ]
                       (filter tower/parse-Locale)
                       first)]
 
