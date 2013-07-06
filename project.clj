@@ -20,7 +20,6 @@
   :plugins [[lein-expectations "0.0.7"]
             [lein-autoexpect   "0.2.5"]
             [codox             "0.6.4"]]
-  :plugins [[codox "0.6.4"]]
   :min-lein-version "2.0.0"
   :global-vars {*warn-on-reflection* true}
   :repositories
