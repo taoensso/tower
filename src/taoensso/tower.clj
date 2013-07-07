@@ -104,12 +104,19 @@
   (plocalize
     ([s loc] (plocalize s loc :number))
     ([s loc style]
-       (case style
-         :number   (.parse (f-number   loc) s)
-         :integer  (.parse (f-integer  loc) s)
-         :percent  (.parse (f-percent  loc) s)
-         :currency (.parse (f-currency loc) s)
-         (throw (Exception. (str "Unknown style: " style))))))
+       (let [[type len1 len2] (parse-style style)
+             st1              (dt-styles (or len1      :default))
+             st2              (dt-styles (or len2 len1 :default))]
+         (case type
+           :number   (.parse (f-number   loc) s)
+           :integer  (.parse (f-integer  loc) s)
+           :percent  (.parse (f-percent  loc) s)
+           :currency (.parse (f-currency loc) s)
+
+           :date     (.parse (f-date loc st1)     s)
+           :time     (.parse (f-time loc st1)     s)
+           :dt       (.parse (f-dt   loc st1 st2) s)
+           (throw (Exception. (str "Unknown style: " style)))))))
 
   clojure.lang.IPersistentCollection ; sort
   (plocalize
@@ -122,15 +129,15 @@
 
 (defn localize
   "Localizes given arg by arg type:
-    * Nil    - nil.
-    * Date   - Formatted string. `style` is <:#{date time dt}-#{default short
-               medium long full}>, e.g. :date-full, :time-short, etc. Default is
-               :date-default.
-    * Number - Formatted string. `style` e/o #{:number :integer :percent
-               :currency}. Default is :number.
-    * String - Parsed number. `style` e/o #{:number :integer :percent :currency}.
-               Default is :number.
-    * Coll   - Sorted collection. `style` e/o #{:asc :desc}, default is :asc."
+    * Nil    -> nil.
+    * Date   -> Formatted string. `style` is <:#{date time dt}-#{default short
+                medium long full}>, e.g. :date-full, :time-short, etc. Default
+                is :date-default.
+    * Number -> Formatted string. `style` e/o #{:number :integer :percent
+                :currency}. Default is :number.
+    * String -> Parsed Date/Number. `style` is a Date/Number style. Default
+                is `:number`.
+    * Coll   -> Sorted collection. `style` e/o #{:asc :desc}, default is :asc."
   ([loc x]       (plocalize x (locale loc)))
   ([loc x style] (plocalize x (locale loc) style)))
 
@@ -140,11 +147,13 @@
   (localize :en (Date.) :date-short)
   (localize :en (Date.) :dt-long)
 
-  (localize :en 55.474  :currency)
-  (localize :en (/ 3 9) :percent)
-
-  (localize :en    "25%"    :percent)
+  (localize :en-US 55.474   :currency)
   (localize :en-US "$55.47" :currency)
+
+  (localize :en (/ 3 9) :percent)
+  (localize :en "33%"   :percent)
+
+  (localize :en (localize :en (Date.)) :date)
 
   (localize :en ["a" "d" "c" "b" "f" "_"]))
 
