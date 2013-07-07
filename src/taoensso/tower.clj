@@ -9,8 +9,6 @@
   (:import  [java.util Date Locale TimeZone]
             [java.text Collator NumberFormat DateFormat]))
 
-;; TODO Wrap for v1 API where possible
-
 ;;;; Locales (big L for the Java object) & bindings
 
 (def ^:private ensure-valid-Locale (set (Locale/getAvailableLocales)))
@@ -158,10 +156,10 @@
 
 ;;;; Localized text formatting
 
-(defn format-str "Like clojure.core/format but takes a locale."
+(defn fmt-str "Like clojure.core/format but takes a locale."
   ^String [loc fmt & args] (String/format (locale loc) fmt (to-array args)))
 
-(defn format-msg
+(defn fmt-msg
   "Creates a localized message formatter and parse pattern string, substituting
   given arguments as per MessageFormat spec."
   ^String [loc pattern & args]
@@ -169,10 +167,10 @@
     (.format formatter (to-array args))))
 
 (comment
-  (format-msg :de "foobar {0}!" 102.22)
-  (format-msg :de "foobar {0,number,integer}!" 102.22)
+  (fmt-msg :de "foobar {0}!" 102.22)
+  (fmt-msg :de "foobar {0,number,integer}!" 102.22)
   ;; Note that choice text must be unescaped! Use `!` decorator:
-  (-> #(format-msg :de "{0,choice,0#no cats|1#one cat|1<{0,number} cats}" %)
+  (-> #(fmt-msg :de "{0,choice,0#no cats|1#one cat|1<{0,number} cats}" %)
       (map (range 5)) doall))
 
 ;;;; Localized country & language names
@@ -191,23 +189,23 @@
 
 (def ^:private all-iso-countries (vec (Locale/getISOCountries)))
 
-(defn sorted-localized-countries
+(defn localized-countries
   "Returns ISO country codes and corresponding localized country names, both
   sorted by the localized names."
-  ([loc] (sorted-localized-countries loc all-iso-countries))
+  ([loc] (localized-countries loc all-iso-countries))
   ([loc iso-countries]
      (get-sorted-localized-names
       (fn [code] (.getDisplayCountry (Locale. "" code) (locale loc)))
       iso-countries (locale loc))))
 
-(comment (sorted-localized-countries :pl ["GB" "DE" "PL"]))
+(comment (localized-countries :pl ["GB" "DE" "PL"]))
 
 (def ^:private all-iso-languages (vec (Locale/getISOLanguages)))
 
-(defn sorted-localized-languages
+(defn localized-languages
   "Returns ISO language codes and corresponding localized language names, both
   sorted by the localized names."
-  ([loc] (sorted-localized-languages loc all-iso-languages))
+  ([loc] (localized-languages loc all-iso-languages))
   ([loc iso-languages]
      (get-sorted-localized-names
       (fn [code] (let [Loc (Locale. code)]
@@ -217,7 +215,7 @@
                          (str " (" (.getDisplayLanguage Loc Loc) ")")))))
       iso-languages (locale loc))))
 
-(comment (sorted-localized-languages :pl ["en" "de" "pl"]))
+(comment (localized-languages :pl ["en" "de" "pl"]))
 
 ;;;; Timezones (doesn't depend on locales)
 
@@ -237,7 +235,7 @@
 
 (comment (timezone-display-name "Asia/Bangkok" (* 90 60 1000)))
 
-(def sorted-timezones
+(def timezones
   "Returns timezone IDs and corresponding pretty timezone names, both sorted by
   the timezone's offset. Caches result for 3 hours."
   (utils/memoize-ttl
@@ -255,8 +253,8 @@
        [(mapv first  sorted-pairs)
         (mapv second sorted-pairs)]))))
 
-(comment (take 10      (first (sorted-timezones)))
-         (take-last 10 (second (sorted-timezones))))
+(comment (take 10      (first  (timezones)))
+         (take-last 10 (second (timezones))))
 
 ;;;; Translations
 
@@ -395,7 +393,7 @@
   See `tower/example-tconfig` for config details."
   ([loc config k-or-ks & interpolation-args]
      (when-let [pattern (t loc config k-or-ks)]
-       (apply format-msg loc pattern interpolation-args)))
+       (apply fmt-msg loc pattern interpolation-args)))
   ([loc config k-or-ks]
      (let [{:keys [dev-mode? default-locale log-missing-translation-fn]} config
            dict (compile-dict config)]
@@ -419,7 +417,7 @@
 
                          ;; Try :missing key in loc & parents
                          (when-let [pattern (get-tr loc-k :missing)]
-                           (format-msg loc pattern loc-k scope ks)))))))))))
+                           (fmt-msg loc pattern loc-k scope ks)))))))))))
 
 (comment (t :en-ZA example-tconfig :example/foo)
          (with-scope :example (t :en-ZA example-tconfig :foo))
@@ -438,13 +436,88 @@
 (defn dictionary->xliff [m]) ; TODO Use hiccup?
 (defn xliff->dictionary [s]) ; TODO Use clojure.xml/parse?
 
-;;;; Deprecated TODO
+;;;; DEPRECATED
+;; The v2 API basically breaks everything. To allow lib consumers to migrate
+;; gradually, the entire v1 API is reproduced below. This should allow Tower v2
+;; to act as a quasi drop-in replacement for v1, despite the huge changes
+;; under-the-covers.
 
-;; * :default -> :jvm-default for parse-Locale
+(defn parse-Locale "DEPRECATED: Use `locale` instead."
+  [loc] (if (= loc :default) (locale :jvm-default) (locale loc)))
 
-;; (def parse-Locale parse-locale) ; DEPRECATED
+(defn l-compare "DEPRECATED." [x y] (.compare (collator *locale*) x y))
 
-;; (defmacro ^:private defn-bound [name f]
-;;   `(defn ~(symbol name) ~(str "Like `" f "` but uses thread-bound locale.")
-;;      {:arglists (map (comp vec rest) (:arglists (meta (var ~f))))}
-;;      [& sigs#] (apply ~f ~'*locale* sigs#)))
+(defn format-number   "DEPRECATED." [x] (localize *locale* x :number))
+(defn format-integer  "DEPRECATED." [x] (localize *locale* x :integer))
+(defn format-percent  "DEPRECATED." [x] (localize *locale* x :percent))
+(defn format-currency "DEPRECATED." [x] (localize *locale* x :currency))
+
+(defn parse-number    "DEPRECATED." [s] (localize *locale* s :number))
+(defn parse-integer   "DEPRECATED." [s] (localize *locale* s :integer))
+(defn parse-percent   "DEPRECATED." [s] (localize *locale* s :percent))
+(defn parse-currency  "DEPRECATED." [s] (localize *locale* s :currency))
+
+(defn- new-style [& xs] (keyword (str/join "-" (mapv name xs))))
+
+(defn style "DEPRECATED."
+  ([] :default)
+  ([style] (or (dt-styles style)
+               (throw (Exception. (str "Unknown style: " style))))))
+
+(defn format-date "DEPRECATED."
+  ([d]       (localize *locale* d :date))
+  ([style d] (localize *locale* d (new-style :date style))))
+
+(defn format-time "DEPRECATED."
+  ([t]       (localize *locale* t :time))
+  ([style t] (localize *locale* t (new-style :time style))))
+
+(defn format-dt "DEPRECATED."
+  ([dt]               (localize *locale* dt :dt))
+  ([dstyle tstyle dt] (localize *locale* dt (new-style :dt dstyle tstyle))))
+
+(defn parse-date "DEPRECATED."
+  ([s]       (localize *locale* s :date))
+  ([style s] (localize *locale* s (new-style :date style))))
+
+(defn parse-time "DEPRECATED."
+  ([s]       (localize *locale* s :time))
+  ([style s] (localize *locale* s (new-style :time style))))
+
+(defn parse-dt "DEPRECATED."
+  ([s]               (localize *locale* s :dt))
+  ([dstyle tstyle s] (localize *locale* s (new-style :dt dstyle tstyle))))
+
+(def format-str "DEPRECATED." #(apply fmt-str *locale* %&))
+(def format-msg "DEPRECATED." #(apply fmt-msg *locale* %&))
+
+(defn- sorted-old [f & args]
+  (fn [& args]
+    (let [[names ids] (apply f *locale* args)]
+      {:sorted-names names
+       :sorted-ids   ids})))
+
+(def sorted-localized-countries "DEPRECATED." (sorted-old localized-countries))
+(def sorted-localized-languages "DEPRECATED." (sorted-old localized-languages))
+(def sorted-timezones           "DEPRECATED." (sorted-old timezones))
+
+(def config "DEPRECATED." (atom example-tconfig))
+(defn set-config!   "DEPRECATED." [ks val] (swap! config assoc-in ks val))
+(defn merge-config! "DEPRECATED." [& maps] (apply swap! config utils/merge-deep maps))
+
+(defn load-dictionary-from-map-resource! "DEPRECATED."
+  ([] (load-dictionary-from-map-resource! "tower-dictionary.clj"))
+  ([resource-name & [merge?]]
+     (try (let [new-dictionary (-> resource-name io/resource io/reader slurp
+                                   read-string)]
+            (if (= false merge?)
+              (set-config!   [:dictionary] new-dictionary)
+              (merge-config! {:dictionary  new-dictionary})))
+
+          (set-config! [:dict-res-name] resource-name)
+          (utils/file-resources-modified? resource-name)
+          (catch Exception e
+            (throw (Exception. (str "Failed to load dictionary from resource: "
+                                    resource-name) e))))))
+
+(def t' #(apply t *locale* @config %&)) ; BREAKS v1 due to unavoidable name clash

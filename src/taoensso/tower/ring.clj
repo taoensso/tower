@@ -34,4 +34,8 @@
                                      (partial tower/t loc tconfig)
                                      (partial tower/t loc))))))))
 
-;;;; Deprecated TODO
+;;;; Deprecated
+
+(defn wrap-i18n-middleware "DEPRECATED: Use `wrap-tower-middleware` instead."
+  [handler & {:keys [locale-selector-fn]}]
+  (wrap-tower-middleware handler {:locale-selector locale-selector-fn}))
