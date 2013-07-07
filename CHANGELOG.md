@@ -1,36 +1,28 @@
-## v1.7.1 → 2.0.0-alpha4
-  * `parse-Locale` now accepts (and passes through) Locales (i.e. the Java objects).
-  * **BREAKING**: `config` and `load-dictionary-from-map-resource!` have been dropped. Instead, `t` now takes an explicit `config` argument of the same form as the old `config` atom. The `:dictionary` value may now be a resource name like "tower-dictionary.clj". When `:dictionary` is a resource name and `:dev-mode?` is true, the resource will be watched for changes.
-  * **BREAKING**: `ring/wrap-i18n-middleware`'s arguments have changed. See the docstring for details.
-  * `ring/wrap-i18n-middleware` can now add a `:t` key onto requests whose value is `(t partial tconfig`). I.e. the attached `:t` can be used as a translation fn that does _not_ require the explicit config arg.
-  * **BREAKING**: Rename config option: `:log-missing-translation!-fn` -> `:log-missing-translation-fn`. The fn args have also changed (see `tower/example-tconfig` for details).
+## v1.7.1 → 2.0.0-alpha6
 
-So, basically, the idiomatic `t` (translation) usage has changed:
-```clojure
-;;; Old usage, with Ring middleware
-(tower/set-config! [:dev-mode? true])
-(tower/load-dictionary-from-map-resource! "my-dictionary.clj")
-(defn my-handler [request] (tower/t :welcome-message))
-(def  my-ring-app (tower.ring/wrap-i18n-middleware my-handler))
+So there's good news and bad news. The bad news is Tower v2's API is almost **completely different to the v1 API**.
 
-;;; New idiomatic usage, with Ring middleware
-(defn my-handler [{:keys [t] :as request}] (t :welcome-message))
-(def  my-ring-app (tower.ring/wrap-i18n-middleware my-handler
-                    {:tconfig {:dev-mode? true :dictionary "my-dictionary.clj"}}))
+The good news is the new API is (with the exception of `t`) **entirely self-contained**. Meaning: v2 **contains** the (now deprecated) v1 API and it should be possible to use v2 as an (almost) drop-in replacement for v1 while you migrate at your convenience.
 
+**If you just want v2 to "work" without migrating**: rename your `t` calls to `t'`.
 
-;;; Old usage, w/o Ring middleware
-(tower/set-config! [:dev-mode? true])
-(tower/load-dictionary-from-map-resource! "my-dictionary.clj")
-(tower/t :my-translation-key)
+**If you want to migrate**:
 
-;;; New idiomatic usage, w/o Ring middleware
-(def my-t (partial tower/t {:dev-mode? true :dictionary "my-dictionary.clj"}))
-(my-t :my-translation-key)
-```
+  * **BREAKING**: `t` now takes an explicit locale and a config map of the same form as the v1 `config` atom.
+  * **DEPRECATED**: `parse-Locale` -> `locale`. Only the name has changed.
+  * **DEPRECATED**: `format-str` -> `fmt-str`, `format-msg` -> `fmt-msg`. The new fns take an explicit locale arg.
+  * **DEPRECATED**: `l-compare`, `format-*`, `parse-*` -> `localize`. So a single fn, `localize`, now handles the job of ~15 fns from the old API. See the `localize` docstring for details.
+  * **DEPRECATED**: `sorted-localized-*` -> `localized-*`, `sorted-timezones` -> `timezones`. The new fns take an explicit locale arg and provide their result as a vector rather than a map.
+  * **DEPRECATED**: `config`, `set-config!`, `merge-config!`, `load-dictionary-from-map-resource!` have all been dropped. Instead, `t` now takes an explicit `config` argument of the same form as the old `config` atom. The `:dictionary` value may now be a resource name like "tower-dictionary.clj". When `:dictionary` is a resource name and `:dev-mode?` is true, the resource will be watched for changes.
+  * **DEPRECATED**: `ring/wrap-i18n-middleware` -> `ring/wrap-tower-middleware`. Args have changed and a number of new features have been added. See the docstring for details.
 
-The localization API (i.e. everything besides `t`) is unchanged.
+So, basically, idiomatic Tower usage has been simplified:
 
+  * The `localize` fn has replaced most individual localization fns.
+  * All API fns now take an explicit locale argument.
+  * The Ring middleware provides a `*locale*` thread-local binding and a `:locale` request key to help with the above (use whichever is more convenient).
+  * The `t` fn now takes an explicit config map rather than depending on a global config atom.
+  * The Ring middleware provides a `:t (partial tower/t locale config)` key to help with the above.
 
 ## v1.6.0 → v1.7.1
   * `load-dictionary-from-map-resource!` now supports optionally overwriting (vs merging) with new optional `merge?` arg.
