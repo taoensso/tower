@@ -56,7 +56,13 @@
    :full    DateFormat/FULL})
 
 (def ^:private parse-style "style -> [type subtype1 subtype2 ...]"
-  (memoize (fn [style] (mapv keyword (str/split (name style) #"-")))))
+  (memoize
+   (fn [style]
+     (let [[type len1 len2] (if-not style [nil]
+                              (mapv keyword (str/split (name style) #"-")))
+           st1              (dt-styles (or len1      :default))
+           st2              (dt-styles (or len2 len1 :default))]
+       [type st1 st2]))))
 
 (defmem- f-date DateFormat [Loc st]    (DateFormat/getDateInstance st Loc))
 (defmem- f-time DateFormat [Loc st]    (DateFormat/getTimeInstance st Loc))
@@ -69,63 +75,48 @@
 
 (defmem- collator Collator [Loc] (Collator/getInstance Loc))
 
-(defprotocol     ILocalize (plocalize [x loc] [x loc style]))
+(defprotocol     ILocalize (plocalize [x loc style]))
 (extend-protocol ILocalize
-  nil
-  (plocalize
-    ([x loc]       nil)
-    ([x loc style] nil))
+  nil (plocalize [x loc style] nil)
 
   Date ; format
-  (plocalize
-    ([dt loc] (plocalize dt loc :date))
-    ([dt loc style]
-       (let [[type len1 len2] (parse-style style)
-             st1              (dt-styles (or len1      :default))
-             st2              (dt-styles (or len2 len1 :default))]
-         (case type
-           :date (.format (f-date loc st1)     dt)
-           :time (.format (f-time loc st1)     dt)
-           :dt   (.format (f-dt   loc st1 st2) dt)
-           (throw (Exception. (str "Unknown style: " style)))))))
+  (plocalize [dt loc style]
+    (let [[type st1 st2] (parse-style style)]
+      (case (or type :date)
+        :date (.format (f-date loc st1)     dt)
+        :time (.format (f-time loc st1)     dt)
+        :dt   (.format (f-dt   loc st1 st2) dt)
+        (throw (Exception. (str "Unknown style: " style))))))
 
   Number ; format
-  (plocalize
-    ([n loc] (plocalize n loc :number))
-    ([n loc style]
-       (case style
-         :number   (.format (f-number   loc) n)
-         :integer  (.format (f-integer  loc) n)
-         :percent  (.format (f-percent  loc) n)
-         :currency (.format (f-currency loc) n)
-         (throw (Exception. (str "Unknown style: " style))))))
+  (plocalize [n loc style]
+    (case (or style :number)
+      :number   (.format (f-number   loc) n)
+      :integer  (.format (f-integer  loc) n)
+      :percent  (.format (f-percent  loc) n)
+      :currency (.format (f-currency loc) n)
+      (throw (Exception. (str "Unknown style: " style)))))
 
   String ; parse
-  (plocalize
-    ([s loc] (plocalize s loc :number))
-    ([s loc style]
-       (let [[type len1 len2] (parse-style style)
-             st1              (dt-styles (or len1      :default))
-             st2              (dt-styles (or len2 len1 :default))]
-         (case type
-           :number   (.parse (f-number   loc) s)
-           :integer  (.parse (f-integer  loc) s)
-           :percent  (.parse (f-percent  loc) s)
-           :currency (.parse (f-currency loc) s)
+  (plocalize [s loc style]
+    (let [[type st1 st2] (parse-style style)]
+      (case (or type :number)
+        :number   (.parse (f-number   loc) s)
+        :integer  (.parse (f-integer  loc) s)
+        :percent  (.parse (f-percent  loc) s)
+        :currency (.parse (f-currency loc) s)
 
-           :date     (.parse (f-date loc st1)     s)
-           :time     (.parse (f-time loc st1)     s)
-           :dt       (.parse (f-dt   loc st1 st2) s)
-           (throw (Exception. (str "Unknown style: " style)))))))
+        :date     (.parse (f-date loc st1)     s)
+        :time     (.parse (f-time loc st1)     s)
+        :dt       (.parse (f-dt   loc st1 st2) s)
+        (throw (Exception. (str "Unknown style: " style))))))
 
   clojure.lang.IPersistentCollection ; sort
-  (plocalize
-    ([coll loc] (plocalize coll loc :asc))
-    ([coll loc style]
-       (case style
-         :asc  (sort (fn [x y] (.compare (collator loc) x y)) coll)
-         :desc (sort (fn [x y] (.compare (collator loc) y x)) coll)
-         (throw (Exception. (str "Unknown style: " style)))))))
+  (plocalize [coll loc style]
+    (case (or style :asc)
+      :asc  (sort (fn [x y] (.compare (collator loc) x y)) coll)
+      :desc (sort (fn [x y] (.compare (collator loc) y x)) coll)
+      (throw (Exception. (str "Unknown style: " style))))))
 
 (defn localize
   "Localizes given arg by arg type:
@@ -138,8 +129,7 @@
     * String -> Parsed Date/Number. `style` is a Date/Number style. Default
                 is `:number`.
     * Coll   -> Sorted collection. `style` e/o #{:asc :desc}, default is :asc."
-  ([loc x]       (plocalize x (locale loc)))
-  ([loc x style] (plocalize x (locale loc) style)))
+  [loc x & [style]] (plocalize x (locale loc) style))
 
 (comment
   (localize :en (Date.))
