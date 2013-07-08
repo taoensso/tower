@@ -73,24 +73,8 @@
 (defmem- f-percent  NumberFormat [Loc] (NumberFormat/getPercentInstance  Loc))
 (defmem- f-currency NumberFormat [Loc] (NumberFormat/getCurrencyInstance Loc))
 
-(defmem- collator Collator [Loc] (Collator/getInstance Loc))
-(defn lcomparator "Returns localized comparator."
-  [loc & [style]]
-  (let [Col (collator (locale loc))]
-    (case (or style :asc)
-      :asc  #(.compare Col %1 %2)
-      :desc #(.compare Col %2 %1)
-      (throw (Exception. (str "Unknown style: " style))))))
-
-(defprotocol ILocalize
-  (pfmt   [x loc style])
-  (pparse [x loc style]))
-
-(extend-protocol ILocalize
-  nil
-  (pfmt   [x loc style] nil)
-  (pparse [x loc style] nil)
-
+(defprotocol     IFmt (pfmt [x loc style]))
+(extend-protocol IFmt
   Date
   (pfmt [dt loc style]
     (let [[type st1 st2] (parse-style style)]
@@ -99,7 +83,6 @@
         :time (.format (f-time loc st1)     dt)
         :dt   (.format (f-dt   loc st1 st2) dt)
         (throw (Exception. (str "Unknown style: " style))))))
-
   Number
   (pfmt [n loc style]
     (case (or style :number)
@@ -107,21 +90,7 @@
       :integer  (.format (f-integer  loc) n)
       :percent  (.format (f-percent  loc) n)
       :currency (.format (f-currency loc) n)
-      (throw (Exception. (str "Unknown style: " style)))))
-
-  String
-  (pparse [s loc style]
-    (let [[type st1 st2] (parse-style style)]
-      (case (or type :number)
-        :number   (.parse (f-number   loc) s)
-        :integer  (.parse (f-integer  loc) s)
-        :percent  (.parse (f-percent  loc) s)
-        :currency (.parse (f-currency loc) s)
-
-        :date     (.parse (f-date loc st1)     s)
-        :time     (.parse (f-time loc st1)     s)
-        :dt       (.parse (f-dt   loc st1 st2) s)
-        (throw (Exception. (str "Unknown style: " style)))))))
+      (throw (Exception. (str "Unknown style: " style))))))
 
 (defn fmt
   "Formats Date/Number as a string.
@@ -132,7 +101,28 @@
 (defn parse
   "Parses date/number string as a Date/Number. See `fmt` for possible `style`s
   (default :number)."
-  [loc s & [style]] (pparse s (locale loc) style))
+  [loc s & [style]]
+  (let [loc (locale loc)
+        [type st1 st2] (parse-style style)]
+    (case (or type :number)
+      :number   (.parse (f-number   loc) s)
+      :integer  (.parse (f-integer  loc) s)
+      :percent  (.parse (f-percent  loc) s)
+      :currency (.parse (f-currency loc) s)
+
+      :date     (.parse (f-date loc st1)     s)
+      :time     (.parse (f-time loc st1)     s)
+      :dt       (.parse (f-dt   loc st1 st2) s)
+      (throw (Exception. (str "Unknown style: " style))))))
+
+(defmem- collator Collator [Loc] (Collator/getInstance Loc))
+(defn lcomparator "Returns localized comparator."
+  [loc & [style]]
+  (let [Col (collator (locale loc))]
+    (case (or style :asc)
+      :asc  #(.compare Col %1 %2)
+      :desc #(.compare Col %2 %1)
+      (throw (Exception. (str "Unknown style: " style))))))
 
 (defn lsort "Localized sort. `style` e/o #{:asc :desc} (default :asc)."
   [loc coll & [style]] (sort (lcomparator loc style) coll))
