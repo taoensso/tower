@@ -82,12 +82,17 @@
       :desc #(.compare Col %2 %1)
       (throw (Exception. (str "Unknown style: " style))))))
 
-(defprotocol     ILocalize (plocalize [x loc style]))
-(extend-protocol ILocalize
-  nil (plocalize [x loc style] nil)
+(defprotocol ILocalize
+  (pfmt   [x loc style])
+  (pparse [x loc style]))
 
-  Date ; format
-  (plocalize [dt loc style]
+(extend-protocol ILocalize
+  nil
+  (pfmt   [x loc style] nil)
+  (pparse [x loc style] nil)
+
+  Date
+  (pfmt [dt loc style]
     (let [[type st1 st2] (parse-style style)]
       (case (or type :date)
         :date (.format (f-date loc st1)     dt)
@@ -95,8 +100,8 @@
         :dt   (.format (f-dt   loc st1 st2) dt)
         (throw (Exception. (str "Unknown style: " style))))))
 
-  Number ; format
-  (plocalize [n loc style]
+  Number
+  (pfmt [n loc style]
     (case (or style :number)
       :number   (.format (f-number   loc) n)
       :integer  (.format (f-integer  loc) n)
@@ -104,8 +109,8 @@
       :currency (.format (f-currency loc) n)
       (throw (Exception. (str "Unknown style: " style)))))
 
-  String ; parse
-  (plocalize [s loc style]
+  String
+  (pparse [s loc style]
     (let [[type st1 st2] (parse-style style)]
       (case (or type :number)
         :number   (.parse (f-number   loc) s)
@@ -116,39 +121,37 @@
         :date     (.parse (f-date loc st1)     s)
         :time     (.parse (f-time loc st1)     s)
         :dt       (.parse (f-dt   loc st1 st2) s)
-        (throw (Exception. (str "Unknown style: " style))))))
+        (throw (Exception. (str "Unknown style: " style)))))))
 
-  clojure.lang.IPersistentCollection ; sort
-  (plocalize [coll loc style] (sort (lcomparator loc style) coll)))
+(defn fmt
+  "Formats Date/Number as a string.
+  `style` is <:#{date time dt}-#{default short medium long full}>,
+  e.g. :date-full, :time-short, etc. (default :date-default)."
+  [loc x & [style]] (pfmt x (locale loc) style))
 
-(defn localize
-  "Localizes given arg by arg type:
-    * Nil    -> nil.
-    * Date   -> Formatted string. `style` is <:#{date time dt}-#{default short
-                medium long full}>, e.g. :date-full, :time-short, etc. Default
-                is :date-default.
-    * Number -> Formatted string. `style` e/o #{:number :integer :percent
-                :currency}. Default is :number.
-    * String -> Parsed Date/Number. `style` is a Date/Number style. Default
-                is `:number`.
-    * Coll   -> Sorted collection. `style` e/o #{:asc :desc}, default is :asc."
-  [loc x & [style]] (plocalize x (locale loc) style))
+(defn parse
+  "Parses date/number string as a Date/Number. See `fmt` for possible `style`s
+  (default :number)."
+  [loc s & [style]] (pparse s (locale loc) style))
+
+(defn lsort "Localized sort. `style` e/o #{:asc :desc} (default :asc)."
+  [loc coll & [style]] (sort (lcomparator loc style) coll))
 
 (comment
-  (localize :en (Date.))
-  (localize :de (Date.))
-  (localize :en (Date.) :date-short)
-  (localize :en (Date.) :dt-long)
+  (fmt :en (Date.))
+  (fmt :de (Date.))
+  (fmt :en (Date.) :date-short)
+  (fmt :en (Date.) :dt-long)
 
-  (localize :en-US 55.474   :currency)
-  (localize :en-US "$55.47" :currency)
+  (fmt   :en-US 55.474   :currency)
+  (parse :en-US "$55.47" :currency)
 
-  (localize :en (/ 3 9) :percent)
-  (localize :en "33%"   :percent)
+  (fmt   :en (/ 3 9) :percent)
+  (parse :en "33%"   :percent)
 
-  (localize :en (localize :en (Date.)) :date)
+  (parse :en (fmt :en (Date.)) :date)
 
-  (localize :en ["a" "d" "c" "b" "f" "_"]))
+  (lsort :en ["a" "d" "c" "b" "f" "_"]))
 
 (defn normalize
   "Transforms Unicode string into W3C-recommended standard de/composition form
@@ -172,8 +175,8 @@
   (fmt-msg :de "foobar {0}!" 102.22)
   (fmt-msg :de "foobar {0,number,integer}!" 102.22)
   ;; Note that choice text must be unescaped! Use `!` decorator:
-  (-> #(fmt-msg :de "{0,choice,0#no cats|1#one cat|1<{0,number} cats}" %)
-      (map (range 5)) doall))
+  (mapv #(fmt-msg :de "{0,choice,0#no cats|1#one cat|1<{0,number} cats}" %)
+        (range 5)))
 
 ;;;; Localized country & language names
 
@@ -191,23 +194,23 @@
 
 (def ^:private all-iso-countries (vec (Locale/getISOCountries)))
 
-(defn localized-countries
+(defn countries
   "Returns ISO country codes and corresponding localized country names, both
   sorted by the localized names."
-  ([loc] (localized-countries loc all-iso-countries))
+  ([loc] (countries loc all-iso-countries))
   ([loc iso-countries]
      (get-sorted-localized-names
       (fn [code] (.getDisplayCountry (Locale. "" code) (locale loc)))
       iso-countries (locale loc))))
 
-(comment (localized-countries :pl ["GB" "DE" "PL"]))
+(comment (countries :pl ["GB" "DE" "PL"]))
 
 (def ^:private all-iso-languages (vec (Locale/getISOLanguages)))
 
-(defn localized-languages
+(defn languages
   "Returns ISO language codes and corresponding localized language names, both
   sorted by the localized names."
-  ([loc] (localized-languages loc all-iso-languages))
+  ([loc] (languages loc all-iso-languages))
   ([loc iso-languages]
      (get-sorted-localized-names
       (fn [code] (let [Loc (Locale. code)]
@@ -217,7 +220,7 @@
                          (str " (" (.getDisplayLanguage Loc Loc) ")")))))
       iso-languages (locale loc))))
 
-(comment (localized-languages :pl ["en" "de" "pl"]))
+(comment (languages :pl ["en" "de" "pl"]))
 
 ;;;; Timezones (doesn't depend on locales)
 
@@ -449,15 +452,15 @@
 
 (defn l-compare "DEPRECATED." [x y] (.compare (collator *locale*) x y))
 
-(defn format-number   "DEPRECATED." [x] (localize *locale* x :number))
-(defn format-integer  "DEPRECATED." [x] (localize *locale* x :integer))
-(defn format-percent  "DEPRECATED." [x] (localize *locale* x :percent))
-(defn format-currency "DEPRECATED." [x] (localize *locale* x :currency))
+(defn format-number   "DEPRECATED." [x] (fmt *locale* x :number))
+(defn format-integer  "DEPRECATED." [x] (fmt *locale* x :integer))
+(defn format-percent  "DEPRECATED." [x] (fmt *locale* x :percent))
+(defn format-currency "DEPRECATED." [x] (fmt *locale* x :currency))
 
-(defn parse-number    "DEPRECATED." [s] (localize *locale* s :number))
-(defn parse-integer   "DEPRECATED." [s] (localize *locale* s :integer))
-(defn parse-percent   "DEPRECATED." [s] (localize *locale* s :percent))
-(defn parse-currency  "DEPRECATED." [s] (localize *locale* s :currency))
+(defn parse-number    "DEPRECATED." [s] (parse *locale* s :number))
+(defn parse-integer   "DEPRECATED." [s] (parse *locale* s :integer))
+(defn parse-percent   "DEPRECATED." [s] (parse *locale* s :percent))
+(defn parse-currency  "DEPRECATED." [s] (parse *locale* s :currency))
 
 (defn- new-style [& xs] (keyword (str/join "-" (mapv name xs))))
 
@@ -467,28 +470,28 @@
                (throw (Exception. (str "Unknown style: " style))))))
 
 (defn format-date "DEPRECATED."
-  ([d]       (localize *locale* d :date))
-  ([style d] (localize *locale* d (new-style :date style))))
+  ([d]       (fmt *locale* d :date))
+  ([style d] (fmt *locale* d (new-style :date style))))
 
 (defn format-time "DEPRECATED."
-  ([t]       (localize *locale* t :time))
-  ([style t] (localize *locale* t (new-style :time style))))
+  ([t]       (fmt *locale* t :time))
+  ([style t] (fmt *locale* t (new-style :time style))))
 
 (defn format-dt "DEPRECATED."
-  ([dt]               (localize *locale* dt :dt))
-  ([dstyle tstyle dt] (localize *locale* dt (new-style :dt dstyle tstyle))))
+  ([dt]               (fmt *locale* dt :dt))
+  ([dstyle tstyle dt] (fmt *locale* dt (new-style :dt dstyle tstyle))))
 
 (defn parse-date "DEPRECATED."
-  ([s]       (localize *locale* s :date))
-  ([style s] (localize *locale* s (new-style :date style))))
+  ([s]       (parse *locale* s :date))
+  ([style s] (parse *locale* s (new-style :date style))))
 
 (defn parse-time "DEPRECATED."
-  ([s]       (localize *locale* s :time))
-  ([style s] (localize *locale* s (new-style :time style))))
+  ([s]       (parse *locale* s :time))
+  ([style s] (parse *locale* s (new-style :time style))))
 
 (defn parse-dt "DEPRECATED."
-  ([s]               (localize *locale* s :dt))
-  ([dstyle tstyle s] (localize *locale* s (new-style :dt dstyle tstyle))))
+  ([s]               (parse *locale* s :dt))
+  ([dstyle tstyle s] (parse *locale* s (new-style :dt dstyle tstyle))))
 
 (def format-str "DEPRECATED." #(apply fmt-str *locale* %&))
 (def format-msg "DEPRECATED." #(apply fmt-msg *locale* %&))
@@ -499,8 +502,8 @@
       {:sorted-names names
        :sorted-ids   ids})))
 
-(def sorted-localized-countries "DEPRECATED." (sorted-old localized-countries))
-(def sorted-localized-languages "DEPRECATED." (sorted-old localized-languages))
+(def sorted-localized-countries "DEPRECATED." (sorted-old countries))
+(def sorted-localized-languages "DEPRECATED." (sorted-old languages))
 (def sorted-timezones           "DEPRECATED." (sorted-old timezones))
 
 (def config "DEPRECATED." (atom example-tconfig))

@@ -1,7 +1,7 @@
 **[API docs](http://ptaoussanis.github.io/tower/)** | **[CHANGELOG](https://github.com/ptaoussanis/tower/blob/master/CHANGELOG.md)** | [contact & contributing](#contact--contributing) | [other Clojure libs](https://www.taoensso.com/clojure-libraries) | [Twitter](https://twitter.com/#!/ptaoussanis) | current [semantic](http://semver.org/) version:
 
 ```clojure
-[com.taoensso/tower "2.0.0-alpha7"] ; Development (notes below)
+[com.taoensso/tower "2.0.0-alpha8"] ; Development (notes below)
 [com.taoensso/tower "1.7.1"]        ; Stable, needs Clojure 1.4+ as of 1.7.0
 ```
 
@@ -32,9 +32,9 @@ Tower's an attempt to present a **simple, idiomatic internationalization and loc
 Add the necessary dependency to your [Leiningen](http://leiningen.org/) `project.clj` and `require` the library in your ns:
 
 ```clojure
-[com.taoensso/tower "2.0.0-alpha7"] ; project.clj
+[com.taoensso/tower "2.0.0-alpha8"] ; project.clj
 (ns my-app (:require [taoensso.tower :as tower
-                      :refer (with-locale with-scope t localize)])) ; ns
+                      :refer (with-locale with-scope t)])) ; ns
 ```
 
 ### Translation
@@ -84,7 +84,7 @@ It's simple to get started, but there's a number of advanced features for if/whe
 **Missing translations**: These are handled gracefully. `(t :en-US :example/foo)` will search for a translation as follows:
   1. `:example/foo` in the `:en-US` locale.
   2. `:example/foo` in the `:en` locale.
-  3. `:example/foo` in the default locale, `(:default-locale @tower/config)`.
+  3. `:example/foo` in the dictionary's default locale.
   4. `:missing` in any of the above locales.
 
 You can also specify fallback keys that'll be tried before other locales. `(t :en-US [:example/foo :example/bar]))` searches:
@@ -100,31 +100,30 @@ In all cases, translation requests are logged upon fallback to default locale or
 
 ### Localization
 
-The `localize` fn handles most common localization needs:
+Check out `fmt`, `parse`, `lsort`, `fmt-str`, `fmt-msg`:
 ```clojure
-(localize :en-ZA 200       :currency) => "R 200.00"
-(localize :en-US 200       :currency) => "$200.00"
-(localize :en-US "$200.00" :currency) => 200 ; Parsing too!
+(tower/fmt   :en-ZA 200       :currency) => "R 200.00"
+(tower/fmt   :en-US 200       :currency) => "$200.00"
+(tower/parse :en-US "$200.00" :currency) => 200
 
-(localize :de-DE 2000.1 :number)     => "2.000,1"
-(localize :de-DE (Date.))            => "12.06.2012"
-(localize :de-DE (Date.) :date-long) => "12. Juni 2012"
-(localize :de-DE (Date.) :dt-long)   => "12 giugno 2012 16.48.01 ICT"
+(tower/fmt :de-DE 2000.1 :number)     => "2.000,1"
+(tower/fmt :de-DE (Date.))            => "12.06.2012"
+(tower/fmt :de-DE (Date.) :date-long) => "12. Juni 2012"
+(tower/fmt :de-DE (Date.) :dt-long)   => "12 giugno 2012 16.48.01 ICT"
 
-;; And what about some Unicode collation/sorting?
-(localize :pl ["Warsaw" "Kraków" "Łódź" "Wrocław" "Poznań"])
+(tower/lsort :pl ["Warsaw" "Kraków" "Łódź" "Wrocław" "Poznań"])
 => ("Kraków" "Łódź" "Poznań" "Warsaw" "Wrocław")
+
+(mapv #(tower/fmt-msg :de "{0,choice,0#no cats|1#one cat|1<{0,number} cats}" %)
+        (range 5))
+=> ["no cats" "one cat" "2 cats" "3 cats" "4 cats"]
 ```
 
-Yes, seriously- it's that simple. See the `localize` fn docstring for details. (A big thanks to [Janne Asmala](https://github.com/asmala) for this idea!).
-
-### Localized string formatting
-
-Check out `tower/fmt-str` and `tower/fmt-msg` for locale-aware string formatters.
+Yes, seriously- it's that simple. See the appropriate docstrings for details.
 
 ### Country and languages names, timezones, etc.
 
-Check out `localized-countries`, `localized-languages`, and `timezones`.
+Check out `countries`, `languages`, and `timezones`.
 
 ### Ring middleware
 

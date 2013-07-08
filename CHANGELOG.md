@@ -1,4 +1,4 @@
-## v1.7.1 → 2.0.0-alpha6
+## v1.7.1 → 2.0.0-alpha8
 
 So there's good news and bad news. The bad news is Tower v2's API is almost **completely different to the v1 API**.
 
@@ -11,14 +11,15 @@ The good news is the new API is (with the exception of `t`) **entirely self-cont
   * **BREAKING**: `t` now takes an explicit locale and a config map of the same form as the v1 `config` atom.
   * **DEPRECATED**: `parse-Locale` -> `locale`. Only the name has changed.
   * **DEPRECATED**: `format-str` -> `fmt-str`, `format-msg` -> `fmt-msg`. The new fns take an explicit locale arg.
-  * **DEPRECATED**: `l-compare`, `format-*`, `parse-*` -> `localize`. So a single fn, `localize`, now handles the job of ~15 fns from the old API. See the `localize` docstring for details.
-  * **DEPRECATED**: `sorted-localized-*` -> `localized-*`, `sorted-timezones` -> `timezones`. The new fns take an explicit locale arg and provide their result as a vector rather than a map.
+  * **DEPRECATED**: `l-compare` -> `lcomparator`. The new fn takes an explicit locale arg and returns a comparator fn.
+  * **DEPRECATED**: `format-*` -> `fmt`, `parse-*` -> `parse`. So these 2 fns now handles the job of ~14 fns from the old API. See the appropriate docstring for details.
+  * **DEPRECATED**: `sorted-localized-countries` -> `countries`, `sorted-localized-languages` -> `languages`, `sorted-timezones` -> `timezones`. The new fns take an explicit locale arg and provide their result as a vector rather than a map.
   * **DEPRECATED**: `config`, `set-config!`, `merge-config!`, `load-dictionary-from-map-resource!` have all been dropped. Instead, `t` now takes an explicit `config` argument of the same form as the old `config` atom. The `:dictionary` value may now be a resource name like "tower-dictionary.clj". When `:dictionary` is a resource name and `:dev-mode?` is true, the resource will be watched for changes.
   * **DEPRECATED**: `ring/wrap-i18n-middleware` -> `ring/wrap-tower-middleware`. Args have changed and a number of new features have been added. See the docstring for details.
 
 So, basically, idiomatic Tower usage has been simplified:
 
-  * The `localize` fn has replaced most individual localization fns.
+  * The `fmt` and `parse` fns have replaced most individual localization fns.
   * All API fns now take an explicit locale argument.
   * The Ring middleware provides a `*locale*` thread-local binding and a `:locale` request key to help with the above (use whichever is more convenient).
   * The `t` fn now takes an explicit config map rather than depending on a global config atom.
