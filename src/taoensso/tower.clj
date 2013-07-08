@@ -74,6 +74,13 @@
 (defmem- f-currency NumberFormat [Loc] (NumberFormat/getCurrencyInstance Loc))
 
 (defmem- collator Collator [Loc] (Collator/getInstance Loc))
+(defn lcomparator "Returns localized comparator."
+  [loc & [style]]
+  (let [Col (collator (locale loc))]
+    (case (or style :asc)
+      :asc  #(.compare Col %1 %2)
+      :desc #(.compare Col %2 %1)
+      (throw (Exception. (str "Unknown style: " style))))))
 
 (defprotocol     ILocalize (plocalize [x loc style]))
 (extend-protocol ILocalize
@@ -112,11 +119,7 @@
         (throw (Exception. (str "Unknown style: " style))))))
 
   clojure.lang.IPersistentCollection ; sort
-  (plocalize [coll loc style]
-    (case (or style :asc)
-      :asc  (sort (fn [x y] (.compare (collator loc) x y)) coll)
-      :desc (sort (fn [x y] (.compare (collator loc) y x)) coll)
-      (throw (Exception. (str "Unknown style: " style))))))
+  (plocalize [coll loc style] (sort (lcomparator loc style) coll)))
 
 (defn localize
   "Localizes given arg by arg type:
