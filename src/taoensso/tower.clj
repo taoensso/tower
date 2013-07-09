@@ -393,26 +393,25 @@
      (let [{:keys [dev-mode? default-locale log-missing-translation-fn]} config
            dict (compile-dict config)]
 
-       (let [loc-k  (loc-key loc)
-             scope  *tscope*
+       (let [scope  *tscope*
              ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
-             get-tr #(get-in dict [%1 (scoped-key [scope %2])])]
+             get-tr #(get-in dict [(loc-key %1) (scoped-key [scope %2])])]
 
-         (or (some #(get-tr loc-k %) (take-while keyword? ks)) ; Try loc & parents
+         (or (some #(get-tr loc %) (take-while keyword? ks)) ; Try loc & parents
              (let [last-k (peek ks)]
                (if-not (keyword? last-k)
                  last-k ; Explicit final, non-keyword fallback (may be nil)
 
                  (do (when-let [log-f log-missing-translation-fn]
                        (log-f {:dev-mode? dev-mode? :ns (str *ns*)
-                               :locale loc-k :scope scope :ks ks}))
+                               :locale loc :scope scope :ks ks}))
+                     (or
+                      ;; Try default-locale & parents
+                      (some #(get-tr (or default-locale :jvm-default) %) ks)
 
-                     (or (when default-locale ; Try default-locale & parents
-                           (some #(get-tr default-locale %) ks))
-
-                         ;; Try :missing key in loc & parents
-                         (when-let [pattern (get-tr loc-k :missing)]
-                           (fmt-msg loc pattern loc-k scope ks)))))))))))
+                      ;; Try :missing key in loc & parents
+                      (when-let [pattern (get-tr loc :missing)]
+                        (fmt-msg loc pattern loc scope ks)))))))))))
 
 (comment (t :en-ZA example-tconfig :example/foo)
          (with-scope :example (t :en-ZA example-tconfig :foo))
