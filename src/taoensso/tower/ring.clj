@@ -29,7 +29,8 @@
                                       (locale-from-headers headers)
                                       fallback-locale])]
       (tower/with-locale loc
-        (handler (assoc request :locale (tower/loc-key loc)
+        (handler (assoc request :locale (tower/locale-key loc)
+                        :tconfig tconfig
                                 :t (if tconfig
                                      (partial tower/t loc tconfig)
                                      (partial tower/t loc))))))))

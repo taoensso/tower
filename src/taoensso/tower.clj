@@ -23,23 +23,28 @@
 (defn try-locale
   "Like `locale` but returns nil if no valid matching Locale could be found."
   [loc]
-  (when loc
-    (cond (instance? Locale loc) loc
-          (= :jvm-default loc) (Locale/getDefault)
-          :else (ensure-valid-Locale
-                 (apply make-Locale (str/split (name loc) #"[-_]"))))))
+  (cond (nil? loc) nil
+        (instance? Locale loc) loc
+        (= :jvm-default loc) (Locale/getDefault)
+        :else (ensure-valid-Locale
+               (apply make-Locale (str/split (name loc) #"[-_]")))))
 
-(defn locale
+(def locale
   "Returns valid Locale matching given name string/keyword, or throws an
   exception if none could be found. `loc` should be of form :en, :en-US,
   :en-US-variant, or :jvm-default."
-  [loc] (or (try-locale loc) (throw (Exception. (str "Invalid locale: " loc)))))
+  (memoize
+   (fn [loc] (or (try-locale loc)
+                (throw (Exception. (str "Invalid locale: " loc)))))))
+
+(def locale-key "Returns locale keyword for given Locale object or locale keyword."
+  (memoize #(keyword (str/replace (str (locale %)) "_" "-"))))
 
 (comment
-  (map locale [nil :invalid :jvm-default :en-US :en-US-var1 (Locale/getDefault)])
+  (mapv try-locale [nil :invalid :jvm-default :en-US :en-US-var1 (Locale/getDefault)])
   (time (dotimes [_ 10000] (locale :en))))
 
-(def ^:dynamic *locale* nil) ; (locale :jvm-default)
+(def ^:dynamic *locale* nil)
 (defmacro with-locale
   "Executes body within the context of thread-local locale binding, enabling
   use of translation and localization functions. `loc` should be of form :en,
@@ -253,14 +258,19 @@
 
 ;;;; Translations
 
+(def dev-mode?       "Global fallback dev-mode?." (atom true))
+(def fallback-locale "Global fallback locale."    (atom :en))
+
+(def scoped "Merges scope keywords: (scope :a.b :c/d :e) => :a.b.c.d/e"
+  (memoize (fn [& ks] (utils/merge-keywords ks))))
+
+(comment (scoped :a.b :c :d))
+
 (def ^:dynamic *tscope* nil)
-(defmacro with-scope
-  "Executes body within the context of thread-local translation-scope binding.
+(defmacro with-tscope
+  "Executes body within the context of thread-local translation scope binding.
   `translation-scope` should be a keyword like :example.greetings, or nil."
   [translation-scope & body] `(binding [*tscope* ~translation-scope] ~@body))
-
-(def scope (memoize (fn [& ks] (utils/merge-keywords ks true))))
-(comment (scope :a :b :c.d.e))
 
 (def example-tconfig
   "Example/test config as passed to `t`, `wrap-i18n-middlware`, etc.
@@ -270,7 +280,7 @@
 
   Named resource will be watched for changes when `:dev-mode?` is true."
   {:dev-mode? true
-   :default-locale :en ; Dictionary's own translation fallback locale
+   :fallback-locale :en
    :dictionary ; Map or named resource containing map
    {:en         {:example {:foo       ":en :example/foo text"
                            :foo_note  "Hello translator, please do x"
@@ -286,7 +296,7 @@
 
    :log-missing-translation-fn
    (fn [{:keys [dev-mode? locale ks scope] :as args}]
-     (timbre/logp (if dev-mode? :warn :debug) "Missing translation" args))})
+     (timbre/logp (if dev-mode? :debug :warn) "Missing translation" args))})
 
 (defn- compile-dict-path
   "[:locale :ns1 ... :nsN unscoped-key<decorator> translation] =>
@@ -299,7 +309,6 @@
         [_ unscoped-k decorator] (->> (re-find #"([^!_]+)([!_].*)*"
                                                (name (peek (pop path))))
                                       (mapv keyword))
-
         translation (if-not (keyword? translation)
                       translation
                       (let [target ; Translation alias
@@ -308,7 +317,6 @@
                                           (->> (utils/explode-keyword translation)
                                                (mapv keyword))))]
                         (when-not (keyword? target) target)))]
-
     (when-let [translation
                (when translation
                  (case decorator
@@ -316,7 +324,7 @@
                    (:_html :!) translation
                    (-> translation utils/escape-html utils/inline-markdown->html)))]
 
-      {loc {(utils/merge-keywords (conj scope-ks unscoped-k)) translation}})))
+      {loc {(apply scoped (conj scope-ks unscoped-k)) translation}})))
 
 (defn- inherit-parent-trs
   "Merges each locale's translations over its parent locale translations."
@@ -345,84 +353,82 @@
           :example/with-exclaim! \"<tag>**strong**</tag>\"}}
 
   Note the optional key decorators."
-  [config]
-  (let [{:keys [dev-mode? dictionary]} config]
-    (if-let [dd (and (or (not dev-mode?)
-                         (not (string? dictionary))
-                         (not (utils/file-resources-modified? [dictionary])))
-                     (@dict-cache dictionary))]
-      @dd
-      (let [dd
-            (delay
-             (let [raw-dict
-                   (if-not (string? dictionary)
-                     dictionary ; map or nil
-                     (try (-> dictionary io/resource io/reader slurp read-string)
-                          (catch Exception e
-                            (throw
-                             (Exception. (str "Failed to load dictionary from"
-                                              "resource: " dictionary) e)))))]
-               (->> (map (partial compile-dict-path raw-dict)
-                         (utils/leaf-nodes (or raw-dict {})))
-                    (apply merge-with merge) ; 1-level deep merge
-                    (inherit-parent-trs))))]
-        (swap! dict-cache assoc dictionary dd)
-        @dd))))
+  [raw-dict dev-mode?]
+  (if-let [dd (and (or (not dev-mode?)
+                       (not (string? raw-dict))
+                       (not (utils/file-resources-modified? [raw-dict])))
+                   (@dict-cache raw-dict))]
+    @dd
+    (let [dd
+          (delay
+           (let [raw-dict
+                 (if-not (string? raw-dict)
+                   raw-dict ; map or nil
+                   (try (-> raw-dict io/resource io/reader slurp read-string)
+                        (catch Exception e
+                          (throw
+                           (Exception. (str "Failed to load dictionary from"
+                                            "resource: " raw-dict) e)))))]
+             (->> (map (partial compile-dict-path raw-dict)
+                       (utils/leaf-nodes (or raw-dict {})))
+                  (apply merge-with merge) ; 1-level deep merge
+                  (inherit-parent-trs))))]
+      (swap! dict-cache assoc raw-dict dd)
+      @dd)))
 
 (comment (inherit-parent-trs (:dictionary example-tconfig))
-         (compile-dict example-tconfig)
-         (compile-dict {:dictionary "tower-dictionary.clj"})
-         (compile-dict {}))
+         (compile-dict (:dictionary example-tconfig) true)
+         (compile-dict "tower-dictionary.clj" true)
+         (compile-dict nil true))
 
-(def ^:private scoped-key (memoize utils/merge-keywords))
-(def           loc-key    (memoize #(keyword (str/replace (str (locale %)) "_" "-"))))
+(defn translate
+  "Takes dictionary key (or vector of descending- preference keys) within a
+  (possibly nil) root scope, and returns the best translation available for
+  given locale. With additional arguments, treats translation as pattern for
+  `fmt-msg`.
 
-(defn t ; translate
-  "Localized text translator. Takes (possibly scoped) dictionary key (or vector
-  of descending-preference keys) of form :nsA.<...>.nsN/key within a root scope
-  :ns1.<...>.nsM and returns the best translation available for working locale.
+  See `example-tconfig` for config details."
+  [loc config scope k-or-ks & fmt-msg-args]
+  (let [{:keys [dev-mode? dictionary fallback-locale log-missing-translation-fn]
+         :or   {dev-mode?       @dev-mode?
+                fallback-locale (or (:default-locale config) ; Backwards comp
+                                    @fallback-locale)}} config
+        dict   (compile-dict dictionary dev-mode?)
+        ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
+        get-tr #(get-in dict [(locale-key %1) (scoped scope %2)])
+        tr
+        (or (some #(get-tr loc %) (take-while keyword? ks)) ; Try loc & parents
+            (let [last-k (peek ks)]
+              (if-not (keyword? last-k)
+                last-k ; Explicit final, non-keyword fallback (may be nil)
 
-  With additional arguments, treats translated text as pattern for message
-  formatting.
+                (do (when-let [log-f log-missing-translation-fn]
+                      (log-f {:dev-mode? dev-mode? :ns (str *ns*)
+                              :locale loc :scope scope :ks ks}))
+                    (or
+                     ;; Try fallback-locale & parents
+                     (some #(get-tr fallback-locale %) ks)
 
-  See `tower/example-tconfig` for config details."
-  ([loc config k-or-ks & interpolation-args]
-     (when-let [pattern (t loc config k-or-ks)]
-       (apply fmt-msg loc pattern interpolation-args)))
-  ([loc config k-or-ks]
-     (let [{:keys [dev-mode? default-locale log-missing-translation-fn]} config
-           dict (compile-dict config)]
+                     ;; Try :missing key in loc, parents, fallback-loc, & parents
+                     (when-let [pattern (or (get-tr loc             :missing)
+                                            (get-tr fallback-locale :missing))]
+                       (fmt-msg loc pattern loc scope ks)))))))]
 
-       (let [loc-k  (loc-key loc)
-             scope  *tscope*
-             ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
-             get-tr #(get-in dict [%1 (scoped-key [scope %2])])]
+    (if-not fmt-msg-args tr
+      (apply fmt-msg loc tr fmt-msg-args))))
 
-         (or (some #(get-tr loc-k %) (take-while keyword? ks)) ; Try loc & parents
-             (let [last-k (peek ks)]
-               (if-not (keyword? last-k)
-                 last-k ; Explicit final, non-keyword fallback (may be nil)
-
-                 (do (when-let [log-f log-missing-translation-fn]
-                       (log-f {:dev-mode? dev-mode? :ns (str *ns*)
-                               :locale loc-k :scope scope :ks ks}))
-
-                     (or (when default-locale ; Try default-locale & parents
-                           (some #(get-tr default-locale %) ks))
-
-                         ;; Try :missing key in loc & parents
-                         (when-let [pattern (get-tr loc-k :missing)]
-                           (fmt-msg loc pattern loc-k scope ks)))))))))))
+(defn t "Like `translate` but uses a thread-local binding for translation scope."
+  [loc config k-or-ks & fmt-msg-args]
+  (apply translate loc config *tscope* k-or-ks fmt-msg-args))
 
 (comment (t :en-ZA example-tconfig :example/foo)
-         (with-scope :example (t :en-ZA example-tconfig :foo))
+         (with-tscope :example (t :en-ZA example-tconfig :foo))
 
-         (t :en  example-tconfig :invalid)
+         (t :en example-tconfig :invalid)
          (t :en example-tconfig [:invalid :example/foo])
          (t :en example-tconfig [:invalid "Explicit fallback"])
 
          (def prod-c (assoc example-tconfig :dev-mode? false))
-         (time (dotimes [_ 10000] (compile-dict prod-c)))                  ; ~8ms
          (time (dotimes [_ 10000] (t :en prod-c :example/foo)))            ; ~30ms
          (time (dotimes [_ 10000] (t :en prod-c [:invalid :example/foo]))) ; ~45ms
          (time (dotimes [_ 10000] (t :en prod-c [:invalid nil])))          ; ~35ms
@@ -515,4 +521,8 @@
             (throw (Exception. (str "Failed to load dictionary from resource: "
                                     resource-name) e))))))
 
-(def t' #(apply t *locale* @config %&)) ; BREAKS v1 due to unavoidable name clash
+(defmacro with-scope "DEPRECATED." [translation-scope & body]
+  `(with-tscope ~translation-scope ~@body))
+
+;; BREAKS v1 due to unavoidable name clash
+(def oldt #(apply t (or *locale* :jvm-default) @config %&))
