@@ -5,7 +5,7 @@
 [com.taoensso/tower "1.7.1"]        ; Stable, needs Clojure 1.4+ as of 1.7.0
 ```
 
-v2 provides a _significantly_ simpler API. It is a **BREAKING** release for `t` users. See the [CHANGELOG](https://github.com/ptaoussanis/tower/blob/master/CHANGELOG.md) for migration details. Note that the examples in this README are for the v2 API. See [here](https://github.com/ptaoussanis/tower/blob/master/v1-examples.md) for v1 examples.
+v2 provides an improved API. It is a **BREAKING** release for `t` users. See the [CHANGELOG](https://github.com/ptaoussanis/tower/blob/master/CHANGELOG.md) for migration details. Note that the examples in this README are for the v2 API. See [here](https://github.com/ptaoussanis/tower/blob/master/v1-examples.md) for v1 examples.
 
 Special thanks to **Janne Asmala** ([GitHub](https://github.com/asmala) & [Twitter](https://twitter.com/janne_asmala)) for his awesome contributions to Tower's v2 design. He also has an i18n/L10n lib called [clj18n](https://github.com/asmala/clj18n) which is definitely worth checking out!
 
@@ -34,7 +34,7 @@ Add the necessary dependency to your [Leiningen](http://leiningen.org/) `project
 ```clojure
 [com.taoensso/tower "2.0.0-alpha8"] ; project.clj
 (ns my-app (:require [taoensso.tower :as tower
-                      :refer (with-locale with-scope t)])) ; ns
+                      :refer (with-locale with-scope t *locale*)])) ; ns
 ```
 
 ### Translation
@@ -133,7 +133,7 @@ It'll select the best available locale for each request then establish a thread-
 
 See the docstring for details.
 
-## This project supports the CDS and ClojureWerkz goals
+## This project supports the CDS and ![ClojureWerkz](https://raw.github.com/clojurewerkz/clojurewerkz.org/master/assets/images/logos/clojurewerkz_long_h_50.png) goals
 
   * [CDS](http://clojure-doc.org/), the **Clojure Documentation Site**, is a **contributer-friendly** community project aimed at producing top-notch, **beginner-friendly** Clojure tutorials and documentation. Awesome resource.
 
