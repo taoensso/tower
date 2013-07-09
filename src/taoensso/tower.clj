@@ -348,8 +348,8 @@
 
   Note the optional key decorators."
   [config]
-  (let [{:keys [dev-mode? dictionary]} config
-        dev-mode? (if (contains? config :dev-mode?) dev-mode? @dev-mode?)]
+  (let [{:keys [dev-mode? dictionary]
+         :or   {dev-mode? @dev-mode?}} config]
     (if-let [dd (and (or (not dev-mode?)
                          (not (string? dictionary))
                          (not (utils/file-resources-modified? [dictionary])))
