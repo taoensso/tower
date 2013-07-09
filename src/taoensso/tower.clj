@@ -253,6 +253,8 @@
 
 ;;;; Translations
 
+(def dev-mode? "Global fallback dev-mode? setting." (atom true))
+
 (def ^:dynamic *tscope* nil)
 (defmacro with-scope
   "Executes body within the context of thread-local translation-scope binding.
@@ -346,7 +348,8 @@
 
   Note the optional key decorators."
   [config]
-  (let [{:keys [dev-mode? dictionary]} config]
+  (let [{:keys [dev-mode? dictionary]} config
+        dev-mode? (if (contains? config :dev-mode?) dev-mode? @dev-mode?)]
     (if-let [dd (and (or (not dev-mode?)
                          (not (string? dictionary))
                          (not (utils/file-resources-modified? [dictionary])))
