@@ -1,24 +1,29 @@
 **[API docs](http://ptaoussanis.github.io/tower/)** | **[CHANGELOG](https://github.com/ptaoussanis/tower/blob/master/CHANGELOG.md)** | [contact & contributing](#contact--contributing) | [other Clojure libs](https://www.taoensso.com/clojure-libraries) | [Twitter](https://twitter.com/#!/ptaoussanis) | current [semantic](http://semver.org/) version:
 
 ```clojure
-[com.taoensso/tower "1.7.1"] ; Requires Clojure 1.4+ as of 1.7.0
+[com.taoensso/tower "2.0.0-alpha8"] ; Development (notes below)
+[com.taoensso/tower "1.7.1"]        ; Stable, needs Clojure 1.4+ as of 1.7.0
 ```
+
+v2 provides a _significantly_ simpler API. It is a **BREAKING** release for `t` users. See the [CHANGELOG](https://github.com/ptaoussanis/tower/blob/master/CHANGELOG.md) for migration details. Note that the examples in this README are for the v2 API. See [here](https://github.com/ptaoussanis/tower/blob/master/v1-examples.md) for v1 examples.
+
+Special thanks to **Janne Asmala** ([GitHub](https://github.com/asmala) & [Twitter](https://twitter.com/janne_asmala)) for his awesome contributions to Tower's v2 design. He also has an i18n/L10n lib called [clj18n](https://github.com/asmala/clj18n) which is definitely worth checking out!
 
 # Tower, a Clojure i18n & L10n library
 
-The Java platform provides some very capable tools for writing internationalized applications. Unfortunately, these tools can be disappointingly cumbersome when taken into a Clojure context.
+The Java platform provides some very capable tools for writing internationalized applications. Unfortunately, they can be... cumbersome. We can do much better in Clojure.
 
-Tower is an attempt to present a **simple, idiomatic internationalization and localization** story for Clojure. It wraps standard Java functionality where possible, but it isn't afraid to step away from Java conventions when there's a good reason to.
+Tower's an attempt to present a **simple, idiomatic internationalization and localization** story for Clojure. It wraps standard Java functionality where possible - with warm, fuzzy, functional love. It does go in its own direction for translation, but I suspect you'll like the direction it goes.
 
 ## What's in the box™?
- * Small, uncomplicated **all-Clojure** library.
- * Consistent, lightweight wrappers for standard Java **localization functions**.
- * Rails-like, all-Clojure **translation function**.
- * **Simple, map-based** translation dictionary format. No XML or resource files!
- * Automatic dev-mode **dictionary reloading** for rapid REPL development.
- * Seamless **markdown support** for translators.
- * **Ring middleware**.
- * TODO: export/import to allow use with **industry-standard tools for translators**.
+  * Small, uncomplicated **all-Clojure** library.
+  * Ridiculously simple, high-performance wrappers for standard Java **localization features*.
+  * Rails-like, all-Clojure **translation function**.
+  * **Simple, map-based** translation dictionary format. No XML or resource files!
+  * Automatic dev-mode **dictionary reloading** for rapid REPL development.
+  * Seamless **markdown support** for translators.
+  * **Ring middleware**.
+  * TODO: export/import to allow use with **industry-standard tools for translators**.
 
 ## Getting started
 
@@ -27,167 +32,106 @@ Tower is an attempt to present a **simple, idiomatic internationalization and lo
 Add the necessary dependency to your [Leiningen](http://leiningen.org/) `project.clj` and `require` the library in your ns:
 
 ```clojure
-[com.taoensso/tower "1.7.1"] ; project.clj
+[com.taoensso/tower "2.0.0-alpha8"] ; project.clj
 (ns my-app (:require [taoensso.tower :as tower
-                      :refer (with-locale with-scope t style)])) ; ns
+                      :refer (with-locale with-scope t)])) ; ns
 ```
 
 ### Translation
 
-Here Tower diverges from the standard Java approach in favour of something simpler and more agile. Let's look at the default config:
-
+The `t` fn handles translations. You give it a config map which includes your dictionary, and you're ready to go:
 ```clojure
-@tower/config
-=>
-{:dev-mode?      true
- :default-locale :en
- :dictionary
- {:en         {:example {:foo       ":en :example/foo text"
-                         :foo_note  "Hello translator, please do x"
-                         :bar {:baz ":en :example.bar/baz text"}
-                         :greeting  "Hello {0}, how are you?"
-                         :with-markdown "<tag>**strong**</tag>"
-                         :with-exclaim! "<tag>**strong**</tag>"
-                         :greeting-alias :example/greeting
-                         :baz-alias      :example.bar/baz}
-               :missing  "<Translation missing: {0}>"}
-  :en-US      {:example {:foo ":en-US :example/foo text"}}
-  :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
+(def my-tconfig
+  {:dev-mode?      true
+   :default-locale :en
+   :dictionary
+   {:en         {:example {:foo       ":en :example/foo text"
+                           :foo_note  "Hello translator, please do x"
+                           :bar {:baz ":en :example.bar/baz text"}
+                           :greeting  "Hello {0}, how are you?"
+                           :with-markdown "<tag>**strong**</tag>"
+                           :with-exclaim! "<tag>**strong**</tag>"
+                           :greeting-alias :example/greeting
+                           :baz-alias      :example.bar/baz}
+                 :missing  "<Translation missing: {0}>"}
+    :en-US      {:example {:foo ":en-US :example/foo text"}}
+    :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
 
- :log-missing-translation!-fn (fn [{:keys [dev-mode? locale k-or-ks]}] ...)}
+   :log-missing-translation-fn (fn [{:keys [dev-mode? locale ks]}] ...)})
+
+(t :en-US :example/foo) => ":en-US :example/foo text"
+(t :en    :example/foo) => ":en :example/foo text"
+(t :en    :example/greeting "Steve") => "Hello Steve, how are you?"
+
+;;; Translation strings are escaped and parsed as inline Markdown:
+(t :en :example/with-markdown) => "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
+(t :en :example/with-exclaim)  => "<tag>**strong**</tag>" ; Notice no "!" suffix here, only in dictionary map
 ```
 
-Note the format of the `:dictionary` map since **this is the map you'll change to set your own translations**. Work with the map in place using `set-config!`, or load translations from a ClassLoader resource:
+It's simple to get started, but there's a number of advanced features for if/when you need them:
 
+**Loading dictionaries from disk/resources**: Just use a string for the `:dictionary` value in your config map. For example, `:dictionary "my-dictionary.clj"` will load a dictionary map from the "my-dictionary.clj" file on your classpath or one of Leiningen's resource paths (e.g. `resources/`).
+
+**Reloading dictionaries on modification**: Just make sure `:dev-mode? true` is in your config, and you're good to go!
+
+**Scoping translations**: Use `with-scope` if you're calling `t` repeatedly within a specific translation-namespace context:
 ```clojure
-(tower/load-dictionary-from-map-resource! "my-dictionary.clj")
+(with-scope :example
+  [(t :en :foo)
+   (t :en :bar/baz)]) => [":en :example/foo text" ":en :example.bar/baz text"]
 ```
 
-You can put `my-dictionary.clj` on your classpath or one of Leiningen's resource paths (e.g. `/resources/`).
+**Missing translations**: These are handled gracefully. `(t :en-US :example/foo)` will search for a translation as follows:
+  1. `:example/foo` in the `:en-US` locale.
+  2. `:example/foo` in the `:en` locale.
+  3. `:example/foo` in the dictionary's default locale.
+  4. `:missing` in any of the above locales.
 
-For now let's play with the default dictionary to see how Tower handles translation:
+You can also specify fallback keys that'll be tried before other locales. `(t :en-US [:example/foo :example/bar]))` searches:
+  1. `:example/foo` in the `:en-US` locale.
+  2. `:example/bar` in the `:en-US` locale.
+  3. `:example/foo` in the `:en` locale.
+  4. `:example/bar` in the `:en` locale.
+  5. `:example/foo` in the default locale.
+  6. `:example/bar` in the default locale.
+  7. `:missing` in any of the above locales.
 
-```clojure
-(with-locale :en-US (t :example/foo)) => ":en-US :example/foo text"
-(with-locale :en    (t :example/foo)) => ":en :example/foo text"
-(with-locale :en    (t :example/greeting "Steve")) => "Hello Steve, how are you?"
-```
-
-Translation strings are escaped and parsed as inline [Markdown](http://daringfireball.net/projects/markdown/) unless suffixed with `!` in the dictionary map:
-
-```clojure
-(with-locale :en (t :example/with-markdown)) => "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
-(with-locale :en (t :example/with-exclaim)) => "<tag>**strong**</tag>" ; Notice no "!" suffix here, only in dictionary map
-```
-
-If you're calling the translate fn repeatedly within a specific namespace context, you can specify a **translation scope**:
-
-```clojure
-(with-locale :en
-  (with-scope :example
-    (list (t :foo)
-          (t :bar/baz)))) => (":en :example/foo text" ":en :example.bar/baz text")
-```
-
-Missing translations are handled gracefully. `(with-scope :en-US (t :example/foo))` searches for a translation as follows:
- 1. `:example/foo` in the `:en-US` locale.
- 2. `:example/foo` in the `:en` locale.
- 3. `:example/foo` in the default locale, `(:default-locale @tower/config)`.
- 4. `:missing` in any of the above locales.
-
-You can also specify fallback keys that'll be tried before other locales. `(with-scope :en-US (t [:example/foo :example/bar]))` searches:
- 1. `:example/foo` in the `:en-US` locale.
- 2. `:example/bar` in the `:en-US` locale.
- 3. `:example/foo` in the `:en` locale.
- 4. `:example/bar` in the `:en` locale.
- 5. `:example/foo` in the default locale.
- 6. `:example/bar` in the default locale.
- 7. `:missing` in any of the above locales.
-
-In all cases, translation request is logged upon fallback to default locale or :missing key.
+In all cases, translation requests are logged upon fallback to default locale or :missing key.
 
 ### Localization
 
-If you're not using the provided Ring middleware, you'll need to call localization and translation functions from within a `with-locale` body:
-
-#### Numbers
-
+Check out `fmt`, `parse`, `lsort`, `fmt-str`, `fmt-msg`:
 ```clojure
-(with-locale :en-ZA (tower/format-currency 200)) => "R 200.00"
-(with-locale :en-US (tower/format-currency 200)) => "$200.00"
+(tower/fmt   :en-ZA 200       :currency) => "R 200.00"
+(tower/fmt   :en-US 200       :currency) => "$200.00"
+(tower/parse :en-US "$200.00" :currency) => 200
 
-(with-locale :de (tower/format-number 2000.1))   => "2.000,1"
-(with-locale :de (tower/parse-number "2.000,1")) => 2000.1
-```
+(tower/fmt :de-DE 2000.1 :number)     => "2.000,1"
+(tower/fmt :de-DE (Date.))            => "12.06.2012"
+(tower/fmt :de-DE (Date.) :date-long) => "12. Juni 2012"
+(tower/fmt :de-DE (Date.) :dt-long)   => "12 giugno 2012 16.48.01 ICT"
 
-#### Dates and times
-
-```clojure
-(with-locale :de (tower/format-date (java.util.Date.))) => "12.06.2012"
-(with-locale :de (tower/format-date (style :long) (java.util.Date.)))
-=> "12. Juni 2012"
-
-(with-locale :it (tower/format-dt (style :long) (style :long) (java.util.Date.)))
-=> "12 giugno 2012 16.48.01 ICT"
-
-(with-locale :it (tower/parse-date (style :long) "12 giugno 2012 16.48.01 ICT"))
-=> #<Date Tue Jun 12 00:00:00 ICT 2012>
-```
-
-#### Text
-
-```clojure
-(with-locale :de (tower/format-msg "foobar {0}!" 102.22)) => "foobar 102,22!"
-(with-locale :de (tower/format-msg "foobar {0,number,integer}!" 102.22))
-=> "foobar 102!"
-
-(with-locale :de
-  (-> #(tower/format-msg "{0,choice,0#no cats|1#one cat|1<{0,number} cats}" %)
-      (map (range 5)) doall))
-=> ("no cats" "one cat" "2 cats" "3 cats" "4 cats")
-```
-
-#### Collation/sorting
-
-```clojure
-(with-locale :pl
-  (sort tower/l-compare ["Warsaw" "Kraków" "Łódź" "Wrocław" "Poznań"]))
+(tower/lsort :pl ["Warsaw" "Kraków" "Łódź" "Wrocław" "Poznań"])
 => ("Kraków" "Łódź" "Poznań" "Warsaw" "Wrocław")
+
+(mapv #(tower/fmt-msg :de "{0,choice,0#no cats|1#one cat|1<{0,number} cats}" %)
+        (range 5))
+=> ["no cats" "one cat" "2 cats" "3 cats" "4 cats"]
 ```
 
-#### Country and language names
+Yes, seriously- it's that simple. See the appropriate docstrings for details.
 
-```clojure
-(with-locale :pl (tower/sorted-localized-countries ["GB" "DE" "PL"]))
-=> {:sorted-codes ["DE" "PL" "GB"],
-    :sorted-names ["Niemcy" "Polska" "Wielka Brytania"]}
+### Country and languages names, timezones, etc.
 
-(with-locale :pl (tower/sorted-localized-languages ["en" "de" "pl"]))
-=> {:sorted-codes ["en" "de" "pl"],
-    :sorted-names ["angielski (English)" "niemiecki (Deutsch)" "polski"]}
+Check out `countries`, `languages`, and `timezones`.
 
-(take 5 (:sorted-names (with-locale :en (tower/sorted-localized-countries))))
-=> ("Afghanistan" "Åland Islands" "Albania" "Algeria" "American Samoa")
-```
+### Ring middleware
 
-#### Timezones
+Quickly internationalize your Ring web apps by adding `tower.ring/wrap-tower-middleware` to your middleware stack.
 
-```clojure
-(tower/sorted-timezones)
-=> {:sorted-ids   ["Pacific/Midway" "Pacific/Niue" ...]
-    :sorted-names ["(GMT -11:00) Midway" "(GMT -11:00) Niue" ...]
-```
+It'll select the best available locale for each request then establish a thread-local locale binding with `tower/*locale*`, and add `:locale` and `:t` request keys.
 
-### Ring middlware
-
-Quickly internationalize your web application by adding `(taoensso.tower.ring/wrap-i18n-middleware)` to your middleware stack.
-
-For each request, an appropriate locale will be selected from one of the following (descending preference):
- * Your *own locale selector* fn (e.g. for selection by IP address, domain, etc.).
- * `(-> request :session :locale)`.
- * `(-> request :params :locale)`, e.g. `"/my-uri?locale=en-US"`.
- * A URI selector, e.g. `"/my-uri/locale/en-US/"`.
- * The request's Accept-Language HTTP header.
+See the docstring for details.
 
 ## This project supports the CDS and ClojureWerkz goals
 

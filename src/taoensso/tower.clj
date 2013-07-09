@@ -1,7 +1,7 @@
 (ns taoensso.tower
   "Simple internationalization (i18n) and localization (L10n) library for
   Clojure. Wraps standard Java facilities when possible."
-  {:author "Peter Taoussanis"}
+  {:author "Peter Taoussanis, Janne Asmala"}
   (:require [clojure.string  :as str]
             [clojure.java.io :as io]
             [taoensso.timbre :as timbre]
@@ -9,52 +9,9 @@
   (:import  [java.util Date Locale TimeZone]
             [java.text Collator NumberFormat DateFormat]))
 
-;;;; Default configuration
+;;;; Locales (big L for the Java object) & bindings
 
-(declare compiled-dictionary)
-
-(utils/defonce* config
-  "This map atom controls everything about the way Tower operates.
-
-  To enable translations, :dictionary should be a map of form
-  {:locale {:ns1 ... {:nsN {:key<decorator> text}}}}}.
-
-  :default-locale controls fallback locale for `with-locale` and `t`.
-  :dev-mode? controls `t` automatic dictionary reloading and default
-    `log-missing-translation!-fn` behaviour.
-
-  See source code for details.
-  See `set-config!`, `merge-config!` for convenient config/dictionary
-  editing."
-  (atom {:dev-mode?      true
-         :default-locale :en
-
-         ;; Canonical example dictionary used for dev/debug, unit tests,
-         ;; README, etc.
-         :dictionary
-         {:en         {:example {:foo       ":en :example/foo text"
-                                 :foo_note  "Hello translator, please do x"
-                                 :bar {:baz ":en :example.bar/baz text"}
-                                 :greeting  "Hello {0}, how are you?"
-                                 :with-markdown "<tag>**strong**</tag>"
-                                 :with-exclaim! "<tag>**strong**</tag>"
-                                 :greeting-alias :example/greeting
-                                 :baz-alias      :example.bar/baz}
-                       :missing  "<Missing translation: {0}>"}
-
-          :en-US      {:example {:foo ":en-US :example/foo text"}}
-          :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
-
-         :log-missing-translation!-fn
-         (fn [{:keys [dev-mode? locale k-or-ks scope] :as args}]
-           (timbre/log (if dev-mode? :warn :debug)
-             "Missing translation" args))}))
-
-(defn set-config!   [ks val] (swap! config assoc-in ks val))
-(defn merge-config! [& maps] (apply swap! config utils/deep-merge maps))
-
-;;;; Locales (big L for the Java object)
-
+(def ^:private ensure-valid-Locale (set (Locale/getAvailableLocales)))
 (defn- make-Locale
   "Creates a Java Locale object with a lowercase ISO-639 language code,
   optional uppercase ISO-3166 country code, and optional vender-specific variant
@@ -63,58 +20,128 @@
   ([lang country]         (Locale. lang country))
   ([lang country variant] (Locale. lang country variant)))
 
-(def ^:private available-Locales (set (Locale/getAvailableLocales)))
+(defn try-locale
+  "Like `locale` but returns nil if no valid matching Locale could be found."
+  [loc]
+  (when loc
+    (cond (instance? Locale loc) loc
+          (= :jvm-default loc) (Locale/getDefault)
+          :else (ensure-valid-Locale
+                 (apply make-Locale (str/split (name loc) #"[-_]"))))))
 
-(defn parse-Locale
-  "Returns valid Locale matching given name string/keyword, or nil if no valid
-  matching Locale could be found. `locale` should be of form :en, :en-US,
-  :en-US-variant, or :default for config's default."
-  [locale]
-  (when locale
-    (if (= locale :default)
-      (or (parse-Locale (:default-locale @config)) (Locale/getDefault))
-      (let [new-Locale (apply make-Locale (str/split (name locale) #"[-_]"))]
-        (when (available-Locales new-Locale) new-Locale)))))
+(defn locale
+  "Returns valid Locale matching given name string/keyword, or throws an
+  exception if none could be found. `loc` should be of form :en, :en-US,
+  :en-US-variant, or :jvm-default."
+  [loc] (or (try-locale loc) (throw (Exception. (str "Invalid locale: " loc)))))
 
-(comment (map parse-Locale [nil :invalid :default :en-US :en-US-var1]))
+(comment
+  (map locale [nil :invalid :jvm-default :en-US :en-US-var1 (Locale/getDefault)])
+  (time (dotimes [_ 10000] (locale :en))))
 
-;;;; Bindings
-
-(def ^:dynamic *Locale* (parse-Locale :default))
-(def ^:dynamic *translation-scope* nil)
-
+(def ^:dynamic *locale* nil) ; (locale :jvm-default)
 (defmacro with-locale
   "Executes body within the context of thread-local locale binding, enabling
-  use of translation and localization functions. `locale` should be of form :en,
-  :en-US, :en-US-variant, or :default for config's default."
-  [locale & body]
-  `(binding [*Locale* (or (parse-Locale ~locale)
-                          (throw (Exception. (str "Invalid locale: " ~locale))))]
-     ~@body))
+  use of translation and localization functions. `loc` should be of form :en,
+  :en-US, :en-US-variant, or :jvm-default."
+  [loc & body] `(binding [*locale* (locale ~loc)] ~@body))
 
-(defmacro with-scope
-  "Executes body within the context of thread-local translation-scope binding.
-  `translation-scope` should be a keyword like :example.greetings, or nil."
-  [translation-scope & body]
-  `(binding [*translation-scope* ~translation-scope] ~@body))
+;;;; Localization
 
-(def scope "(scope :a.b.c :d.e :f) => :a.b.c.d.e.f"
+(def ^:private ^:const dt-styles
+  {:default DateFormat/DEFAULT
+   :short   DateFormat/SHORT
+   :medium  DateFormat/MEDIUM
+   :long    DateFormat/LONG
+   :full    DateFormat/FULL})
+
+(def ^:private parse-style "style -> [type subtype1 subtype2 ...]"
   (memoize
-   (fn [& ks]
-     (let [parts (mapcat #(str/split (name %) #"\.") ks)]
-       (keyword (str/join "." parts))))))
+   (fn [style]
+     (let [[type len1 len2] (if-not style [nil]
+                              (mapv keyword (str/split (name style) #"-")))
+           st1              (dt-styles (or len1      :default))
+           st2              (dt-styles (or len2 len1 :default))]
+       [type st1 st2]))))
 
-(comment (scope :foo.bar :x.y :z)
-         (scope :z))
+(defmem- f-date DateFormat [Loc st]    (DateFormat/getDateInstance st Loc))
+(defmem- f-time DateFormat [Loc st]    (DateFormat/getTimeInstance st Loc))
+(defmem- f-dt   DateFormat [Loc ds ts] (DateFormat/getDateTimeInstance ds ts Loc))
 
-;;;; Collation, etc.
+(defmem- f-number   NumberFormat [Loc] (NumberFormat/getNumberInstance   Loc))
+(defmem- f-integer  NumberFormat [Loc] (NumberFormat/getIntegerInstance  Loc))
+(defmem- f-percent  NumberFormat [Loc] (NumberFormat/getPercentInstance  Loc))
+(defmem- f-currency NumberFormat [Loc] (NumberFormat/getCurrencyInstance Loc))
 
-(defmem- get-collator Collator [locale] (Collator/getInstance locale))
+(defprotocol     IFmt (pfmt [x loc style]))
+(extend-protocol IFmt
+  Date
+  (pfmt [dt loc style]
+    (let [[type st1 st2] (parse-style style)]
+      (case (or type :date)
+        :date (.format (f-date loc st1)     dt)
+        :time (.format (f-time loc st1)     dt)
+        :dt   (.format (f-dt   loc st1 st2) dt)
+        (throw (Exception. (str "Unknown style: " style))))))
+  Number
+  (pfmt [n loc style]
+    (case (or style :number)
+      :number   (.format (f-number   loc) n)
+      :integer  (.format (f-integer  loc) n)
+      :percent  (.format (f-percent  loc) n)
+      :currency (.format (f-currency loc) n)
+      (throw (Exception. (str "Unknown style: " style))))))
 
-(defn l-compare "Localized Unicode comparator."
-  [x y] (.compare (get-collator *Locale*) x y))
+(defn fmt
+  "Formats Date/Number as a string.
+  `style` is <:#{date time dt}-#{default short medium long full}>,
+  e.g. :date-full, :time-short, etc. (default :date-default)."
+  [loc x & [style]] (pfmt x (locale loc) style))
 
-(comment (with-locale :default (sort l-compare ["a" "d" "c" "b" "f" "_"])))
+(defn parse
+  "Parses date/number string as a Date/Number. See `fmt` for possible `style`s
+  (default :number)."
+  [loc s & [style]]
+  (let [loc (locale loc)
+        [type st1 st2] (parse-style style)]
+    (case (or type :number)
+      :number   (.parse (f-number   loc) s)
+      :integer  (.parse (f-integer  loc) s)
+      :percent  (.parse (f-percent  loc) s)
+      :currency (.parse (f-currency loc) s)
+
+      :date     (.parse (f-date loc st1)     s)
+      :time     (.parse (f-time loc st1)     s)
+      :dt       (.parse (f-dt   loc st1 st2) s)
+      (throw (Exception. (str "Unknown style: " style))))))
+
+(defmem- collator Collator [Loc] (Collator/getInstance Loc))
+(defn lcomparator "Returns localized comparator."
+  [loc & [style]]
+  (let [Col (collator (locale loc))]
+    (case (or style :asc)
+      :asc  #(.compare Col %1 %2)
+      :desc #(.compare Col %2 %1)
+      (throw (Exception. (str "Unknown style: " style))))))
+
+(defn lsort "Localized sort. `style` e/o #{:asc :desc} (default :asc)."
+  [loc coll & [style]] (sort (lcomparator loc style) coll))
+
+(comment
+  (fmt :en (Date.))
+  (fmt :de (Date.))
+  (fmt :en (Date.) :date-short)
+  (fmt :en (Date.) :dt-long)
+
+  (fmt   :en-US 55.474   :currency)
+  (parse :en-US "$55.47" :currency)
+
+  (fmt   :en (/ 3 9) :percent)
+  (parse :en "33%"   :percent)
+
+  (parse :en (fmt :en (Date.)) :date)
+
+  (lsort :en ["a" "d" "c" "b" "f" "_"]))
 
 (defn normalize
   "Transforms Unicode string into W3C-recommended standard de/composition form
@@ -122,148 +149,74 @@
   good hygiene when communicating with a DB or other software."
   [s] (java.text.Normalizer/normalize s java.text.Normalizer$Form/NFC))
 
-;;;; Localized number formatting
-
-(defmem- f-number   NumberFormat [Loc] (NumberFormat/getNumberInstance   Loc))
-(defmem- f-integer  NumberFormat [Loc] (NumberFormat/getIntegerInstance  Loc))
-(defmem- f-percent  NumberFormat [Loc] (NumberFormat/getPercentInstance  Loc))
-(defmem- f-currency NumberFormat [Loc] (NumberFormat/getCurrencyInstance Loc))
-
-(defn format-number   [x] (.format (f-number   *Locale*) x))
-(defn format-integer  [x] (.format (f-integer  *Locale*) x))
-(defn format-percent  [x] (.format (f-percent  *Locale*) x))
-(defn format-currency [x] (.format (f-currency *Locale*) x))
-
-(defn parse-number    [s] (.parse (f-number   *Locale*) s))
-(defn parse-integer   [s] (.parse (f-integer  *Locale*) s))
-(defn parse-percent   [s] (.parse (f-percent  *Locale*) s))
-(defn parse-currency  [s] (.parse (f-currency *Locale*) s))
-
-(comment (with-locale :en-ZA (format-currency 200))
-         (with-locale :en-ZA (parse-currency "R 200.33")))
-
-;;;; Localized date/time formatting
-
-(defmem- f-date DateFormat [st Loc]    (DateFormat/getDateInstance st Loc))
-(defmem- f-time DateFormat [st Loc]    (DateFormat/getTimeInstance st Loc))
-(defmem- f-dt   DateFormat [ds ts Loc] (DateFormat/getDateTimeInstance ds ts Loc))
-
-(defn style
-  "Returns a DateFormat time/date style constant by style key e/o
-  #{:default :short :medium :long :full}."
-  ([] (style :default))
-  ([style]
-     (case style
-       :default DateFormat/DEFAULT
-       :short   DateFormat/SHORT
-       :medium  DateFormat/MEDIUM
-       :long    DateFormat/LONG
-       :full    DateFormat/FULL
-       (throw (Exception. (str "Unknown style: " style))))))
-
-(defn format-date
-  ([d]       (format-date (style) d))
-  ([style d] (.format (f-date style *Locale*) d)))
-
-(defn format-time
-  ([t]       (format-time (style) t))
-  ([style t] (.format (f-time style *Locale*) t)))
-
-(defn format-dt
-  ([dt] (format-dt (style) (style) dt))
-  ([date-style time-style dt]
-     (.format (f-dt date-style time-style *Locale*) dt)))
-
-(defn parse-date
-  ([s]       (parse-date (style) s))
-  ([style s] (.parse (f-date style *Locale*) s)))
-
-(defn parse-time
-  ([s]       (parse-time (style) s))
-  ([style s] (.parse (f-time style *Locale*) s)))
-
-(defn parse-dt
-  ([s] (parse-dt (style) (style) s))
-  ([date-style time-style s]
-     (.parse (f-dt date-style time-style *Locale*) s)))
-
-(comment (with-locale :en-ZA (format-date (Date.)))
-         (with-locale :en-ZA (format-date (style :full) (Date.)))
-         (with-locale :en-ZA (format-time (style :short) (Date.)))
-         (with-locale :en-ZA (format-dt (style :full) (style :full) (Date.))))
-
 ;;;; Localized text formatting
 
-(defn format-str
-  "Like clojure.core/format but uses a locale."
-  ^String [fmt & args]
-  (String/format *Locale* fmt (to-array args)))
+(defn fmt-str "Like clojure.core/format but takes a locale."
+  ^String [loc fmt & args] (String/format (locale loc) fmt (to-array args)))
 
-(defn format-msg
+(defn fmt-msg
   "Creates a localized message formatter and parse pattern string, substituting
   given arguments as per MessageFormat spec."
-  ^String [pattern & args]
-  (let [formatter (java.text.MessageFormat. pattern *Locale*)]
+  ^String [loc pattern & args]
+  (let [formatter (java.text.MessageFormat. pattern (locale loc))]
     (.format formatter (to-array args))))
 
 (comment
-  (with-locale :de (format-msg "foobar {0}!" 102.22))
-  (with-locale :de (format-msg "foobar {0,number,integer}!" 102.22))
-  (with-locale :de ; Note that choice text must be unescaped! Use `!` decorator.
-    (-> #(format-msg "{0,choice,0#no cats|1#one cat|1<{0,number} cats}" %)
-        (map (range 5)) doall)))
+  (fmt-msg :de "foobar {0}!" 102.22)
+  (fmt-msg :de "foobar {0,number,integer}!" 102.22)
+  ;; Note that choice text must be unescaped! Use `!` decorator:
+  (mapv #(fmt-msg :de "{0,choice,0#no cats|1#one cat|1<{0,number} cats}" %)
+        (range 5)))
 
 ;;;; Localized country & language names
 
 (def ^:private get-sorted-localized-names
-  "Returns map containing ISO codes and corresponding localized names, both
-  sorted by the localized names."
+  "Returns ISO codes and corresponding localized names, both sorted by the
+  localized names."
   (memoize
-   (fn [display-fn iso-codes display-Loc]
+   (fn [display-fn iso-codes display-loc]
      (let [;; [localized-display-name code] seq sorted by localized-display-name
            sorted-pairs
            (->> (for [code iso-codes] [(display-fn code) code])
                 (sort (fn [[x _] [y _]]
-                        (.compare (get-collator display-Loc) x y))))]
-       ;; mapv requires Clojure 1.4+
-       {:sorted-names (vec (map first sorted-pairs))
-        :sorted-codes (vec (map second sorted-pairs))}))))
+                        (.compare (collator (locale display-loc)) x y))))]
+       [(mapv first sorted-pairs) (mapv second sorted-pairs)]))))
 
-(def ^:private all-iso-countries (seq (Locale/getISOCountries)))
+(def ^:private all-iso-countries (vec (Locale/getISOCountries)))
 
-(defn sorted-localized-countries
-  "Returns map containing ISO country codes and corresponding localized country
-  names, both sorted by the localized names."
-  ([] (sorted-localized-countries all-iso-countries))
-  ([iso-countries]
+(defn countries
+  "Returns ISO country codes and corresponding localized country names, both
+  sorted by the localized names."
+  ([loc] (countries loc all-iso-countries))
+  ([loc iso-countries]
      (get-sorted-localized-names
-      (fn [code] (.getDisplayCountry (Locale. "" code) *Locale*))
-      iso-countries *Locale*)))
+      (fn [code] (.getDisplayCountry (Locale. "" code) (locale loc)))
+      iso-countries (locale loc))))
 
-(comment (with-locale :pl (sorted-localized-countries ["GB" "DE" "PL"])))
+(comment (countries :pl ["GB" "DE" "PL"]))
 
-(def ^:private all-iso-languages (seq (Locale/getISOLanguages)))
+(def ^:private all-iso-languages (vec (Locale/getISOLanguages)))
 
-(defn sorted-localized-languages
-  "Returns map containing ISO language codes and corresponding localized
-  language names, both sorted by the localized names."
-  ([] (sorted-localized-languages all-iso-languages))
-  ([iso-languages]
+(defn languages
+  "Returns ISO language codes and corresponding localized language names, both
+  sorted by the localized names."
+  ([loc] (languages loc all-iso-languages))
+  ([loc iso-languages]
      (get-sorted-localized-names
       (fn [code] (let [Loc (Locale. code)]
-                  (str (.getDisplayLanguage Loc *Locale*)
+                  (str (.getDisplayLanguage Loc (locale loc))
                        ;; Also provide each name in it's OWN language
-                       (when (not= Loc *Locale*)
+                       (when (not= Loc (locale loc))
                          (str " (" (.getDisplayLanguage Loc Loc) ")")))))
-      iso-languages *Locale*)))
+      iso-languages (locale loc))))
 
-(comment (with-locale :pl (sorted-localized-languages ["en" "de" "pl"])))
+(comment (languages :pl ["en" "de" "pl"]))
 
-;;;; Timezones (note: doesn't use locales)
+;;;; Timezones (doesn't depend on locales)
 
 (def ^:private major-timezone-ids
   (->> (TimeZone/getAvailableIDs)
-       (filter #(re-find #"^(Africa|America|Asia|Atlantic|Australia|Europe|Indian|Pacific)/.*" %))))
+       (filterv #(re-find #"^(Africa|America|Asia|Atlantic|Australia|Europe|Indian|Pacific)/.*" %))))
 
 (defn- timezone-display-name "(GMT +05:30) Colombo"
   [city-tz-id offset]
@@ -277,9 +230,9 @@
 
 (comment (timezone-display-name "Asia/Bangkok" (* 90 60 1000)))
 
-(def sorted-timezones
-  "Returns map containing timezone IDs and corresponding pretty timezone names,
-  both sorted by the timezone's offset. Caches result for 3 hours."
+(def timezones
+  "Returns timezone IDs and corresponding pretty timezone names, both sorted by
+  the timezone's offset. Caches result for 3 hours."
   (utils/memoize-ttl
    #=(* 3 60 60 1000) ; 3hr ttl
    (fn []
@@ -292,73 +245,97 @@
                     [offset (timezone-display-name id offset) id]))
                 (sort-by first)
                 (map (comp vec rest)))]
-       {:sorted-names (vec (map first sorted-pairs))
-        :sorted-ids   (vec (map second sorted-pairs))}))))
+       [(mapv first  sorted-pairs)
+        (mapv second sorted-pairs)]))))
 
-(comment (take 10      (:sorted-names (sorted-timezones)))
-         (take-last 10 (:sorted-names (sorted-timezones))))
+(comment (take 10      (first  (timezones)))
+         (take-last 10 (second (timezones))))
 
-;;;; Dictionary management
+;;;; Translations
 
-(def ^:private compiled-dictionary
-  "Compiled form of (:dictionary @config) for efficiently storable and
-  accessible display-ready text translations."
-  (atom {}))
+(def ^:dynamic *tscope* nil)
+(defmacro with-scope
+  "Executes body within the context of thread-local translation-scope binding.
+  `translation-scope` should be a keyword like :example.greetings, or nil."
+  [translation-scope & body] `(binding [*tscope* ~translation-scope] ~@body))
 
-(defn load-dictionary-from-map-resource!
-  "Sets dictionary by loading a Clojure map from named resource. Without any
-  arguments, searches for `tower-dictionary.clj` in classpath and Leiningen's
-  resource paths."
-  ([] (load-dictionary-from-map-resource! "tower-dictionary.clj"))
-  ([resource-name & [merge?]]
-     (try
-       (let [new-dictionary (-> resource-name
-                                io/resource
-                                io/reader
-                                slurp
-                                read-string)]
-         (if (= false merge?) ; Backwards-compatible opt
-           (set-config!   [:dictionary] new-dictionary)
-           (merge-config! {:dictionary  new-dictionary})))
+(def scope (memoize (fn [& ks] (utils/merge-keywords ks true))))
+(comment (scope :a :b :c.d.e))
 
-       (set-config! [:dict-res-name] resource-name) ; Enable auto reloading
-       (utils/file-resources-modified? resource-name) ; Prime diff cache
-       (catch Exception e
-         (throw (Exception. (str "Failed to load dictionary from resource: "
-                                 resource-name) e))))))
+(def example-tconfig
+  "Example/test config as passed to `t`, `wrap-i18n-middlware`, etc.
 
-(defn- compile-map-path
+  :dictionary should be a map, or named resource containing a map of form
+  {:locale {:ns1 ... {:nsN {:key<decorator> text ...} ...} ...} ...}}.
+
+  Named resource will be watched for changes when `:dev-mode?` is true."
+  {:dev-mode? true
+   :default-locale :en ; Dictionary's own translation fallback locale
+   :dictionary ; Map or named resource containing map
+   {:en         {:example {:foo       ":en :example/foo text"
+                           :foo_note  "Hello translator, please do x"
+                           :bar {:baz ":en :example.bar/baz text"}
+                           :greeting  "Hello {0}, how are you?"
+                           :with-markdown "<tag>**strong**</tag>"
+                           :with-exclaim! "<tag>**strong**</tag>"
+                           :greeting-alias :example/greeting
+                           :baz-alias      :example.bar/baz}
+                 :missing  "<Missing translation: [{0} {1} {2}]>"}
+    :en-US      {:example {:foo ":en-US :example/foo text"}}
+    :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
+
+   :log-missing-translation-fn
+   (fn [{:keys [dev-mode? locale ks scope] :as args}]
+     (timbre/logp (if dev-mode? :warn :debug) "Missing translation" args))})
+
+(defn- compile-dict-path
   "[:locale :ns1 ... :nsN unscoped-key<decorator> translation] =>
   {:locale {:ns1.<...>.nsN/unscoped-key (f translation decorator)}}"
-  [path]
-  (when-not (and (seq path) (>= (count path) 3))
-    (throw (Exception. "Failed to compile dictionary: malformed")))
-  (let [path        (vec path)
-        locale-name (first path)
+  [raw-dict path]
+  (assert (>= (count path) 3) (str "Malformed dictionary path: " path))
+  (let [[loc :as path] (vec path)
         translation (peek path)
         scope-ks    (subvec path 1 (- (count path) 2)) ; [:ns1 ... :nsN]
+        [_ unscoped-k decorator] (->> (re-find #"([^!_]+)([!_].*)*"
+                                               (name (peek (pop path))))
+                                      (mapv keyword))
 
-        [_ unscoped-k decorator] ; Check for possible decorator
-        (->> (re-find #"([^!_]+)([!_].*)*" (name (peek (pop path))))
-             (map keyword))
-
-        ;; [:ns1 ... :nsN :unscoped-key] => :ns1.<...>.nsN/unscoped-key
-        scoped-key (keyword (when (seq scope-ks) (str/join "." (map name scope-ks)))
-                            (name unscoped-k))]
+        translation (if-not (keyword? translation)
+                      translation
+                      (let [target ; Translation alias
+                            (get-in raw-dict
+                                    (into [loc]
+                                          (->> (utils/explode-keyword translation)
+                                               (mapv keyword))))]
+                        (when-not (keyword? target) target)))]
 
     (when-let [translation
-               (if (keyword? translation)
-                 translation
+               (when translation
                  (case decorator
-                       :_note      nil
-                       (:_html :!) translation
-                       (-> translation utils/escape-html
-                           utils/inline-markdown->html)))]
-      {locale-name {scoped-key translation}})))
+                   :_note      nil
+                   (:_html :!) translation
+                   (-> translation utils/escape-html utils/inline-markdown->html)))]
 
-(defn- compile-dictionary!
-  "Compiles text translations stored in simple development-friendly Clojure map
-  into form required by localized text translator.
+      {loc {(utils/merge-keywords (conj scope-ks unscoped-k)) translation}})))
+
+(defn- inherit-parent-trs
+  "Merges each locale's translations over its parent locale translations."
+  [dict]
+  (into {}
+   (for [loc (keys dict)]
+     (let [loc-parts (str/split (name loc) #"[-_]")
+           loc-tree  (mapv #(keyword (str/join "-" %))
+                           (take-while identity (iterate butlast loc-parts)))]
+       [loc (apply merge (map dict (rseq loc-tree)))]))))
+
+(comment (inherit-parent-trs {:en    {:foo ":en foo"
+                                      :bar ":en :bar"}
+                              :en-US {:foo ":en-US foo"}}))
+
+(def ^:private dict-cache (atom {}))
+(defn- compile-dict
+  "Compiles text translations stored in simple development-friendly
+  Clojure map into form required by localized text translator.
 
     {:en {:example {:with-markdown \"<tag>**strong**</tag>\"
                     :with-exclaim! \"<tag>**strong**</tag>\"
@@ -368,71 +345,37 @@
           :example/with-exclaim! \"<tag>**strong**</tag>\"}}
 
   Note the optional key decorators."
-  []
-  (->> (utils/leaf-paths (:dictionary @config))
-       (map compile-map-path)
-       (apply merge-with merge) ; 1-level recursive merge
-       (reset! compiled-dictionary)))
+  [config]
+  (let [{:keys [dev-mode? dictionary]} config]
+    (if-let [dd (and (or (not dev-mode?)
+                         (not (string? dictionary))
+                         (not (utils/file-resources-modified? [dictionary])))
+                     (@dict-cache dictionary))]
+      @dd
+      (let [dd
+            (delay
+             (let [raw-dict
+                   (if-not (string? dictionary)
+                     dictionary ; map or nil
+                     (try (-> dictionary io/resource io/reader slurp read-string)
+                          (catch Exception e
+                            (throw
+                             (Exception. (str "Failed to load dictionary from"
+                                              "resource: " dictionary) e)))))]
+               (->> (map (partial compile-dict-path raw-dict)
+                         (utils/leaf-nodes (or raw-dict {})))
+                    (apply merge-with merge) ; 1-level deep merge
+                    (inherit-parent-trs))))]
+        (swap! dict-cache assoc dictionary dd)
+        @dd))))
 
-(compile-dictionary!) ; Actually compile default dictionary now
+(comment (inherit-parent-trs (:dictionary example-tconfig))
+         (compile-dict example-tconfig)
+         (compile-dict {:dictionary "tower-dictionary.clj"})
+         (compile-dict {}))
 
-;; Automatically re-compile any time dictionary changes
-(add-watch
- config "dictionary-watch"
- (fn [key ref old-state new-state]
-   (when (or (not= (:dictionary old-state)
-                   (:dictionary new-state))
-             (not= (:dictionary-compiler-options old-state)
-                   (:dictionary-compiler-options new-state)))
-     (compile-dictionary!))))
-
-(defn dictionary->xliff [m]) ; TODO Use hiccup?
-(defn xliff->dictionary [s]) ; TODO Use clojure.xml/parse?
-
-;;;; Translations
-
-(def ^:private locales-to-check
-  "Given a Locale, returns vector of dictionary locale names to check, in order
-  of preference:
-    #<Locale en_US_var1> => [:en-US-var1 :en-US :en]
-    #<Locale en_US>      => [:en-US :en]
-    #<Locale en>         => [:en]"
-  (memoize
-   (fn [Loc]
-     (let [parts (str/split (str Loc) #"_")]
-       (mapv #(keyword (str/join "-" %))
-             (take-while identity (iterate butlast parts)))))))
-
-(comment (locales-to-check (parse-Locale :en-US)))
-
-(def ^:private scoped-key
-  "(scoped-key :a.b.c :k)     => :a.b.c/k
-   (scoped-key :a.b.c :d.e/k) => :a.b.c.d.e/k"
-  (memoize
-   (fn [root-scope scoped-key]
-     (if root-scope
-       (let [full-scope
-             (str (name root-scope)
-                  (when-let [more (namespace scoped-key)] (str "." more)))
-             unscoped-key (name scoped-key)]
-         (keyword full-scope unscoped-key))
-       scoped-key))))
-
-(comment (scoped-key :a.b.c :k)
-         (scoped-key :a.b.c :d.e/k)
-         (scoped-key nil :k)
-         (scoped-key nil :a.b/k))
-
-(defn- recursive-get
-  [m k]
-  (loop [target k seen? #{}]
-    (when-not (seen? target)
-      (let [v (get m target)]
-        (if (keyword? v)
-          (recur v (conj seen? target))
-          v)))))
-
-(defn- recursive-get-in [m ks] (reduce recursive-get m ks))
+(def ^:private scoped-key (memoize utils/merge-keywords))
+(def           loc-key    (memoize #(keyword (str/replace (str (locale %)) "_" "-"))))
 
 (defn t ; translate
   "Localized text translator. Takes (possibly scoped) dictionary key (or vector
@@ -442,88 +385,134 @@
   With additional arguments, treats translated text as pattern for message
   formatting.
 
-  If :dev-mode? is set in `tower/config` and if dictionary was loaded using
-  `tower/load-dictionary-from-map-resource!`, dictionary will be automatically
-  reloaded each time the resource file changes."
-  ([k-or-ks & interpolation-args]
-     (when-let [pattern (t k-or-ks)]
-       (apply format-msg pattern interpolation-args)))
-  ([k-or-ks]
-     (let [{:keys [dev-mode? default-locale log-missing-translation!-fn
-                   dict-res-name]} @config]
+  See `tower/example-tconfig` for config details."
+  ([loc config k-or-ks & interpolation-args]
+     (when-let [pattern (t loc config k-or-ks)]
+       (apply fmt-msg loc pattern interpolation-args)))
+  ([loc config k-or-ks]
+     (let [{:keys [dev-mode? default-locale log-missing-translation-fn]} config
+           dict (compile-dict config)]
 
-       ;; Automatic dictionary reloading
-       (when (and dev-mode? dict-res-name
-                  (utils/file-resources-modified? dict-res-name))
-         (load-dictionary-from-map-resource! dict-res-name))
+       (let [loc-k  (loc-key loc)
+             scope  *tscope*
+             ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
+             get-tr #(get-in dict [%1 (scoped-key [scope %2])])]
 
-       (let [;; :ns1.<...>.nsM.nsA.<...>/nsN = :ns1.<...>.nsN/key
-             sk          (partial scoped-key *translation-scope*)
-             get-in-dict (partial recursive-get-in @compiled-dictionary)
-             lchoices    (locales-to-check *Locale*)
-             lchoices*   (delay (if-not (some #{default-locale} lchoices)
-                                  (conj lchoices default-locale)
-                                  lchoices))
-             kchoices*   (if (vector? k-or-ks) k-or-ks [k-or-ks])
-             kchoices    (take-while keyword? kchoices*)
-             missing-args (delay {:locale  (first lchoices)
-                                  :scope   *translation-scope*
-                                  :k-or-ks k-or-ks})]
+         (or (some #(get-tr loc-k %) (take-while keyword? ks)) ; Try loc & parents
+             (let [last-k (peek ks)]
+               (if-not (keyword? last-k)
+                 last-k ; Explicit final, non-keyword fallback (may be nil)
 
-         (or
-          ;; Try named keys in named locale, allowing transparent fallback to
-          ;; locale with stripped variation &/or region
-          (some get-in-dict (for [l lchoices k kchoices] [l (sk k)]))
+                 (do (when-let [log-f log-missing-translation-fn]
+                       (log-f {:dev-mode? dev-mode? :ns (str *ns*)
+                               :locale loc-k :scope scope :ks ks}))
 
-          (let [last-kchoice* (peek kchoices*)]
-            (if-not (keyword? last-kchoice*)
-              last-kchoice* ; Return provided explicit fallback value
+                     (or (when default-locale ; Try default-locale & parents
+                           (some #(get-tr default-locale %) ks))
 
-              (do
-                (log-missing-translation!-fn
-                 (assoc @missing-args :dev-mode? dev-mode?
-                                      :ns        (str *ns*)))
+                         ;; Try :missing key in loc & parents
+                         (when-let [pattern (get-tr loc-k :missing)]
+                           (fmt-msg loc pattern loc-k scope ks)))))))))))
 
-                (or
-                 ;; Try fall back to named keys in (different) default locale
-                 (when-not (= @lchoices* lchoices)
-                   (some get-in-dict (for [k kchoices] [default-locale (sk k)])))
+(comment (t :en-ZA example-tconfig :example/foo)
+         (with-scope :example (t :en-ZA example-tconfig :foo))
 
-                 ;; Try fall back to :missing key in named or default locale
-                 (when-let [pattern (some get-in-dict (for [l @lchoices*]
-                                                        [l :missing]))]
-                   ;; Use 's to escape {}'s for MessageFormat
-                   (format-msg pattern (str "'" @missing-args "'"))))))))))))
+         (t :en  example-tconfig :invalid)
+         (t :en example-tconfig [:invalid :example/foo])
+         (t :en example-tconfig [:invalid "Explicit fallback"])
 
-(comment (with-locale :en-ZA (t :example/foo))
-         (with-locale :en-ZA (with-scope :example (t :foo)))
-         (with-locale :en-ZA (t :invalid))
-         (with-locale :en-ZA (t* :invalid))
-         (with-locale :en-ZA (t [:invalid :example/foo]))
-         (with-locale :en-ZA (t [:invalid "Explicit fallback"]))
-
-         ;; Benchmarks (dev-mode disabled):
-         (time (dotimes [_ 10000] (t :example/foo)))            ; +/- 35ms
-         (time (dotimes [_ 10000] (t [:invalid :example/foo]))) ; +/- 60ms
-         (time (dotimes [_ 10000] (t [:invalid nil])))          ; +/- 45ms
+         (def prod-c (assoc example-tconfig :dev-mode? false))
+         (time (dotimes [_ 10000] (compile-dict prod-c)))                  ; ~8ms
+         (time (dotimes [_ 10000] (t :en prod-c :example/foo)))            ; ~30ms
+         (time (dotimes [_ 10000] (t :en prod-c [:invalid :example/foo]))) ; ~45ms
+         (time (dotimes [_ 10000] (t :en prod-c [:invalid nil])))          ; ~35ms
          )
 
-(defmacro tstr
-  "EXPERIMENTAL. Like `t` but joins together multiple translations:
-  (tstr :k1 :k2 \"arg1\" \"arg2\" [:k3-choice1 :k3-choice2]) =>
-  (str/join \" \" (t :k1) (t :k2 \"arg1\" \"arg2\") (t [:k3-choice1 :k3-choice2]))"
-  ([k-or-ks] `(t ~k-or-ks))
-  ([k-or-ks & more]
-     (let [;; Lists of 1 k-or-ks, each followed by optional args for interpolation
-           partitions
-           (loop [v [] remaining (cons k-or-ks more)]
-             (if-not (seq remaining)
-               v
-               (let [partition
-                     (vec (utils/take-until
-                           #(and (not (keyword? %)) (not (vector?  %)))
-                           remaining))]
-                 (recur (conj v partition) (drop (count partition) remaining)))))]
-       `(str/join " " (map #(apply t %) ~partitions)))))
+(defn dictionary->xliff [m]) ; TODO Use hiccup?
+(defn xliff->dictionary [s]) ; TODO Use clojure.xml/parse?
 
-(comment (with-locale :en-ZA (tstr :example/greeting "Steve" [:example/foo])))
+;;;; DEPRECATED
+;; The v2 API basically breaks everything. To allow lib consumers to migrate
+;; gradually, the entire v1 API is reproduced below. This should allow Tower v2
+;; to act as a quasi drop-in replacement for v1, despite the huge changes
+;; under-the-covers.
+
+(defn parse-Locale "DEPRECATED: Use `locale` instead."
+  [loc] (if (= loc :default) (locale :jvm-default) (locale loc)))
+
+(defn l-compare "DEPRECATED." [x y] (.compare (collator *locale*) x y))
+
+(defn format-number   "DEPRECATED." [x] (fmt *locale* x :number))
+(defn format-integer  "DEPRECATED." [x] (fmt *locale* x :integer))
+(defn format-percent  "DEPRECATED." [x] (fmt *locale* x :percent))
+(defn format-currency "DEPRECATED." [x] (fmt *locale* x :currency))
+
+(defn parse-number    "DEPRECATED." [s] (parse *locale* s :number))
+(defn parse-integer   "DEPRECATED." [s] (parse *locale* s :integer))
+(defn parse-percent   "DEPRECATED." [s] (parse *locale* s :percent))
+(defn parse-currency  "DEPRECATED." [s] (parse *locale* s :currency))
+
+(defn- new-style [& xs] (keyword (str/join "-" (mapv name xs))))
+
+(defn style "DEPRECATED."
+  ([] :default)
+  ([style] (or (dt-styles style)
+               (throw (Exception. (str "Unknown style: " style))))))
+
+(defn format-date "DEPRECATED."
+  ([d]       (fmt *locale* d :date))
+  ([style d] (fmt *locale* d (new-style :date style))))
+
+(defn format-time "DEPRECATED."
+  ([t]       (fmt *locale* t :time))
+  ([style t] (fmt *locale* t (new-style :time style))))
+
+(defn format-dt "DEPRECATED."
+  ([dt]               (fmt *locale* dt :dt))
+  ([dstyle tstyle dt] (fmt *locale* dt (new-style :dt dstyle tstyle))))
+
+(defn parse-date "DEPRECATED."
+  ([s]       (parse *locale* s :date))
+  ([style s] (parse *locale* s (new-style :date style))))
+
+(defn parse-time "DEPRECATED."
+  ([s]       (parse *locale* s :time))
+  ([style s] (parse *locale* s (new-style :time style))))
+
+(defn parse-dt "DEPRECATED."
+  ([s]               (parse *locale* s :dt))
+  ([dstyle tstyle s] (parse *locale* s (new-style :dt dstyle tstyle))))
+
+(def format-str "DEPRECATED." #(apply fmt-str *locale* %&))
+(def format-msg "DEPRECATED." #(apply fmt-msg *locale* %&))
+
+(defn- sorted-old [f & args]
+  (fn [& args]
+    (let [[names ids] (apply f *locale* args)]
+      {:sorted-names names
+       :sorted-ids   ids})))
+
+(def sorted-localized-countries "DEPRECATED." (sorted-old countries))
+(def sorted-localized-languages "DEPRECATED." (sorted-old languages))
+(def sorted-timezones           "DEPRECATED." (sorted-old timezones))
+
+(def config "DEPRECATED." (atom example-tconfig))
+(defn set-config!   "DEPRECATED." [ks val] (swap! config assoc-in ks val))
+(defn merge-config! "DEPRECATED." [& maps] (apply swap! config utils/merge-deep maps))
+
+(defn load-dictionary-from-map-resource! "DEPRECATED."
+  ([] (load-dictionary-from-map-resource! "tower-dictionary.clj"))
+  ([resource-name & [merge?]]
+     (try (let [new-dictionary (-> resource-name io/resource io/reader slurp
+                                   read-string)]
+            (if (= false merge?)
+              (set-config!   [:dictionary] new-dictionary)
+              (merge-config! {:dictionary  new-dictionary})))
+
+          (set-config! [:dict-res-name] resource-name)
+          (utils/file-resources-modified? resource-name)
+          (catch Exception e
+            (throw (Exception. (str "Failed to load dictionary from resource: "
+                                    resource-name) e))))))
+
+(def t' #(apply t *locale* @config %&)) ; BREAKS v1 due to unavoidable name clash
