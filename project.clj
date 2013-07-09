@@ -12,8 +12,7 @@
              :1.6  {:dependencies [[org.clojure/clojure "1.6.0-master-SNAPSHOT"]]}
              :dev  {:dependencies []}
              :test {:dependencies [[ring/ring-core      "1.2.0"]]}}
-  :aliases {"test-all"    ["with-profile" "test,1.4:test,1.5:test,1.6"
-                           "do" "test," "expectations"]
+  :aliases {"test-all"    ["with-profile" "test,1.4:test,1.5:test,1.6" "expectations"]
             "test-auto"   ["with-profile" "test" "autoexpect"]
             "start-dev"   ["with-profile" "dev,test,bench" "repl" ":headless"]
             "codox"       ["with-profile" "test" "doc"]}
