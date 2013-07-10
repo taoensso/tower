@@ -23,20 +23,22 @@
 (defn try-locale
   "Like `locale` but returns nil if no valid matching Locale could be found."
   [loc]
-  (when loc
-    (cond (instance? Locale loc) loc
-          (= :jvm-default loc) (Locale/getDefault)
-          :else (ensure-valid-Locale
-                 (apply make-Locale (str/split (name loc) #"[-_]"))))))
+  (cond (nil? loc) nil
+        (instance? Locale loc) loc
+        (= :jvm-default loc) (Locale/getDefault)
+        :else (ensure-valid-Locale
+               (apply make-Locale (str/split (name loc) #"[-_]")))))
 
-(defn locale
+(def locale
   "Returns valid Locale matching given name string/keyword, or throws an
   exception if none could be found. `loc` should be of form :en, :en-US,
   :en-US-variant, or :jvm-default."
-  [loc] (or (try-locale loc) (throw (Exception. (str "Invalid locale: " loc)))))
+  (memoize
+   (fn [loc]
+     (or (try-locale loc) (throw (Exception. (str "Invalid locale: " loc)))))))
 
 (comment
-  (map locale [nil :invalid :jvm-default :en-US :en-US-var1 (Locale/getDefault)])
+  (map try-locale [nil :invalid :jvm-default :en-US :en-US-var1 (Locale/getDefault)])
   (time (dotimes [_ 10000] (locale :en))))
 
 (def ^:dynamic *locale* nil)
