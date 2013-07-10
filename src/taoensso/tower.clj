@@ -320,19 +320,19 @@
 
       {loc {(utils/merge-keywords (conj scope-ks unscoped-k)) translation}})))
 
-;; (defn- inherit-parent-trs
-;;   "Merges each locale's translations over its parent locale translations."
-;;   [dict]
-;;   (into {}
-;;    (for [loc (keys dict)]
-;;      (let [loc-parts (str/split (name loc) #"[-_]")
-;;            loc-tree  (mapv #(keyword (str/join "-" %))
-;;                            (take-while identity (iterate butlast loc-parts)))]
-;;        [loc (apply merge (map dict (rseq loc-tree)))]))))
+(defn- inherit-parent-trs
+  "Merges each locale's translations over its parent locale translations."
+  [dict]
+  (into {}
+   (for [loc (keys dict)]
+     (let [loc-parts (str/split (name loc) #"[-_]")
+           loc-tree  (mapv #(keyword (str/join "-" %))
+                           (take-while identity (iterate butlast loc-parts)))]
+       [loc (apply merge (map dict (rseq loc-tree)))]))))
 
-;; (comment (inherit-parent-trs {:en    {:foo ":en foo"
-;;                                       :bar ":en :bar"}
-;;                               :en-US {:foo ":en-US foo"}}))
+(comment (inherit-parent-trs {:en    {:foo ":en foo"
+                                      :bar ":en :bar"}
+                              :en-US {:foo ":en-US foo"}}))
 
 (def ^:private dict-cache (atom {}))
 (defn- compile-dict
@@ -368,8 +368,7 @@
                (->> (map (partial compile-dict-path raw-dict)
                          (utils/leaf-nodes (or raw-dict {})))
                     (apply merge-with merge) ; 1-level deep merge
-                    ;; (inherit-parent-trs)
-                    )))]
+                    (inherit-parent-trs))))]
         (swap! dict-cache assoc dictionary dd)
         @dd))))
 
@@ -379,26 +378,7 @@
          (compile-dict {}))
 
 (def ^:private scoped-key (memoize utils/merge-keywords))
-;; (def        loc-key    (memoize #(keyword (str/replace (str (locale %)) "_" "-"))))
-
-(defn- parent-locs [loc]
-  (let [loc-parts (str/split (str (locale loc)) #"[-_]")]
-    (mapv #(keyword (str/join "-" %))
-          (take-while identity (iterate butlast loc-parts)))))
-
-(comment (parent-locs :en-US))
-
-(def ^:private loc-keys
-  "Returns vec of descending-preference locale keys to search for translations."
-  (memoize
-   (fn [loc & [fallback-loc]]
-     (if-not fallback-loc
-       (parent-locs loc)
-       (-> (parent-locs loc) (into (parent-locs fallback-loc)) distinct vec)))))
-
-(comment (loc-keys :en-US :jvm-default)
-         (loc-keys :en-US :DE-de)
-         (loc-keys :en-US))
+(def           loc-key    (memoize #(keyword (str/replace (str (locale %)) "_" "-"))))
 
 (defn t ; translate
   "Localized text translator. Takes (possibly scoped) dictionary key (or vector
@@ -413,17 +393,12 @@
      (when-let [pattern (t loc config k-or-ks)]
        (apply fmt-msg loc pattern interpolation-args)))
   ([loc config k-or-ks]
-     (let [{:keys [dev-mode? default-locale log-missing-translation-fn]
-            :or   {default-locale :jvm-default}} config
+     (let [{:keys [dev-mode? default-locale log-missing-translation-fn]} config
            dict (compile-dict config)]
+
        (let [scope  *tscope*
              ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
-             get-tr (fn [loc tk & [fallback-loc]]
-                      (let [scoped-tk (scoped-key [scope tk])]
-                        ;; (timbre/trace "Searching for translation"
-                        ;;   (mapv #(vector % scoped-tk) (loc-keys loc fallback-loc)))
-                        (some #(get-in dict [% scoped-tk])
-                              (loc-keys loc fallback-loc))))]
+             get-tr #(get-in dict [(loc-key %1) (scoped-key [scope %2])])]
 
          (or (some #(get-tr loc %) (take-while keyword? ks)) ; Try loc & parents
              (let [last-k (peek ks)]
@@ -435,17 +410,16 @@
                                :locale loc :scope scope :ks ks}))
                      (or
                       ;; Try default-locale & parents
-                      (some #(get-tr default-locale %) ks)
+                      (some #(get-tr (or default-locale :jvm-default) %) ks)
 
                       ;; Try :missing key in loc & parents
-                      (when-let [pattern (get-tr loc :missing default-locale)]
+                      (when-let [pattern (get-tr loc :missing)]
                         (fmt-msg loc pattern loc scope ks)))))))))))
 
 (comment (t :en-ZA example-tconfig :example/foo)
          (with-scope :example (t :en-ZA example-tconfig :foo))
 
-         (t :en example-tconfig :invalid)
-         (timbre/with-level :trace (t :en-GB example-tconfig :invalid))
+         (t :en  example-tconfig :invalid)
          (t :en example-tconfig [:invalid :example/foo])
          (t :en example-tconfig [:invalid "Explicit fallback"])
 
