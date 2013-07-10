@@ -34,14 +34,14 @@
   exception if none could be found. `loc` should be of form :en, :en-US,
   :en-US-variant, or :jvm-default."
   (memoize
-   (fn [loc]
-     (or (try-locale loc) (throw (Exception. (str "Invalid locale: " loc)))))))
+   (fn [loc] (or (try-locale loc)
+                (throw (Exception. (str "Invalid locale: " loc)))))))
 
 (def locale-key "Returns locale keyword for given Locale object or locale keyword."
   (memoize #(keyword (str/replace (str (locale %)) "_" "-"))))
 
 (comment
-  (map try-locale [nil :invalid :jvm-default :en-US :en-US-var1 (Locale/getDefault)])
+  (mapv try-locale [nil :invalid :jvm-default :en-US :en-US-var1 (Locale/getDefault)])
   (time (dotimes [_ 10000] (locale :en))))
 
 (def ^:dynamic *locale* nil)
@@ -309,7 +309,6 @@
         [_ unscoped-k decorator] (->> (re-find #"([^!_]+)([!_].*)*"
                                                (name (peek (pop path))))
                                       (mapv keyword))
-
         translation (if-not (keyword? translation)
                       translation
                       (let [target ; Translation alias
@@ -318,7 +317,6 @@
                                           (->> (utils/explode-keyword translation)
                                                (mapv keyword))))]
                         (when-not (keyword? target) target)))]
-
     (when-let [translation
                (when translation
                  (case decorator
