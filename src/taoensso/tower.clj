@@ -289,7 +289,7 @@
 
    :log-missing-translation-fn
    (fn [{:keys [dev-mode? locale ks scope] :as args}]
-     (timbre/logp (if dev-mode? :warn :debug) "Missing translation" args))})
+     (timbre/logp (if dev-mode? :debug :warn) "Missing translation" args))})
 
 (defn- compile-dict-path
   "[:locale :ns1 ... :nsN unscoped-key<decorator> translation] =>
