@@ -17,7 +17,7 @@
   address, subdomain, TLD, etc.
 
   Establishes a thread-local locale binding with `tower/*locale*`, and adds
-  `:locale` and `:t` keys to request."
+  `:locale`, `:t`, and `:t'` (t with scope) keys to request."
   [handler & [{:keys [locale-selector fallback-locale tconfig]
                :or   {fallback-locale :jvm-default
                       tconfig tower/example-tconfig}}]]
@@ -29,11 +29,12 @@
                                       (locale-from-headers headers)
                                       fallback-locale])]
       (tower/with-locale loc
-        (handler (assoc request :locale (tower/locale-key loc)
-                        :tconfig tconfig
-                                :t (if tconfig
-                                     (partial tower/t loc tconfig)
-                                     (partial tower/t loc))))))))
+        (handler
+         (assoc request
+           :locale (tower/locale-key loc)
+           :tconfig tconfig
+           :t   (if tconfig (partial tower/t  loc tconfig) (partial tower/t  loc))
+           :t'  (if tconfig (partial tower/t' loc tconfig) (partial tower/t' loc))))))))
 
 ;;;; Deprecated
 

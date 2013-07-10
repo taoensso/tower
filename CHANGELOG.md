@@ -1,14 +1,15 @@
-## v1.7.1 → 2.0.0-alpha11
+## v1.7.1 → 2.0.0-alpha14
 
 So there's good news and bad news. The bad news is Tower v2's API is almost **completely different to the v1 API**.
 
 The good news is the new API is (with the exception of `t`) **entirely self-contained**. Meaning: v2 **contains** the (now deprecated) v1 API and it should be possible to use v2 as an (almost) drop-in replacement for v1 while you migrate at your convenience.
 
-**If you just want v2 to "work" without migrating**: rename your `t` calls to `t'`.
+**If you just want v2 to "work" without migrating**: rename your `t` calls to `t*`.
 
 **If you want to migrate**:
 
   * **BREAKING**: `t` now takes an explicit locale and a config map of the same form as the v1 `config` atom.
+  * **DEPRECATED**: `with-scope` has been dropped. Use `t'` instead. It's like `t` but takes an explicit root scope.
   * **DEPRECATED**: `parse-Locale` -> `locale`. Only the name has changed.
   * **DEPRECATED**: `format-str` -> `fmt-str`, `format-msg` -> `fmt-msg`. The new fns take an explicit locale arg.
   * **DEPRECATED**: `l-compare` -> `lcomparator`. The new fn takes an explicit locale arg and returns a comparator fn.
@@ -23,7 +24,9 @@ So, basically, idiomatic Tower usage has been simplified:
   * All API fns now take an explicit locale argument.
   * The Ring middleware provides a `*locale*` thread-local binding and a `:locale` request key to help with the above (use whichever is more convenient).
   * The `t` fn now takes an explicit config map rather than depending on a global config atom.
-  * The Ring middleware provides a `:t (partial tower/t locale config)` key to help with the above.
+  * The Ring middleware provides `:t (partial tower/t locale config)` and `:t' (partial tower/t' locale config)` keys to help with the above.
+  * `(let [t (t' :root-tr-ns)] ...)` has replaced the `(with-scope :root-tr-ns ...)` pattern.
+
 
 ## v1.6.0 → v1.7.1
   * `load-dictionary-from-map-resource!` now supports optionally overwriting (vs merging) with new optional `merge?` arg.
