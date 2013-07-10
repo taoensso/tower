@@ -37,6 +37,9 @@
    (fn [loc]
      (or (try-locale loc) (throw (Exception. (str "Invalid locale: " loc)))))))
 
+(def locale-key "Returns locale keyword for given Locale object or locale keyword."
+  (memoize #(keyword (str/replace (str (locale %)) "_" "-"))))
+
 (comment
   (map try-locale [nil :invalid :jvm-default :en-US :en-US-var1 (Locale/getDefault)])
   (time (dotimes [_ 10000] (locale :en))))
@@ -382,8 +385,6 @@
          (compile-dict {:dictionary "tower-dictionary.clj"})
          (compile-dict {}))
 
-(def loc-key (memoize #(keyword (str/replace (str (locale %)) "_" "-"))))
-
 (defn t ; translate
   "Localized text translator. Takes (possibly scoped) dictionary key (or vector
   of descending-preference keys) of form :nsA.<...>.nsN/key within a root scope
@@ -404,7 +405,7 @@
 
        (let [scope  *tscope*
              ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
-             get-tr #(get-in dict [(loc-key %1) (scoped scope %2)])]
+             get-tr #(get-in dict [(locale-key %1) (scoped scope %2)])]
 
          (or (some #(get-tr loc %) (take-while keyword? ks)) ; Try loc & parents
              (let [last-k (peek ks)]
