@@ -39,7 +39,7 @@
   (map locale [nil :invalid :jvm-default :en-US :en-US-var1 (Locale/getDefault)])
   (time (dotimes [_ 10000] (locale :en))))
 
-(def ^:dynamic *locale* nil) ; (locale :jvm-default)
+(def ^:dynamic *locale* nil)
 (defmacro with-locale
   "Executes body within the context of thread-local locale binding, enabling
   use of translation and localization functions. `loc` should be of form :en,
@@ -253,7 +253,8 @@
 
 ;;;; Translations
 
-(def dev-mode? "Global fallback dev-mode? setting." (atom true))
+(def dev-mode?       "Global fallback dev-mode?." (atom true))
+(def fallback-locale "Global fallback locale."    (atom :en))
 
 (def ^:dynamic *tscope* nil)
 (defmacro with-scope
@@ -272,7 +273,7 @@
 
   Named resource will be watched for changes when `:dev-mode?` is true."
   {:dev-mode? true
-   :default-locale :en ; Dictionary's own translation fallback locale
+   :fallback-locale :en
    :dictionary ; Map or named resource containing map
    {:en         {:example {:foo       ":en :example/foo text"
                            :foo_note  "Hello translator, please do x"
@@ -393,7 +394,9 @@
      (when-let [pattern (t loc config k-or-ks)]
        (apply fmt-msg loc pattern interpolation-args)))
   ([loc config k-or-ks]
-     (let [{:keys [dev-mode? default-locale log-missing-translation-fn]} config
+     (let [{:keys [dev-mode? fallback-locale log-missing-translation-fn]
+            :or   {fallback-locale (or (:default-locale config) ; Backwards comp
+                                       @fallback-locale)}} config
            dict (compile-dict config)]
 
        (let [scope  *tscope*
@@ -409,11 +412,12 @@
                        (log-f {:dev-mode? dev-mode? :ns (str *ns*)
                                :locale loc :scope scope :ks ks}))
                      (or
-                      ;; Try default-locale & parents
-                      (some #(get-tr (or default-locale :jvm-default) %) ks)
+                      ;; Try fallback-locale & parents
+                      (some #(get-tr fallback-locale %) ks)
 
-                      ;; Try :missing key in loc & parents
-                      (when-let [pattern (get-tr loc :missing)]
+                      ;; Try :missing key in loc, parents, fallback-loc, & parents
+                      (when-let [pattern (or (get-tr loc             :missing)
+                                             (get-tr fallback-locale :missing))]
                         (fmt-msg loc pattern loc scope ks)))))))))))
 
 (comment (t :en-ZA example-tconfig :example/foo)
