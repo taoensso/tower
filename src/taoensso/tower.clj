@@ -355,35 +355,33 @@
           :example/with-exclaim! \"<tag>**strong**</tag>\"}}
 
   Note the optional key decorators."
-  [config]
-  (let [{:keys [dev-mode? dictionary]
-         :or   {dev-mode? @dev-mode?}} config]
-    (if-let [dd (and (or (not dev-mode?)
-                         (not (string? dictionary))
-                         (not (utils/file-resources-modified? [dictionary])))
-                     (@dict-cache dictionary))]
-      @dd
-      (let [dd
-            (delay
-             (let [raw-dict
-                   (if-not (string? dictionary)
-                     dictionary ; map or nil
-                     (try (-> dictionary io/resource io/reader slurp read-string)
-                          (catch Exception e
-                            (throw
-                             (Exception. (str "Failed to load dictionary from"
-                                              "resource: " dictionary) e)))))]
-               (->> (map (partial compile-dict-path raw-dict)
-                         (utils/leaf-nodes (or raw-dict {})))
-                    (apply merge-with merge) ; 1-level deep merge
-                    (inherit-parent-trs))))]
-        (swap! dict-cache assoc dictionary dd)
-        @dd))))
+  [raw-dict dev-mode?]
+  (if-let [dd (and (or (not dev-mode?)
+                       (not (string? raw-dict))
+                       (not (utils/file-resources-modified? [raw-dict])))
+                   (@dict-cache raw-dict))]
+    @dd
+    (let [dd
+          (delay
+           (let [raw-dict
+                 (if-not (string? raw-dict)
+                   raw-dict ; map or nil
+                   (try (-> raw-dict io/resource io/reader slurp read-string)
+                        (catch Exception e
+                          (throw
+                           (Exception. (str "Failed to load dictionary from"
+                                            "resource: " raw-dict) e)))))]
+             (->> (map (partial compile-dict-path raw-dict)
+                       (utils/leaf-nodes (or raw-dict {})))
+                  (apply merge-with merge) ; 1-level deep merge
+                  (inherit-parent-trs))))]
+      (swap! dict-cache assoc raw-dict dd)
+      @dd)))
 
 (comment (inherit-parent-trs (:dictionary example-tconfig))
-         (compile-dict example-tconfig)
-         (compile-dict {:dictionary "tower-dictionary.clj"})
-         (compile-dict {}))
+         (compile-dict (:dictionary example-tconfig) true)
+         (compile-dict "tower-dictionary.clj" true)
+         (compile-dict nil true))
 
 (defn t ; translate
   "Localized text translator. Takes dictionary key (or vector of descending-
@@ -392,10 +390,11 @@
 
   See `example-tconfig` for config details."
   [loc config k-or-ks & fmt-msg-args]
-  (let [{:keys [dev-mode? fallback-locale log-missing-translation-fn]
-         :or   {fallback-locale (or (:default-locale config) ; Backwards comp
+  (let [{:keys [dev-mode? dictionary fallback-locale log-missing-translation-fn]
+         :or   {dev-mode?       @dev-mode?
+                fallback-locale (or (:default-locale config) ; Backwards comp
                                     @fallback-locale)}} config
-        dict   (compile-dict config)
+        dict   (compile-dict dictionary dev-mode?)
         scope  *tscope*
         ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
         get-tr #(get-in dict [(locale-key %1) (scoped scope %2)])
@@ -428,7 +427,6 @@
          (t :en example-tconfig [:invalid "Explicit fallback"])
 
          (def prod-c (assoc example-tconfig :dev-mode? false))
-         (time (dotimes [_ 10000] (compile-dict prod-c)))                  ; ~8ms
          (time (dotimes [_ 10000] (t :en prod-c :example/foo)))            ; ~30ms
          (time (dotimes [_ 10000] (t :en prod-c [:invalid :example/foo]))) ; ~45ms
          (time (dotimes [_ 10000] (t :en prod-c [:invalid nil])))          ; ~35ms
