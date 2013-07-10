@@ -256,14 +256,16 @@
 (def dev-mode?       "Global fallback dev-mode?." (atom true))
 (def fallback-locale "Global fallback locale."    (atom :en))
 
+(def scoped "Merges scope keywords: (scoped :a.b :c :d) => :a.b.c/d"
+  (memoize (fn [& ks] (utils/merge-keywords ks))))
+
+(comment (scoped :a.b :c :d))
+
 (def ^:dynamic *tscope* nil)
 (defmacro with-scope
   "Executes body within the context of thread-local translation-scope binding.
   `translation-scope` should be a keyword like :example.greetings, or nil."
   [translation-scope & body] `(binding [*tscope* ~translation-scope] ~@body))
-
-(def scope (memoize (fn [& ks] (utils/merge-keywords ks true))))
-(comment (scope :a :b :c.d.e))
 
 (def example-tconfig
   "Example/test config as passed to `t`, `wrap-i18n-middlware`, etc.
@@ -378,8 +380,7 @@
          (compile-dict {:dictionary "tower-dictionary.clj"})
          (compile-dict {}))
 
-(def ^:private scoped-key (memoize utils/merge-keywords))
-(def           loc-key    (memoize #(keyword (str/replace (str (locale %)) "_" "-"))))
+(def loc-key (memoize #(keyword (str/replace (str (locale %)) "_" "-"))))
 
 (defn t ; translate
   "Localized text translator. Takes (possibly scoped) dictionary key (or vector
@@ -401,7 +402,7 @@
 
        (let [scope  *tscope*
              ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
-             get-tr #(get-in dict [(loc-key %1) (scoped-key [scope %2])])]
+             get-tr #(get-in dict [(loc-key %1) (scoped scope %2)])]
 
          (or (some #(get-tr loc %) (take-while keyword? ks)) ; Try loc & parents
              (let [last-k (peek ks)]
