@@ -386,48 +386,44 @@
          (compile-dict {}))
 
 (defn t ; translate
-  "Localized text translator. Takes (possibly scoped) dictionary key (or vector
-  of descending-preference keys) of form :nsA.<...>.nsN/key within a root scope
-  :ns1.<...>.nsM and returns the best translation available for working locale.
+  "Localized text translator. Takes dictionary key (or vector of descending-
+  preference keys) and returns the best translation available for given locale.
+  With additional arguments, treats translation as pattern for `fmt-msg`.
 
-  With additional arguments, treats translated text as pattern for message
-  formatting.
+  See `example-tconfig` for config details."
+  [loc config k-or-ks & fmt-msg-args]
+  (let [{:keys [dev-mode? fallback-locale log-missing-translation-fn]
+         :or   {fallback-locale (or (:default-locale config) ; Backwards comp
+                                    @fallback-locale)}} config
+        dict   (compile-dict config)
+        scope  *tscope*
+        ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
+        get-tr #(get-in dict [(locale-key %1) (scoped scope %2)])
+        tr
+        (or (some #(get-tr loc %) (take-while keyword? ks)) ; Try loc & parents
+            (let [last-k (peek ks)]
+              (if-not (keyword? last-k)
+                last-k ; Explicit final, non-keyword fallback (may be nil)
 
-  See `tower/example-tconfig` for config details."
-  ([loc config k-or-ks & interpolation-args]
-     (when-let [pattern (t loc config k-or-ks)]
-       (apply fmt-msg loc pattern interpolation-args)))
-  ([loc config k-or-ks]
-     (let [{:keys [dev-mode? fallback-locale log-missing-translation-fn]
-            :or   {fallback-locale (or (:default-locale config) ; Backwards comp
-                                       @fallback-locale)}} config
-           dict (compile-dict config)]
+                (do (when-let [log-f log-missing-translation-fn]
+                      (log-f {:dev-mode? dev-mode? :ns (str *ns*)
+                              :locale loc :scope scope :ks ks}))
+                    (or
+                     ;; Try fallback-locale & parents
+                     (some #(get-tr fallback-locale %) ks)
 
-       (let [scope  *tscope*
-             ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
-             get-tr #(get-in dict [(locale-key %1) (scoped scope %2)])]
+                     ;; Try :missing key in loc, parents, fallback-loc, & parents
+                     (when-let [pattern (or (get-tr loc             :missing)
+                                            (get-tr fallback-locale :missing))]
+                       (fmt-msg loc pattern loc scope ks)))))))]
 
-         (or (some #(get-tr loc %) (take-while keyword? ks)) ; Try loc & parents
-             (let [last-k (peek ks)]
-               (if-not (keyword? last-k)
-                 last-k ; Explicit final, non-keyword fallback (may be nil)
-
-                 (do (when-let [log-f log-missing-translation-fn]
-                       (log-f {:dev-mode? dev-mode? :ns (str *ns*)
-                               :locale loc :scope scope :ks ks}))
-                     (or
-                      ;; Try fallback-locale & parents
-                      (some #(get-tr fallback-locale %) ks)
-
-                      ;; Try :missing key in loc, parents, fallback-loc, & parents
-                      (when-let [pattern (or (get-tr loc             :missing)
-                                             (get-tr fallback-locale :missing))]
-                        (fmt-msg loc pattern loc scope ks)))))))))))
+    (if-not fmt-msg-args tr
+      (apply fmt-msg loc tr fmt-msg-args))))
 
 (comment (t :en-ZA example-tconfig :example/foo)
          (with-scope :example (t :en-ZA example-tconfig :foo))
 
-         (t :en  example-tconfig :invalid)
+         (t :en example-tconfig :invalid)
          (t :en example-tconfig [:invalid :example/foo])
          (t :en example-tconfig [:invalid "Explicit fallback"])
 
