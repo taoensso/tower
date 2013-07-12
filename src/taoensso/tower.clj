@@ -268,7 +268,7 @@
 
 (def ^:dynamic *tscope* nil)
 (defmacro with-tscope
-  "Executes body within the context of thread-local translation-scope binding.
+  "Executes body within the context of thread-local translation scope binding.
   `translation-scope` should be a keyword like :example.greetings, or nil."
   [translation-scope & body] `(binding [*tscope* ~translation-scope] ~@body))
 
@@ -381,14 +381,13 @@
          (compile-dict "tower-dictionary.clj" true)
          (compile-dict nil true))
 
-(defn t-scoped
-  "Like `t` but uses an explicit (rather than thread-bound) root scope for
-  dictionary keys:
-    (t-scoped :en example-tconfig :a.b [:c1 :c2]) =>
-    (t        :en example-tconfig [:a.b/c1 :a.b/c2]
+(defn translate
+  "Takes dictionary key (or vector of descending- preference keys) within a
+  (possibly nil) root scope, and returns the best translation available for
+  given locale. With additional arguments, treats translation as pattern for
+  `fmt-msg`.
 
-  Useful for lib authors and other contexts where one wants to ignore the
-  thread-bound translation scope."
+  See `example-tconfig` for config details."
   [loc config scope k-or-ks & fmt-msg-args]
   (let [{:keys [dev-mode? dictionary fallback-locale log-missing-translation-fn]
          :or   {dev-mode?       @dev-mode?
@@ -418,14 +417,10 @@
     (if-not fmt-msg-args tr
       (apply fmt-msg loc tr fmt-msg-args))))
 
-(defn t ; translate
-  "Localized text translator. Takes dictionary key (or vector of descending-
-  preference keys) and returns the best translation available for given locale.
-  With additional arguments, treats translation as pattern for `fmt-msg`.
-
-  See `example-tconfig` for config details."
+(utils/defalias t' translate)
+(defn t "Like `translate` but uses a thread-local binding for translation scope."
   [loc config k-or-ks & fmt-msg-args]
-  (apply t-scoped loc config *tscope* k-or-ks fmt-msg-args))
+  (apply translate loc config *tscope* k-or-ks fmt-msg-args))
 
 (comment (t :en-ZA example-tconfig :example/foo)
          (with-tscope :example (t :en-ZA example-tconfig :foo))

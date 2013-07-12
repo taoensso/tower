@@ -13,6 +13,16 @@
   (let [[name [expr]] (macro/name-with-attributes name sigs)]
     `(clojure.core/defonce ~name ~expr)))
 
+(defmacro defalias
+  "Defines an alias for a var, preserving metadata. Adapted from
+  clojure.contrib/def.clj, Ref. http://goo.gl/xpjeH"
+  [name target & [doc]]
+  `(let [^clojure.lang.Var v# (var ~target)]
+     (alter-meta! (def ~name (.getRawRoot v#))
+                  #(merge % (apply dissoc (meta v#) [:column :line :file :test :name])
+                            (when-let [doc# ~doc] {:doc doc#})))
+     (var ~name)))
+
 (defn leaf-nodes
   "Takes a nested map and squashes it into a sequence of paths to leaf nodes.
   Based on 'flatten-tree' by James Reaves on Google Groups."

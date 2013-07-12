@@ -33,7 +33,12 @@
                         :tconfig tconfig
                                 :t (if tconfig
                                      (partial tower/t loc tconfig)
-                                     (partial tower/t loc))))))))
+                                     (partial tower/t loc))
+
+                                ;; Experimental - intentionally undocumented
+                                :t' (if tconfig
+                                      (partial tower/t' loc tconfig)
+                                      (partial tower/t loc))))))))
 
 ;;;; Deprecated
 
