@@ -10,6 +10,7 @@ The good news is the new API is (with the exception of `t`) **entirely self-cont
 
   * **BREAKING**: `t` now takes an explicit locale and a config map of the same form as the v1 `config` atom.
   * **DEPRECATED**: `parse-Locale` -> `locale`. Only the name has changed.
+  * **DEPRECATED**: `with-scope` -> `with-tscope`. Only the name has changed.
   * **DEPRECATED**: `format-str` -> `fmt-str`, `format-msg` -> `fmt-msg`. The new fns take an explicit locale arg.
   * **DEPRECATED**: `l-compare` -> `lcomparator`. The new fn takes an explicit locale arg and returns a comparator fn.
   * **DEPRECATED**: `format-*` -> `fmt`, `parse-*` -> `parse`. So these 2 fns now handles the job of ~14 fns from the old API. See the appropriate docstring for details.

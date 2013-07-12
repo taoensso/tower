@@ -267,7 +267,7 @@
 (comment (scoped :a.b :c :d))
 
 (def ^:dynamic *tscope* nil)
-(defmacro with-scope
+(defmacro with-tscope
   "Executes body within the context of thread-local translation-scope binding.
   `translation-scope` should be a keyword like :example.greetings, or nil."
   [translation-scope & body] `(binding [*tscope* ~translation-scope] ~@body))
@@ -428,7 +428,7 @@
   (apply t-scoped loc config *tscope* k-or-ks fmt-msg-args))
 
 (comment (t :en-ZA example-tconfig :example/foo)
-         (with-scope :example (t :en-ZA example-tconfig :foo))
+         (with-tscope :example (t :en-ZA example-tconfig :foo))
 
          (t :en example-tconfig :invalid)
          (t :en example-tconfig [:invalid :example/foo])
@@ -527,4 +527,8 @@
             (throw (Exception. (str "Failed to load dictionary from resource: "
                                     resource-name) e))))))
 
-(def t' #(apply t *locale* @config %&)) ; BREAKS v1 due to unavoidable name clash
+(defmacro with-scope "DEPRECATED." [translation-scope & body]
+  `(with-tscope ~translation-scope ~@body))
+
+;; BREAKS v1 due to unavoidable name clash
+(def t' #(apply t (or *locale* :jvm-default) @config %&))

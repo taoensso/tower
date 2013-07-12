@@ -1,6 +1,6 @@
 (ns taoensso.tower.tests.main
   (:require [expectations   :as test  :refer :all]
-            [taoensso.tower :as tower :refer (with-locale with-scope t)])
+            [taoensso.tower :as tower :refer (with-locale with-tscope t)])
   (:import  [java.util Date]))
 
 (defn- before-run {:expectations-options :before-run} [])
@@ -123,8 +123,8 @@
 ;;; Scoping
 (expect ":en :example/foo text"     (pt :en :example/foo))
 (expect ":en :example.bar/baz text" (pt :en :example.bar/baz))
-(expect (pt :en :example/foo)     (with-scope :example     (pt :en :foo)))
-(expect (pt :en :example.bar/baz) (with-scope :example.bar (pt :en :baz)))
+(expect (pt :en :example/foo)     (with-tscope :example     (pt :en :foo)))
+(expect (pt :en :example.bar/baz) (with-tscope :example.bar (pt :en :baz)))
 
 ;;; Decorators (markdown+escape, verbatim, translator note)
 (expect "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"

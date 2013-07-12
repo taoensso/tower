@@ -34,7 +34,7 @@ Add the necessary dependency to your [Leiningen](http://leiningen.org/) `project
 ```clojure
 [com.taoensso/tower "2.0.0-alpha13"] ; project.clj
 (ns my-app (:require [taoensso.tower :as tower
-                      :refer (with-locale with-scope t *locale*)])) ; ns
+                      :refer (with-locale with-tscope t *locale*)])) ; ns
 ```
 
 ### Translation
@@ -74,9 +74,9 @@ It's simple to get started, but there's a number of advanced features for if/whe
 
 **Reloading dictionaries on modification**: Just make sure `:dev-mode? true` is in your config, and you're good to go!
 
-**Scoping translations**: Use `with-scope` if you're calling `t` repeatedly within a specific translation-namespace context:
+**Scoping translations**: Use `with-tscope` if you're calling `t` repeatedly within a specific translation-namespace context:
 ```clojure
-(with-scope :example
+(with-tscope :example
   [(t :en :foo)
    (t :en :bar/baz)]) => [":en :example/foo text" ":en :example.bar/baz text"]
 ```
