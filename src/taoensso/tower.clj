@@ -417,7 +417,6 @@
     (if-not fmt-msg-args tr
       (apply fmt-msg loc tr fmt-msg-args))))
 
-(utils/defalias t' translate)
 (defn t "Like `translate` but uses a thread-local binding for translation scope."
   [loc config k-or-ks & fmt-msg-args]
   (apply translate loc config *tscope* k-or-ks fmt-msg-args))
