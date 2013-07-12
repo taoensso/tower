@@ -526,4 +526,4 @@
   `(with-tscope ~translation-scope ~@body))
 
 ;; BREAKS v1 due to unavoidable name clash
-(def t- #(apply t (or *locale* :jvm-default) @config %&))
+(def oldt #(apply t (or *locale* :jvm-default) @config %&))

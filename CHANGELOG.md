@@ -4,7 +4,7 @@ So there's good news and bad news. The bad news is Tower v2's API is almost **co
 
 The good news is the new API is (with the exception of `t`) **entirely self-contained**. Meaning: v2 **contains** the (now deprecated) v1 API and it should be possible to use v2 as an (almost) drop-in replacement for v1 while you migrate at your convenience.
 
-**If you just want v2 to "work" without migrating**: rename your `t` calls to `t-`.
+**If you just want v2 to "work" without migrating**: rename your `t` calls to `oldt`.
 
 **If you want to migrate**:
 
