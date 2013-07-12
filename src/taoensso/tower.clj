@@ -381,19 +381,20 @@
          (compile-dict "tower-dictionary.clj" true)
          (compile-dict nil true))
 
-(defn t ; translate
-  "Localized text translator. Takes dictionary key (or vector of descending-
-  preference keys) and returns the best translation available for given locale.
-  With additional arguments, treats translation as pattern for `fmt-msg`.
+(defn t-scoped
+  "Like `t` but uses an explicit (rather than thread-bound) root scope for
+  dictionary keys:
+    (t-scoped :en example-tconfig :a.b [:c1 :c2]) =>
+    (t        :en example-tconfig [:a.b/c1 :a.b/c2]
 
-  See `example-tconfig` for config details."
-  [loc config k-or-ks & fmt-msg-args]
+  Useful for lib authors and other contexts where one wants to ignore the
+  thread-bound translation scope."
+  [loc config scope k-or-ks & fmt-msg-args]
   (let [{:keys [dev-mode? dictionary fallback-locale log-missing-translation-fn]
          :or   {dev-mode?       @dev-mode?
                 fallback-locale (or (:default-locale config) ; Backwards comp
                                     @fallback-locale)}} config
         dict   (compile-dict dictionary dev-mode?)
-        scope  *tscope*
         ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
         get-tr #(get-in dict [(locale-key %1) (scoped scope %2)])
         tr
@@ -416,6 +417,15 @@
 
     (if-not fmt-msg-args tr
       (apply fmt-msg loc tr fmt-msg-args))))
+
+(defn t ; translate
+  "Localized text translator. Takes dictionary key (or vector of descending-
+  preference keys) and returns the best translation available for given locale.
+  With additional arguments, treats translation as pattern for `fmt-msg`.
+
+  See `example-tconfig` for config details."
+  [loc config k-or-ks & fmt-msg-args]
+  (apply t-scoped loc config *tscope* k-or-ks fmt-msg-args))
 
 (comment (t :en-ZA example-tconfig :example/foo)
          (with-scope :example (t :en-ZA example-tconfig :foo))
