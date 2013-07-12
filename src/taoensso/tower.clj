@@ -261,7 +261,7 @@
 (def dev-mode?       "Global fallback dev-mode?." (atom true))
 (def fallback-locale "Global fallback locale."    (atom :en))
 
-(def scoped "Merges scope keywords: (scoped :a.b :c :d) => :a.b.c/d"
+(def scoped "Merges scope keywords: (scope :a.b :c/d :e) => :a.b.c.d/e"
   (memoize (fn [& ks] (utils/merge-keywords ks))))
 
 (comment (scoped :a.b :c :d))
@@ -324,7 +324,7 @@
                    (:_html :!) translation
                    (-> translation utils/escape-html utils/inline-markdown->html)))]
 
-      {loc {(utils/merge-keywords (conj scope-ks unscoped-k)) translation}})))
+      {loc {(apply scoped (conj scope-ks unscoped-k)) translation}})))
 
 (defn- inherit-parent-trs
   "Merges each locale's translations over its parent locale translations."
