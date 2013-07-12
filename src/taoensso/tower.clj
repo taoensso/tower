@@ -281,6 +281,7 @@
   Named resource will be watched for changes when `:dev-mode?` is true."
   {:dev-mode? true
    :fallback-locale :en
+   :scope-var #'*tscope*
    :dictionary ; Map or named resource containing map
    {:en         {:example {:foo       ":en :example/foo text"
                            :foo_note  "Hello translator, please do x"
@@ -383,16 +384,20 @@
 
 (defn translate
   "Takes dictionary key (or vector of descending- preference keys) within a
-  (possibly nil) root scope, and returns the best translation available for
-  given locale. With additional arguments, treats translation as pattern for
-  `fmt-msg`.
+  (possibly nil) scope, and returns the best translation available for given
+  locale. With additional arguments, treats translation as pattern for `fmt-msg`.
 
   See `example-tconfig` for config details."
   [loc config scope k-or-ks & fmt-msg-args]
-  (let [{:keys [dev-mode? dictionary fallback-locale log-missing-translation-fn]
+  (let [{:keys [dev-mode? dictionary fallback-locale log-missing-translation-fn
+                scope-var]
          :or   {dev-mode?       @dev-mode?
                 fallback-locale (or (:default-locale config) ; Backwards comp
-                                    @fallback-locale)}} config
+                                    @fallback-locale)
+                scope-var       #'*tscope*}} config
+
+        scope  (if-not (identical? scope ::scope-var) scope
+                 (when-let [v scope-var] (var-get v)))
         dict   (compile-dict dictionary dev-mode?)
         ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
         get-tr #(get-in dict [(locale-key %1) (scoped scope %2)])
@@ -417,12 +422,14 @@
     (if-not fmt-msg-args tr
       (apply fmt-msg loc tr fmt-msg-args))))
 
-(defn t "Like `translate` but uses a thread-local binding for translation scope."
+(defn t "Like `translate` but uses a thread-local translation scope."
   [loc config k-or-ks & fmt-msg-args]
-  (apply translate loc config *tscope* k-or-ks fmt-msg-args))
+  (apply translate loc config ::scope-var k-or-ks fmt-msg-args))
 
 (comment (t :en-ZA example-tconfig :example/foo)
          (with-tscope :example (t :en-ZA example-tconfig :foo))
+         (with-tscope :invalid
+           (t :en (assoc example-tconfig :scope-var nil) :example/foo))
 
          (t :en example-tconfig :invalid)
          (t :en example-tconfig [:invalid :example/foo])
