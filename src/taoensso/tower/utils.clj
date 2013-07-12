@@ -143,10 +143,10 @@
 (defn explode-keyword [k] (str/split (fq-name k) #"[\./]"))
 (comment (explode-keyword :foo.bar/baz))
 
-(defn merge-keywords [ks & [non-terminated?]]
+(defn merge-keywords [ks & [as-ns?]]
   (let [parts (->> ks (filterv identity) (mapv explode-keyword) (reduce into []))]
     (when-not (empty? parts)
-      (if non-terminated?
+      (if as-ns? ; Don't terminate with /
         (keyword (str/join "." parts))
         (let [ppop (pop parts)]
           (keyword (when-not (empty? ppop) (str/join "." ppop))

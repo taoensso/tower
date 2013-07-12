@@ -261,10 +261,16 @@
 (def dev-mode?       "Global fallback dev-mode?." (atom true))
 (def fallback-locale "Global fallback locale."    (atom :en))
 
-(def scoped "Merges scope keywords: (scope :a.b :c/d :e) => :a.b.c.d/e"
+(def scoped "Merges scope keywords: (scoped :a.b :c :d) => :a.b.c/d"
   (memoize (fn [& ks] (utils/merge-keywords ks))))
 
 (comment (scoped :a.b :c :d))
+
+(def ^:dynamic *tscope* nil)
+(defmacro with-scope
+  "Executes body within the context of thread-local translation-scope binding.
+  `translation-scope` should be a keyword like :example.greetings, or nil."
+  [translation-scope & body] `(binding [*tscope* ~translation-scope] ~@body))
 
 (def example-tconfig
   "Example/test config as passed to `t`, `wrap-i18n-middlware`, etc.
@@ -318,7 +324,7 @@
                    (:_html :!) translation
                    (-> translation utils/escape-html utils/inline-markdown->html)))]
 
-      {loc {(apply scoped (conj scope-ks unscoped-k)) translation}})))
+      {loc {(utils/merge-keywords (conj scope-ks unscoped-k)) translation}})))
 
 (defn- inherit-parent-trs
   "Merges each locale's translations over its parent locale translations."
@@ -375,17 +381,19 @@
          (compile-dict "tower-dictionary.clj" true)
          (compile-dict nil true))
 
-(defn t'
-  "Scoped translate. Like `t` but takes a root scope (possibly nil) to use for
-  dictionary keys:
-    (t' :en example-tconfig :a.b [:c1 :c2]) =>
-    (t  :en example-tconfig [:a.b/c1 :a.b/c2]"
-  [loc config scope k-or-ks & fmt-msg-args]
+(defn t ; translate
+  "Localized text translator. Takes dictionary key (or vector of descending-
+  preference keys) and returns the best translation available for given locale.
+  With additional arguments, treats translation as pattern for `fmt-msg`.
+
+  See `example-tconfig` for config details."
+  [loc config k-or-ks & fmt-msg-args]
   (let [{:keys [dev-mode? dictionary fallback-locale log-missing-translation-fn]
          :or   {dev-mode?       @dev-mode?
                 fallback-locale (or (:default-locale config) ; Backwards comp
                                     @fallback-locale)}} config
         dict   (compile-dict dictionary dev-mode?)
+        scope  *tscope*
         ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
         get-tr #(get-in dict [(locale-key %1) (scoped scope %2)])
         tr
@@ -409,17 +417,8 @@
     (if-not fmt-msg-args tr
       (apply fmt-msg loc tr fmt-msg-args))))
 
-(defn t
-  "Translate. Takes dictionary key (or vector of descending-preference keys) and
-  returns the best translation available for given locale. With additional
-  args, treats translation as pattern for `fmt-msg`.
-
-  See `example-tconfig` for config details."
-  [loc config k-or-ks & fmt-msg-args]
-  (apply t' loc config nil k-or-ks fmt-msg-args))
-
-(comment (t  :en-ZA example-tconfig :example/foo)
-         (t' :en-ZA example-tconfig :example :foo)
+(comment (t :en-ZA example-tconfig :example/foo)
+         (with-scope :example (t :en-ZA example-tconfig :foo))
 
          (t :en example-tconfig :invalid)
          (t :en example-tconfig [:invalid :example/foo])
@@ -518,9 +517,4 @@
             (throw (Exception. (str "Failed to load dictionary from resource: "
                                     resource-name) e))))))
 
-(def ^:dynamic *tscope* :jvm-default)
-(defmacro with-scope "DEPRECATED." [translation-scope & body]
-  `(binding [*tscope* ~translation-scope] ~@body))
-
-;; BREAKS v1 due to unavoidable name clash
-(def t* #(apply t' *locale* @config *tscope* %&))
+(def t' #(apply t *locale* @config %&)) ; BREAKS v1 due to unavoidable name clash
