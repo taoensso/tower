@@ -1,4 +1,4 @@
-## v1.7.1 → 2.0.0-alpha16
+## v1.7.1 → 2.0.0-alpha17
 
 So there's good news and bad news. The bad news is Tower v2's API is almost **completely different to the v1 API**.
 
@@ -17,7 +17,7 @@ The good news is the new API is (with the exception of `t`) **entirely self-cont
   * **DEPRECATED**: `sorted-localized-countries` -> `countries`, `sorted-localized-languages` -> `languages`, `sorted-timezones` -> `timezones`. The new fns take an explicit locale arg and provide their result as a vector rather than a map.
   * **DEPRECATED**: `config`, `set-config!`, `merge-config!`, `load-dictionary-from-map-resource!` have all been dropped. Instead, `t` now takes an explicit `config` argument of the same form as the old `config` atom. The `:dictionary` value may now be a resource name like "tower-dictionary.clj". When `:dictionary` is a resource name and `:dev-mode?` is true, the resource will be watched for changes.
   * **DEPRECATED**: `ring/wrap-i18n-middleware` -> `ring/wrap-tower-middleware`. Args have changed and a number of new features have been added. See the docstring for details.
-  * Add `t-scoped`. Works just like `t` except takes an explicit root scope and ignores the thread-local scope. Useful for lib authors, etc.
+  * Added `:scope-var` option to `t`'s config map. Useful for lib authors and other advanced users (defaults to `#'taoensso.tower/*tscope*`).
 
 So, basically, idiomatic Tower usage has been simplified:
 
