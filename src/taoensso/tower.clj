@@ -282,6 +282,7 @@
   {:dev-mode? true
    :fallback-locale :en
    :scope-var #'*tscope*
+   ;; :root-scope nil ; TODO Document
    :dictionary ; Map or named resource containing map
    {:en         {:example {:foo       ":en :example/foo text"
                            :foo_note  "Hello translator, please do x"
