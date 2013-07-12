@@ -390,14 +390,18 @@
   See `example-tconfig` for config details."
   [loc config scope k-or-ks & fmt-msg-args]
   (let [{:keys [dev-mode? dictionary fallback-locale log-missing-translation-fn
-                scope-var]
+                scope-var root-scope]
          :or   {dev-mode?       @dev-mode?
                 fallback-locale (or (:default-locale config) ; Backwards comp
                                     @fallback-locale)
                 scope-var       #'*tscope*}} config
 
         scope  (if-not (identical? scope ::scope-var) scope
-                 (when-let [v scope-var] (var-get v)))
+                       (when-let [v scope-var] (var-get v)))
+
+        ;; For shared dictionaries. Experimental - intentionally undocumented
+        scope  (scoped root-scope scope)
+
         dict   (compile-dict dictionary dev-mode?)
         ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
         get-tr #(get-in dict [(locale-key %1) (scoped scope %2)])
