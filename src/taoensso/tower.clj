@@ -302,7 +302,7 @@
 
 (defn- compile-dict-path
   "[:locale :ns1 ... :nsN unscoped-key<decorator> translation] =>
-  {:locale {:ns1.<...>.nsN/unscoped-key (f translation decorator)}}"
+  {:ns1.<...>.nsN/unscoped-key {:locale (f translation decorator)}}"
   [raw-dict path]
   (assert (>= (count path) 3) (str "Malformed dictionary path: " path))
   (let [[loc :as path] (vec path)
@@ -326,7 +326,7 @@
                    (:_html :!) translation
                    (-> translation utils/escape-html utils/inline-markdown->html)))]
 
-      {loc {(apply scoped (conj scope-ks unscoped-k)) translation}})))
+      {(apply scoped (conj scope-ks unscoped-k)) {loc translation}})))
 
 (defn- inherit-parent-trs
   "Merges each locale's translations over its parent locale translations."
@@ -336,7 +336,7 @@
      (let [loc-parts (str/split (name loc) #"[-_]")
            loc-tree  (mapv #(keyword (str/join "-" %))
                            (take-while identity (iterate butlast loc-parts)))]
-       [loc (apply merge (map dict (rseq loc-tree)))]))))
+       [loc (apply utils/merge-deep (map dict (rseq loc-tree)))]))))
 
 (comment (inherit-parent-trs {:en    {:foo ":en foo"
                                       :bar ":en :bar"}
@@ -351,8 +351,8 @@
                     :with-exclaim! \"<tag>**strong**</tag>\"
                     :foo_note      \"Hello translator, please do x\"}}}
     =>
-    {:en {:example/with-markdown \"&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;\"
-          :example/with-exclaim! \"<tag>**strong**</tag>\"}}
+    {:example/with-markdown {:en \"&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;\"}
+     :example/with-exclaim! {:en \"<tag>**strong**</tag>\"}}}
 
   Note the optional key decorators."
   [raw-dict dev-mode?]
@@ -371,10 +371,11 @@
                           (throw
                            (Exception. (str "Failed to load dictionary from"
                                             "resource: " raw-dict) e)))))]
-             (->> (map (partial compile-dict-path raw-dict)
-                       (utils/leaf-nodes (or raw-dict {})))
+             (->> (inherit-parent-trs raw-dict)
+                  (utils/leaf-nodes)
+                  (map (partial compile-dict-path raw-dict))
                   (apply merge-with merge) ; 1-level deep merge
-                  (inherit-parent-trs))))]
+                  )))]
       (swap! dict-cache assoc raw-dict dd)
       @dd)))
 
@@ -405,9 +406,9 @@
 
         dict   (compile-dict dictionary dev-mode?)
         ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
-        get-tr #(get-in dict [(locale-key %1) (scoped scope %2)])
+        get-tr #(get-in dict [(scoped scope %1) (locale-key %2)])
         tr
-        (or (some #(get-tr loc %) (take-while keyword? ks)) ; Try loc & parents
+        (or (some #(get-tr % loc) (take-while keyword? ks)) ; Try loc & parents
             (let [last-k (peek ks)]
               (if-not (keyword? last-k)
                 last-k ; Explicit final, non-keyword fallback (may be nil)
@@ -417,11 +418,11 @@
                               :locale loc :scope scope :ks ks}))
                     (or
                      ;; Try fallback-locale & parents
-                     (some #(get-tr fallback-locale %) ks)
+                     (some #(get-tr % fallback-locale) ks)
 
                      ;; Try :missing key in loc, parents, fallback-loc, & parents
-                     (when-let [pattern (or (get-tr loc             :missing)
-                                            (get-tr fallback-locale :missing))]
+                     (when-let [pattern (or (get-tr :missing loc)
+                                            (get-tr :missing fallback-locale))]
                        (fmt-msg loc pattern loc scope ks)))))))]
 
     (if-not fmt-msg-args tr
