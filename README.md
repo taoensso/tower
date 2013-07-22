@@ -44,7 +44,6 @@ The `t` fn handles translations. You give it a config map which includes your di
 (def my-tconfig
   {:dev-mode? true
    :fallback-locale :en
-   :scope-var #'*tscope*
    :dictionary
    {:en         {:example {:foo       ":en :example/foo text"
                            :foo_note  "Hello translator, please do x"
@@ -60,13 +59,13 @@ The `t` fn handles translations. You give it a config map which includes your di
 
    :log-missing-translation-fn (fn [{:keys [dev-mode? locale ks]}] ...)})
 
-(t :en-US :example/foo) => ":en-US :example/foo text"
-(t :en    :example/foo) => ":en :example/foo text"
-(t :en    :example/greeting "Steve") => "Hello Steve, how are you?"
+(t :en-US my-tconfig :example/foo) => ":en-US :example/foo text"
+(t :en    my-tconfig :example/foo) => ":en :example/foo text"
+(t :en    my-tconfig :example/greeting "Steve") => "Hello Steve, how are you?"
 
 ;;; Translation strings are escaped and parsed as inline Markdown:
-(t :en :example/with-markdown) => "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
-(t :en :example/with-exclaim)  => "<tag>**strong**</tag>" ; Notice no "!" suffix here, only in dictionary map
+(t :en my-tconfig :example/with-markdown) => "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
+(t :en my-tconfig :example/with-exclaim)  => "<tag>**strong**</tag>" ; Notice no "!" suffix here, only in dictionary map
 ```
 
 It's simple to get started, but there's a number of advanced features for if/when you need them:
@@ -78,17 +77,17 @@ It's simple to get started, but there's a number of advanced features for if/whe
 **Scoping translations**: Use `with-tscope` if you're calling `t` repeatedly within a specific translation-namespace context:
 ```clojure
 (with-tscope :example
-  [(t :en :foo)
-   (t :en :bar/baz)]) => [":en :example/foo text" ":en :example.bar/baz text"]
+  [(t :en my-tconfig :foo)
+   (t :en my-tconfig :bar/baz)]) => [":en :example/foo text" ":en :example.bar/baz text"]
 ```
 
-**Missing translations**: These are handled gracefully. `(t :en-US :example/foo)` will search for a translation as follows:
+**Missing translations**: These are handled gracefully. `(t :en-US my-tconfig :example/foo)` will search for a translation as follows:
   1. `:example/foo` in the `:en-US` locale.
   2. `:example/foo` in the `:en` locale.
   3. `:example/foo` in the dictionary's default locale.
   4. `:missing` in any of the above locales.
 
-You can also specify fallback keys that'll be tried before other locales. `(t :en-US [:example/foo :example/bar]))` searches:
+You can also specify fallback keys that'll be tried before other locales. `(t :en-US my-tconfig [:example/foo :example/bar]))` searches:
   1. `:example/foo` in the `:en-US` locale.
   2. `:example/bar` in the `:en-US` locale.
   3. `:example/foo` in the `:en` locale.
@@ -107,10 +106,10 @@ Check out `fmt`, `parse`, `lsort`, `fmt-str`, `fmt-msg`:
 (tower/fmt   :en-US 200       :currency) => "$200.00"
 (tower/parse :en-US "$200.00" :currency) => 200
 
-(tower/fmt :de-DE 2000.1 :number)     => "2.000,1"
-(tower/fmt :de-DE (Date.))            => "12.06.2012"
-(tower/fmt :de-DE (Date.) :date-long) => "12. Juni 2012"
-(tower/fmt :de-DE (Date.) :dt-long)   => "12 giugno 2012 16.48.01 ICT"
+(tower/fmt :de-DE 2000.1 :number)               => "2.000,1"
+(tower/fmt :de-DE (java.util.Date.))            => "12.06.2012"
+(tower/fmt :de-DE (java.util.Date.) :date-long) => "12. Juni 2012"
+(tower/fmt :de-DE (java.util.Date.) :dt-long)   => "12 giugno 2012 16.48.01 ICT"
 
 (tower/lsort :pl ["Warsaw" "Kraków" "Łódź" "Wrocław" "Poznań"])
 => ("Kraków" "Łódź" "Poznań" "Warsaw" "Wrocław")
