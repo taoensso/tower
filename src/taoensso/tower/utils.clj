@@ -23,50 +23,37 @@
       (cons k w))
     (list (list m))))
 
-(defn escape-html
-  "Changes some common special characters into HTML character entities."
-  [s]
-  (-> (str s)
-      (str/replace "&"  "&amp;")
-      (str/replace "<"  "&lt;")
-      (str/replace ">"  "&gt;")
-      (str/replace "\"" "&quot;")))
+(defn html-breaks [s] (str/replace s #"\r?\n" "<br/>"))
+(defn html-escape [s & [{:keys [tags? entities?] :or {tags? true entities? true}}]]
+  ;; TODO cond-> with Clojure 1.5 dep
+  (let [s (str s)
+        s (if-not entities? s (str/replace s "&"        "&amp;"))
+        s (if-not tags?     s (str/replace s #"<(.*?)>" "&lt;$1&gt;"))
+        s (if-not entities? s
+                  (-> s
+                      (str/replace #"\"(.*?)\"" "&ldquo;$1&rdquo;")
+                      (str/replace #"'(.*?)'"   "&lsquo;$1&rsquo;")
+                      (str/replace "<"  "&lt;")
+                      (str/replace ">"  "&gt;")
+                      (str/replace "\"" "&quot;")))]
+    s))
 
-(comment (escape-html "\"Word\" & <tag>"))
+(comment (html-escape "Hello, x>y & the cat is fuzzy. <boo> \"Hello there\""))
 
-(defn inline-markdown->html
-  "Uses regex to parse given markdown string into HTML. Doesn't do any escaping.
-    **x** => <strong>x</strong>
-    *x*   => <em>x</em>
-    __x__ => <b>x</b>
-    _x_   => <i>x</i>
-    ~~x~~ => <span class=\"alt1\">x</span>
-    ~x~   => <span class=\"alt2\">x</span>"
-  [& strs]
-  (-> (apply str strs)
-      ;; Unescaped X is (?<!\\)X
-      (str/replace #"(?<!\\)\*\*(.+?)(?<!\\)\*\*" "<strong>$1</strong>")
-      (str/replace #"(?<!\\)\*(.+?)(?<!\\)\*"     "<em>$1</em>")
-      (str/replace #"\\\*" "*") ; Unescape \*s
+(defn markdown
+  [s & [{:keys [inline? auto-links? escape-opts] :as opts
+         :or   {escape-opts {:tags? true :entities? true}
+                inline?     true}}]]
+  ;; TODO cond-> with Clojure 1.5 dep
+  (let [s (str s)
+        s (if-not auto-links? s (str/replace s #"https?://([\w/\.-]+)" "[$1]($0)"))
+        s (if-not escape-opts s (html-escape s escape-opts))
+        s (apply markdown.core/md-to-html-string s (reduce concat opts))
+        s (if-not inline? s (str/replace s #"^<p>(.*?)</p>$" "$1"))]
+    s))
 
-      (str/replace #"(?<!\\)__(.+?)(?<!\\)__" "<b>$1</b>")
-      (str/replace #"(?<!\\)_(.+?)(?<!\\)_"   "<i>$1</i>")
-      (str/replace #"\\\_" "_") ; Unescape \_s
-
-      (str/replace #"(?<!\\)~~(.+?)(?<!\\)~~" "<span class=\"alt1\">$1</span>")
-      (str/replace #"(?<!\\)~(.+?)(?<!\\)~"   "<span class=\"alt2\">$1</span>")
-      (str/replace #"\\\~" "~") ; Unescape \~s
-      ))
-
-(comment (println "[^\\\\]") ;; Note need to double-escape (Clojure+Regex)
-         (inline-markdown->html "**strong** __b__ ~~alt1~~ <tag>")
-         (inline-markdown->html "*emph* _i_ ~alt2~ <tag>")
-         (println "**foo\\*bar**")
-         (println "**foo\\*bar**")
-         (println (inline-markdown->html "**foo\\*bar**"))
-         (println (inline-markdown->html "*foo\\*bar*"))
-         (println (inline-markdown->html "\\*foo\\*bar*"))
-         (println "This\\* is starred, and *this* is emphasized."))
+(comment (markdown "Hello *this* is a test! <tag> & thing" {:inline? false})
+         (markdown "Visit http://www.cnn.com, yeah" {:auto-links? true}))
 
 (defmacro defmem-
   "Defines a type-hinted, private memoized fn."

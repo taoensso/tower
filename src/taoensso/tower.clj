@@ -4,6 +4,7 @@
   {:author "Peter Taoussanis, Janne Asmala"}
   (:require [clojure.string  :as str]
             [clojure.java.io :as io]
+            [markdown.core]
             [taoensso.timbre :as timbre]
             [taoensso.tower.utils :as utils :refer (defmem-)])
   (:import  [java.util Date Locale TimeZone]
@@ -324,7 +325,7 @@
                  (case decorator
                    :_note      nil
                    (:_html :!) translation
-                   (-> translation utils/escape-html utils/inline-markdown->html)))]
+                   (utils/markdown translation {})))]
 
       {(apply scoped (conj scope-ks unscoped-k)) {loc translation}})))
 
