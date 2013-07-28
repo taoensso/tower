@@ -285,8 +285,8 @@
    :scope-var #'*tscope*
    ;; :root-scope nil ; TODO Document
    :dictionary ; Map or named resource containing map
-   {:en         {:example {:foo       ":en :example/foo text"
-                           :foo_note  "Hello translator, please do x"
+   {:en         {:example {:foo         ":en :example/foo text"
+                           :foo_comment "Hello translator, please do x"
                            :bar {:baz ":en :example.bar/baz text"}
                            :greeting  "Hello {0}, how are you?"
                            :with-markdown "<tag>**strong**</tag>"
@@ -323,8 +323,8 @@
     (when-let [translation
                (when translation
                  (case decorator
-                   :_note      nil
-                   (:_html :!) translation
+                   (:_comment :_note) nil
+                   (:_html :!)        translation
                    (utils/markdown translation {})))]
 
       {(apply scoped (conj scope-ks unscoped-k)) {loc translation}})))
@@ -350,7 +350,7 @@
 
     {:en {:example {:with-markdown \"<tag>**strong**</tag>\"
                     :with-exclaim! \"<tag>**strong**</tag>\"
-                    :foo_note      \"Hello translator, please do x\"}}}
+                    :foo_comment   \"Hello translator, please do x\"}}}
     =>
     {:example/with-markdown {:en \"&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;\"}
      :example/with-exclaim! {:en \"<tag>**strong**</tag>\"}}}

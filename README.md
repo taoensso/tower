@@ -45,8 +45,8 @@ The `t` fn handles translations. You give it a config map which includes your di
   {:dev-mode? true
    :fallback-locale :en
    :dictionary
-   {:en         {:example {:foo       ":en :example/foo text"
-                           :foo_note  "Hello translator, please do x"
+   {:en         {:example {:foo         ":en :example/foo text"
+                           :foo_comment "Hello translator, please do x"
                            :bar {:baz ":en :example.bar/baz text"}
                            :greeting  "Hello {0}, how are you?"
                            :with-markdown "<tag>**strong**</tag>"
