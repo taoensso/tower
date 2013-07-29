@@ -23,7 +23,7 @@
       (cons k w))
     (list (list m))))
 
-(defn html-breaks [s] (str/replace s #"\r?\n" "<br/>"))
+(defn html-breaks [s] (str/replace s #"(\r?\n)|\r" "<br/>"))
 (defn html-escape [s & [{:keys [tags? entities?] :or {tags? true entities? true}}]]
   ;; TODO cond-> with Clojure 1.5 dep
   (let [s (str s)
@@ -42,18 +42,19 @@
 
 (defn markdown
   [s & [{:keys [inline? auto-links? escape-opts] :as opts
-         :or   {escape-opts {:tags? true :entities? true}
-                inline?     true}}]]
+         :or   {escape-opts {:tags? true :entities? true}}}]]
   ;; TODO cond-> with Clojure 1.5 dep
   (let [s (str s)
         s (if-not auto-links? s (str/replace s #"https?://([\w/\.-]+)" "[$1]($0)"))
+        s (if-not inline?     s (str/replace s #"(\r?\n)|\r" " "))
         s (if-not escape-opts s (html-escape s escape-opts))
         s (apply markdown.core/md-to-html-string s (reduce concat opts))
-        s (if-not inline? s (str/replace s #"^<p>(.*?)</p>$" "$1"))]
+        s (if-not inline?     s (str/replace s #"^<p>(.*?)</p>$" "$1"))]
     s))
 
-(comment (markdown "Hello *this* is a test! <tag> & thing" {:inline? false})
-         (markdown "Visit http://www.cnn.com, yeah" {:auto-links? true}))
+(comment (markdown "Hello *this* is a test! <tag> & thing" {:inline? true})
+         (markdown "Visit http://www.cnn.com, yeah" {:auto-links? true})
+         (markdown "Has\r\na line-breaks, inline mode"))
 
 (defmacro defmem-
   "Defines a type-hinted, private memoized fn."

@@ -1,7 +1,7 @@
 **[API docs](http://ptaoussanis.github.io/tower/)** | **[CHANGELOG](https://github.com/ptaoussanis/tower/blob/master/CHANGELOG.md)** | [contact & contributing](#contact--contributing) | [other Clojure libs](https://www.taoensso.com/clojure-libraries) | [Twitter](https://twitter.com/#!/ptaoussanis) | current [semantic](http://semver.org/) version:
 
 ```clojure
-[com.taoensso/tower "2.0.0-beta2"] ; Development (notes below)
+[com.taoensso/tower "2.0.0-beta3"] ; Development (notes below)
 [com.taoensso/tower "1.7.1"]       ; Stable, needs Clojure 1.4+ as of 1.7.0
 ```
 
@@ -32,7 +32,7 @@ Tower's an attempt to present a **simple, idiomatic internationalization and loc
 Add the necessary dependency to your [Leiningen](http://leiningen.org/) `project.clj` and `require` the library in your ns:
 
 ```clojure
-[com.taoensso/tower "2.0.0-beta2"] ; project.clj
+[com.taoensso/tower "2.0.0-beta3"] ; project.clj
 (ns my-app (:require [taoensso.tower :as tower
                       :refer (with-locale with-tscope t *locale*)])) ; ns
 ```
@@ -49,8 +49,9 @@ The `t` fn handles translations. You give it a config map which includes your di
                            :foo_comment "Hello translator, please do x"
                            :bar {:baz ":en :example.bar/baz text"}
                            :greeting  "Hello {0}, how are you?"
-                           :with-markdown "<tag>**strong**</tag>"
-                           :with-exclaim! "<tag>**strong**</tag>"
+                           :inline-markdown "<tag>**strong**</tag>"
+                           :block-markdown* "<tag>**strong**</tag>"
+                           :with-exclaim!   "<tag>**strong**</tag>"
                            :greeting-alias :example/greeting
                            :baz-alias      :example.bar/baz}
                  :missing  "<Translation missing: {0}>"}
@@ -63,9 +64,10 @@ The `t` fn handles translations. You give it a config map which includes your di
 (t :en    my-tconfig :example/foo) => ":en :example/foo text"
 (t :en    my-tconfig :example/greeting "Steve") => "Hello Steve, how are you?"
 
-;;; Translation strings are escaped and parsed as inline Markdown:
-(t :en my-tconfig :example/with-markdown) => "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
-(t :en my-tconfig :example/with-exclaim)  => "<tag>**strong**</tag>" ; Notice no "!" suffix here, only in dictionary map
+;;; Translation strings are escaped and parsed as inline or block Markdown:
+(t :en my-tconfig :example/inline-markdown) => "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
+(t :en my-tconfig :example/block-markdown)  => "<p>&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;</p>" ; Notice no "*" suffix here, only in dictionary map
+(t :en my-tconfig :example/with-exclaim)    => "<tag>**strong**</tag>" ; Notice no "!" suffix here, only in dictionary map
 ```
 
 It's simple to get started, but there's a number of advanced features for if/when you need them:

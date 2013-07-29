@@ -289,8 +289,9 @@
                            :foo_comment "Hello translator, please do x"
                            :bar {:baz ":en :example.bar/baz text"}
                            :greeting  "Hello {0}, how are you?"
-                           :with-markdown "<tag>**strong**</tag>"
-                           :with-exclaim! "<tag>**strong**</tag>"
+                           :inline-markdown "<tag>**strong**</tag>"
+                           :block-markdown* "<tag>**strong**</tag>"
+                           :with-exclaim!   "<tag>**strong**</tag>"
                            :greeting-alias :example/greeting
                            :baz-alias      :example.bar/baz}
                  :missing  "<Missing translation: [{0} {1} {2}]>"}
@@ -309,7 +310,7 @@
   (let [[loc :as path] (vec path)
         translation (peek path)
         scope-ks    (subvec path 1 (- (count path) 2)) ; [:ns1 ... :nsN]
-        [_ unscoped-k decorator] (->> (re-find #"([^!_]+)([!_].*)*"
+        [_ unscoped-k decorator] (->> (re-find #"([^!\*_]+)([!\*_].*)*"
                                                (name (peek (pop path))))
                                       (mapv keyword))
         translation (if-not (keyword? translation)
@@ -325,7 +326,8 @@
                  (case decorator
                    (:_comment :_note) nil
                    (:_html :!)        translation
-                   (utils/markdown translation {})))]
+                   (:_md   :*)        (utils/markdown translation {})
+                   (utils/markdown translation {:inline? true})))]
 
       {(apply scoped (conj scope-ks unscoped-k)) {loc translation}})))
 
@@ -348,12 +350,14 @@
   "Compiles text translations stored in simple development-friendly
   Clojure map into form required by localized text translator.
 
-    {:en {:example {:with-markdown \"<tag>**strong**</tag>\"
-                    :with-exclaim! \"<tag>**strong**</tag>\"
-                    :foo_comment   \"Hello translator, please do x\"}}}
+    {:en {:example {:inline-markdown \"<tag>**strong**</tag>\"
+                    :block-markdown  \"<tag>**strong**</tag>\"
+                    :with-exclaim!   \"<tag>**strong**</tag>\"
+                    :foo_comment     \"Hello translator, please do x\"}}}
     =>
-    {:example/with-markdown {:en \"&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;\"}
-     :example/with-exclaim! {:en \"<tag>**strong**</tag>\"}}}
+    {:example/inline-markdown {:en \"&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;\"}
+     :example/block-markdown  {:en \"<p>&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;</p>\"}
+     :example/with-exclaim!   {:en \"<tag>**strong**</tag>\"}}}
 
   Note the optional key decorators."
   [raw-dict dev-mode?]

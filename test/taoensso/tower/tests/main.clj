@@ -126,9 +126,11 @@
 (expect (pt :en :example/foo)     (with-tscope :example     (pt :en :foo)))
 (expect (pt :en :example.bar/baz) (with-tscope :example.bar (pt :en :baz)))
 
-;;; Decorators (markdown+escape, verbatim, translator note)
+;;; Decorators
 (expect "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
-        (pt :en :example/with-markdown))
+        (pt :en :example/inline-markdown))
+(expect "<p>&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;</p>"
+        (pt :en :example/block-markdown))
 (expect "<tag>**strong**</tag>"
         (pt :en :example/with-exclaim))
 
