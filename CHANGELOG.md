@@ -1,3 +1,7 @@
+## v1.7.1 → 2.0.0-beta4
+  * **BREAKING**: extra args to `t` now get formatted with `java.util.Formatter` (`fmt-str`) rather than `MessageFormat` (`fmt-msg`). You can override this preference by specifying a `:fmt-fn` config option. `oldt` retains the old behavior by default.
+
+
 ## v1.7.1 → 2.0.0-beta3
 
 So there's good news and bad news. The bad news is Tower v2's API is almost **completely different to the v1 API**.
@@ -27,6 +31,7 @@ So, basically, idiomatic Tower usage has been simplified:
   * The Ring middleware provides a `*locale*` thread-local binding and a `:locale` request key to help with the above (use whichever is more convenient).
   * The `t` fn now takes an explicit config map rather than depending on a global config atom.
   * The Ring middleware provides a `:t (partial tower/t locale config)` key to help with the above.
+
 
 ## v1.6.0 → v1.7.1
   * `load-dictionary-from-map-resource!` now supports optionally overwriting (vs merging) with new optional `merge?` arg.

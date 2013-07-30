@@ -138,13 +138,13 @@
 (expect "Hello Steve, how are you?" (pt :en :example/greeting "Steve"))
 
 ;;; Missing keys & key fallback
-(expect "&lt;Missing translation: [:en null [:invalid]]&gt;"
+(expect "&lt;Missing translation: [:en nil [:invalid]]&gt;"
         (pt :en :invalid))
-(expect "&lt;Missing translation: [:en null [:invalid]]&gt;"
+(expect "&lt;Missing translation: [:en nil [:invalid]]&gt;"
         (pt :en :invalid "arg"))
 (expect ":en :example/foo text"
         (pt :en [:invalid :example/foo]))
-(expect "&lt;Missing translation: [:en null [:invalid :invalid]]&gt;"
+(expect "&lt;Missing translation: [:en nil [:invalid :invalid]]&gt;"
         (pt :en [:invalid :invalid]))
 (expect "Explicit fallback" (pt :en [:invalid "Explicit fallback"]))
 (expect nil (pt :en [:invalid nil]))

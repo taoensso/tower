@@ -7,7 +7,7 @@
             [markdown.core]
             [taoensso.timbre :as timbre]
             [taoensso.tower.utils :as utils :refer (defmem-)])
-  (:import  [java.util Date Locale TimeZone]
+  (:import  [java.util Date Locale TimeZone Formatter]
             [java.text Collator NumberFormat DateFormat]))
 
 ;;;; Locales (big L for the Java object) & bindings
@@ -157,6 +157,8 @@
 
 ;;;; Localized text formatting
 
+;; (defmem- f-str Formatter [Loc] (Formatter. Loc))
+
 (defn fmt-str "Like clojure.core/format but takes a locale."
   ^String [loc fmt & args] (String/format (locale loc) fmt (to-array args)))
 
@@ -169,8 +171,13 @@
 
 (comment
   (fmt-msg :de "foobar {0}!" 102.22)
+  (fmt-str :de "foobar %s!"  102.22)
+
   (fmt-msg :de "foobar {0,number,integer}!" 102.22)
-  ;; Note that choice text must be unescaped! Use `!` decorator:
+  (fmt-str :de "foobar %d!" (int 102.22))
+
+  ;; "choice" formatting is about the only redeeming quality of `fmt-msg`. Note
+  ;; that choice text must be unescaped! Use `!` decorator:
   (mapv #(fmt-msg :de "{0,choice,0#no cats|1#one cat|1<{0,number} cats}" %)
         (range 5)))
 
@@ -282,22 +289,24 @@
   Named resource will be watched for changes when `:dev-mode?` is true."
   {:dev-mode? true
    :fallback-locale :en
-   :scope-var #'*tscope*
-   ;; :root-scope nil ; TODO Document
    :dictionary ; Map or named resource containing map
    {:en         {:example {:foo         ":en :example/foo text"
                            :foo_comment "Hello translator, please do x"
                            :bar {:baz ":en :example.bar/baz text"}
-                           :greeting  "Hello {0}, how are you?"
+                           :greeting "Hello %s, how are you?"
                            :inline-markdown "<tag>**strong**</tag>"
                            :block-markdown* "<tag>**strong**</tag>"
                            :with-exclaim!   "<tag>**strong**</tag>"
                            :greeting-alias :example/greeting
                            :baz-alias      :example.bar/baz}
-                 :missing  "<Missing translation: [{0} {1} {2}]>"}
+                 :missing  "<Missing translation: [%1$s %2$s %3$s]>"}
     :en-US      {:example {:foo ":en-US :example/foo text"}}
     :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
 
+    ;;; Advanced options
+   :scope-var  #'*tscope*
+   :root-scope nil
+   :fmt-fn     fmt-str
    :log-missing-translation-fn
    (fn [{:keys [dev-mode? locale ks scope] :as args}]
      (timbre/logp (if dev-mode? :debug :warn) "Missing translation" args))})
@@ -392,16 +401,18 @@
 (defn translate
   "Takes dictionary key (or vector of descending- preference keys) within a
   (possibly nil) scope, and returns the best translation available for given
-  locale. With additional arguments, treats translation as pattern for `fmt-msg`.
+  locale. With additional arguments, treats translation as pattern for
+  config's `:fmt-fn` (defaults to `fmt-str`).
 
   See `example-tconfig` for config details."
-  [loc config scope k-or-ks & fmt-msg-args]
+  [loc config scope k-or-ks & fmt-args]
   (let [{:keys [dev-mode? dictionary fallback-locale log-missing-translation-fn
-                scope-var root-scope]
+                scope-var root-scope fmt-fn]
          :or   {dev-mode?       @dev-mode?
                 fallback-locale (or (:default-locale config) ; Backwards comp
                                     @fallback-locale)
-                scope-var       #'*tscope*}} config
+                scope-var       #'*tscope*
+                fmt-fn          fmt-str}} config
 
         scope  (if-not (identical? scope ::scope-var) scope
                        (when-let [v scope-var] (var-get v)))
@@ -428,14 +439,15 @@
                      ;; Try :missing key in loc, parents, fallback-loc, & parents
                      (when-let [pattern (or (get-tr :missing loc)
                                             (get-tr :missing fallback-locale))]
-                       (fmt-msg loc pattern loc scope ks)))))))]
+                       (let [str* #(if (nil? %) "nil" (str %))]
+                         (fmt-str loc pattern (str* loc) (str* scope) (str* ks)))))))))]
 
-    (if-not fmt-msg-args tr
-      (apply fmt-msg loc tr fmt-msg-args))))
+    (if-not fmt-args tr
+      (apply fmt-fn loc tr fmt-args))))
 
 (defn t "Like `translate` but uses a thread-local translation scope."
-  [loc config k-or-ks & fmt-msg-args]
-  (apply translate loc config ::scope-var k-or-ks fmt-msg-args))
+  [loc config k-or-ks & fmt-str-args]
+  (apply translate loc config ::scope-var k-or-ks fmt-str-args))
 
 (comment (t :en-ZA example-tconfig :example/foo)
          (with-tscope :example (t :en-ZA example-tconfig :foo))
@@ -543,4 +555,4 @@
   `(with-tscope ~translation-scope ~@body))
 
 ;; BREAKS v1 due to unavoidable name clash
-(def oldt #(apply t (or *locale* :jvm-default) @config %&))
+(def oldt #(apply t (or *locale* :jvm-default) (assoc @config :fmt-fn fmt-msg) %&))

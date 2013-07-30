@@ -1,7 +1,7 @@
 **[API docs](http://ptaoussanis.github.io/tower/)** | **[CHANGELOG](https://github.com/ptaoussanis/tower/blob/master/CHANGELOG.md)** | [contact & contributing](#contact--contributing) | [other Clojure libs](https://www.taoensso.com/clojure-libraries) | [Twitter](https://twitter.com/#!/ptaoussanis) | current [semantic](http://semver.org/) version:
 
 ```clojure
-[com.taoensso/tower "2.0.0-beta3"] ; Development (notes below)
+[com.taoensso/tower "2.0.0-beta4"] ; Development (notes below)
 [com.taoensso/tower "1.7.1"]       ; Stable, needs Clojure 1.4+ as of 1.7.0
 ```
 
@@ -32,14 +32,14 @@ Tower's an attempt to present a **simple, idiomatic internationalization and loc
 Add the necessary dependency to your [Leiningen](http://leiningen.org/) `project.clj` and `require` the library in your ns:
 
 ```clojure
-[com.taoensso/tower "2.0.0-beta3"] ; project.clj
+[com.taoensso/tower "2.0.0-beta4"] ; project.clj
 (ns my-app (:require [taoensso.tower :as tower
                       :refer (with-locale with-tscope t *locale*)])) ; ns
 ```
 
 ### Translation
 
-The `t` fn handles translations. You give it a config map which includes your dictionary, and you're ready to go:
+The `t` fn handles translations. You give it a config map which includes your dictionary, and you're ready to go (see `tower/example-tconfig` for advanced options):
 ```clojure
 (def my-tconfig
   {:dev-mode? true
@@ -48,17 +48,15 @@ The `t` fn handles translations. You give it a config map which includes your di
    {:en         {:example {:foo         ":en :example/foo text"
                            :foo_comment "Hello translator, please do x"
                            :bar {:baz ":en :example.bar/baz text"}
-                           :greeting  "Hello {0}, how are you?"
+                           :greeting "Hello %s, how are you?"
                            :inline-markdown "<tag>**strong**</tag>"
                            :block-markdown* "<tag>**strong**</tag>"
                            :with-exclaim!   "<tag>**strong**</tag>"
                            :greeting-alias :example/greeting
                            :baz-alias      :example.bar/baz}
-                 :missing  "<Translation missing: {0}>"}
+                 :missing  "<Missing translation: [%1$s %2$s %3$s]>"}
     :en-US      {:example {:foo ":en-US :example/foo text"}}
-    :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
-
-   :log-missing-translation-fn (fn [{:keys [dev-mode? locale ks]}] ...)})
+    :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}})
 
 (t :en-US my-tconfig :example/foo) => ":en-US :example/foo text"
 (t :en    my-tconfig :example/foo) => ":en :example/foo text"
