@@ -335,8 +335,10 @@
                  (case decorator
                    (:_comment :_note) nil
                    (:_html :!)        translation
-                   (:_md   :*)        (utils/markdown translation {})
-                   (utils/markdown translation {:inline? true})))]
+                   (:_md   :*)        (-> translation utils/html-escape
+                                          (utils/markdown {:inline? false}))
+                   (-> translation utils/html-escape
+                       (utils/markdown {:inline? true}))))]
 
       {(apply scoped (conj scope-ks unscoped-k)) {loc translation}})))
 

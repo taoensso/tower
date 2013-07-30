@@ -23,38 +23,29 @@
       (cons k w))
     (list (list m))))
 
-(defn html-breaks [s] (str/replace s #"(\r?\n)|\r" "<br/>"))
-(defn html-escape [s & [{:keys [tags? entities?] :or {tags? true entities? true}}]]
-  ;; TODO cond-> with Clojure 1.5 dep
-  (let [s (str s)
-        s (if-not entities? s (str/replace s "&"        "&amp;"))
-        s (if-not tags?     s (str/replace s #"<(.*?)>" "&lt;$1&gt;"))
-        s (if-not entities? s
-                  (-> s
-                      (str/replace #"\"(.*?)\"" "&ldquo;$1&rdquo;")
-                      (str/replace #"'(.*?)'"   "&lsquo;$1&rsquo;")
-                      (str/replace "<"  "&lt;")
-                      (str/replace ">"  "&gt;")
-                      (str/replace "\"" "&quot;")))]
-    s))
+(defn html-breaks [s] (str/replace s #"(\r?\n|\r)" "<br/>"))
+(defn html-escape [s]
+  (-> (str s)
+      (str/replace "&"  "&amp;") ; First!
+      (str/replace "<"  "&lt;")
+      (str/replace ">"  "&gt;")
+      ;;(str/replace "'"  "&#39;") ; NOT &apos;
+      (str/replace "\"" "&quot;")))
 
-(comment (html-escape "Hello, x>y & the cat is fuzzy. <boo> \"Hello there\""))
+(comment (html-escape "Hello, x>y & the cat's hat's fuzzy. <boo> \"Hello there\""))
 
 (defn markdown
-  [s & [{:keys [inline? auto-links? escape-opts] :as opts
-         :or   {escape-opts {:tags? true :entities? true}}}]]
+  [s & [{:keys [inline? auto-links?] :as opts}]]
   ;; TODO cond-> with Clojure 1.5 dep
   (let [s (str s)
         s (if-not auto-links? s (str/replace s #"https?://([\w/\.-]+)" "[$1]($0)"))
-        s (if-not inline?     s (str/replace s #"(\r?\n)|\r" " "))
-        s (if-not escape-opts s (html-escape s escape-opts))
+        s (if-not inline?     s (str/replace s #"(\r?\n|\r)+" " "))
         s (apply markdown.core/md-to-html-string s (reduce concat opts))
         s (if-not inline?     s (str/replace s #"^<p>(.*?)</p>$" "$1"))]
     s))
 
 (comment (markdown "Hello *this* is a test! <tag> & thing" {:inline? true})
-         (markdown "Visit http://www.cnn.com, yeah" {:auto-links? true})
-         (markdown "Has\r\na line-breaks, inline mode"))
+         (markdown "Visit http://www.cnn.com, yeah" {:auto-links? true}))
 
 (defmacro defmem-
   "Defines a type-hinted, private memoized fn."
