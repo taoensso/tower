@@ -306,7 +306,7 @@
     ;;; Advanced options
    :scope-var  #'*tscope*
    :root-scope nil
-   :fmt-fn     fmt-str
+   :fmt-fn     fmt-str ; (fn [loc fmt args])
    :log-missing-translation-fn
    (fn [{:keys [dev-mode? locale ks scope] :as args}]
      (timbre/logp (if dev-mode? :debug :warn) "Missing translation" args))})
@@ -404,7 +404,8 @@
   "Takes dictionary key (or vector of descending- preference keys) within a
   (possibly nil) scope, and returns the best translation available for given
   locale. With additional arguments, treats translation as pattern for
-  config's `:fmt-fn` (defaults to `fmt-str`).
+  config's `:fmt-fn` (defaults to `fmt-str`). `:fmt-fn` can also be used for
+  advanced arg transformations like Hiccup form rendering, etc.
 
   See `example-tconfig` for config details."
   [loc config scope k-or-ks & fmt-args]
