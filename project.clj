@@ -5,14 +5,14 @@
             :url  "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure     "1.4.0"]
                  [org.clojure/tools.macro "0.1.5"]
-                 [expectations            "1.4.55"]
                  [markdown-clj            "0.9.33"]
                  [com.taoensso/timbre     "2.6.2"]]
   :profiles {:1.4  {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :1.5  {:dependencies [[org.clojure/clojure "1.5.1"]]}
              :1.6  {:dependencies [[org.clojure/clojure "1.6.0-master-SNAPSHOT"]]}
              :dev  {:dependencies []}
-             :test {:dependencies [[ring/ring-core      "1.2.0"]]}}
+             :test {:dependencies [[expectations   "1.4.56"]
+                                   [ring/ring-core "1.2.0"]]}}
   :aliases {"test-all"    ["with-profile" "test,1.4:test,1.5:test,1.6" "expectations"]
             "test-auto"   ["with-profile" "test" "autoexpect"]
             "start-dev"   ["with-profile" "dev,test,bench" "repl" ":headless"]
