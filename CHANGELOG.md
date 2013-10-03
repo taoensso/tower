@@ -1,4 +1,4 @@
-## v1.7.1 → 2.0.0-beta5
+## v2.0.0-beta3 → 2.0.0-RC1
   * **BREAKING**: extra args to `t` now get formatted with `java.util.Formatter` (`fmt-str`) rather than `MessageFormat` (`fmt-msg`). You can override this preference by specifying a `:fmt-fn` config option. `oldt` retains the old behavior by default.
 
 
