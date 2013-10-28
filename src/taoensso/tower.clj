@@ -301,8 +301,8 @@
                            :baz-alias      :example.bar/baz}
                  :missing  "<Missing translation: [%1$s %2$s %3$s]>"}
     :en-US      {:example {:foo ":en-US :example/foo text"}}
-    :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}
-
+    :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}
+    :ja "test_ja.clj"}
     ;;; Advanced options
    :scope-var  #'*tscope*
    :root-scope nil
@@ -349,7 +349,15 @@
    (for [loc (keys dict)]
      (let [loc-parts (str/split (name loc) #"[-_]")
            loc-tree  (mapv #(keyword (str/join "-" %))
-                           (take-while identity (iterate butlast loc-parts)))]
+                           (take-while identity (iterate butlast loc-parts)))
+           dict (if-not (string? (loc dict))
+                  dict
+                  (try
+                    (assoc dict loc (-> (loc dict) io/resource io/reader slurp read-string))
+                    (catch Exception e
+                          (throw
+                           (Exception. (str "Failed to load dictionary from "
+                                            "resource: " dict) e)))))]
        [loc (apply utils/merge-deep (map dict (rseq loc-tree)))]))))
 
 (comment (inherit-parent-trs {:en    {:foo ":en foo"
