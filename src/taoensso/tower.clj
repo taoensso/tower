@@ -302,7 +302,8 @@
                  :missing  "<Missing translation: [%1$s %2$s %3$s]>"}
     :en-US      {:example {:foo ":en-US :example/foo text"}}
     :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}
-    :ja "test_ja.clj"}
+    :ja "test_ja.clj" ; Import locale's map from another resource
+    }
     ;;; Advanced options
    :scope-var  #'*tscope*
    :root-scope nil
@@ -311,61 +312,64 @@
    (fn [{:keys [dev-mode? locale ks scope] :as args}]
      (timbre/logp (if dev-mode? :debug :warn) "Missing translation" args))})
 
-(defn- compile-dict-path
+;;; Dictionaries
+
+(defn- dict-load [dict] {:pre [(or (map? dict) (string? dict))]}
+  (if-not (string? dict) dict
+    (try (-> dict io/resource io/reader slurp read-string)
+      (catch Exception e
+        (throw (Exception. (format "Failed to load dictionary from resource: %s"
+                                   dict) e))))))
+
+(defn- dict-inherit-parent-trs
+  "Merges each locale's translations over its parent locale translations."
+  [dict] {:pre [(map? dict)]}
+  (into {}
+   (for [loc (keys dict)]
+     (let [loc-parts (str/split (name loc) #"[-_]")
+           loc-tree  (mapv #(keyword (str/join "-" %))
+                           (take-while identity (iterate butlast loc-parts)))
+           ;; Import locale's map from another resource:
+           dict      (if-not (string? (dict loc)) dict
+                       (assoc dict loc (dict-load (dict loc))))]
+       [loc (apply utils/merge-deep (mapv dict (rseq loc-tree)))]))))
+
+(comment (dict-inherit-parent-trs {:en    {:foo ":en foo"
+                                           :bar ":en :bar"}
+                                   :en-US {:foo ":en-US foo"}
+                                   :ja    "test_ja.clj"}))
+
+(def ^:private dict-prepare (comp dict-inherit-parent-trs dict-load))
+
+(defn- dict-compile-path
   "[:locale :ns1 ... :nsN unscoped-key<decorator> translation] =>
   {:ns1.<...>.nsN/unscoped-key {:locale (f translation decorator)}}"
-  [raw-dict path]
-  (assert (>= (count path) 3) (str "Malformed dictionary path: " path))
-  (let [[loc :as path] (vec path)
-        translation (peek path)
+  [dict path] {:pre [(>= (count path) 3) (vector? path)]}
+  (let [loc         (first  path)
+        translation (peek   path)
         scope-ks    (subvec path 1 (- (count path) 2)) ; [:ns1 ... :nsN]
         [_ unscoped-k decorator] (->> (re-find #"([^!\*_]+)([!\*_].*)*"
                                                (name (peek (pop path))))
                                       (mapv keyword))
-        translation (if-not (keyword? translation)
-                      translation
-                      (let [target ; Translation alias
-                            (get-in raw-dict
-                                    (into [loc]
-                                          (->> (utils/explode-keyword translation)
-                                               (mapv keyword))))]
-                        (when-not (keyword? target) target)))]
-    (when-let [translation
-               (when translation
+        translation ; Resolve possible translation alias
+        (if-not (keyword? translation) translation
+          (let [target (get-in dict
+                         (into [loc] (->> (utils/explode-keyword translation)
+                                          (mapv keyword))))]
+            (when-not (keyword? target) target)))]
+
+    (when translation
+      (when-let [translation*
                  (case decorator
                    (:_comment :_note) nil
                    (:_html :!)        translation
                    (:_md   :*)        (-> translation utils/html-escape
                                           (utils/markdown {:inline? false}))
                    (-> translation utils/html-escape
-                       (utils/markdown {:inline? true}))))]
+                       (utils/markdown {:inline? true})))]
+        {(apply scoped (conj scope-ks unscoped-k)) {loc translation*}}))))
 
-      {(apply scoped (conj scope-ks unscoped-k)) {loc translation}})))
-
-(defn- inherit-parent-trs
-  "Merges each locale's translations over its parent locale translations."
-  [dict]
-  (into {}
-   (for [loc (keys dict)]
-     (let [loc-parts (str/split (name loc) #"[-_]")
-           loc-tree  (mapv #(keyword (str/join "-" %))
-                           (take-while identity (iterate butlast loc-parts)))
-           dict (if-not (string? (loc dict))
-                  dict
-                  (try
-                    (assoc dict loc (-> (loc dict) io/resource io/reader slurp read-string))
-                    (catch Exception e
-                          (throw
-                           (Exception. (str "Failed to load dictionary from "
-                                            "resource: " dict) e)))))]
-       [loc (apply utils/merge-deep (map dict (rseq loc-tree)))]))))
-
-(comment (inherit-parent-trs {:en    {:foo ":en foo"
-                                      :bar ":en :bar"}
-                              :en-US {:foo ":en-US foo"}}))
-
-(def ^:private dict-cache (atom {}))
-(defn- compile-dict
+(def ^:private dict-compile-prepared
   "Compiles text translations stored in simple development-friendly
   Clojure map into form required by localized text translator.
 
@@ -379,34 +383,22 @@
      :example/with-exclaim!   {:en \"<tag>**strong**</tag>\"}}}
 
   Note the optional key decorators."
-  [raw-dict dev-mode?]
-  (if-let [dd (and (or (not dev-mode?)
-                       (not (string? raw-dict))
-                       (not (utils/file-resources-modified? [raw-dict])))
-                   (@dict-cache raw-dict))]
-    @dd
-    (let [dd
-          (delay
-           (let [raw-dict
-                 (if-not (string? raw-dict)
-                   raw-dict ; map or nil
-                   (try (-> raw-dict io/resource io/reader slurp read-string)
-                        (catch Exception e
-                          (throw
-                           (Exception. (str "Failed to load dictionary from"
-                                            "resource: " raw-dict) e)))))]
-             (->> (inherit-parent-trs raw-dict)
-                  (utils/leaf-nodes)
-                  (map (partial compile-dict-path raw-dict))
-                  (apply merge-with merge) ; 1-level deep merge
-                  )))]
-      (swap! dict-cache assoc raw-dict dd)
-      @dd)))
+  (memoize
+   (fn [dict-prepared]
+     (->> dict-prepared
+          (utils/leaf-nodes)
+          (mapv #(dict-compile-path dict-prepared (vec %)))
+          ;; 1-level deep merge:
+          (apply merge-with merge)))))
 
-(comment (inherit-parent-trs (:dictionary example-tconfig))
-         (compile-dict (:dictionary example-tconfig) true)
-         (compile-dict "tower-dictionary.clj" true)
-         (compile-dict nil true))
+(def ^:private dict-compile* (comp dict-compile-prepared dict-prepare)) ; For dev-mode
+(def ^:private dict-compile  (memoize dict-compile*)) ; For prod-mode
+
+(comment
+  (time (dotimes [_ 1000] (dict-compile* (:dictionary example-tconfig))))
+  (time (dotimes [_ 1000] (dict-compile  (:dictionary example-tconfig)))))
+
+;;;
 
 (defn translate
   "Takes dictionary key (or vector of descending- preference keys) within a
@@ -431,7 +423,8 @@
         ;; For shared dictionaries. Experimental - intentionally undocumented
         scope  (scoped root-scope scope)
 
-        dict   (compile-dict dictionary dev-mode?)
+        dict   (if dev-mode? (dict-compile* dictionary)
+                             (dict-compile  dictionary))
         ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
         get-tr #(get-in dict [(scoped scope %1) (locale-key %2)])
         tr
