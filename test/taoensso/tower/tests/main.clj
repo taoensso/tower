@@ -115,7 +115,8 @@
   ":en-US :example/foo text" :en-US
   ":en :example/foo text"    :en-GB
   ":en-US :example/foo text" :jvm-default
-  ":en :example/foo text"    :zh-CN)
+  ":en :example/foo text"    :zh-CN
+  ":ja 日本語"               :ja)
 
 ;;; Fall back to config's :de-DE fault-locale
 (expect ":en :example/foo text" (pt :de-DE :example/foo))
