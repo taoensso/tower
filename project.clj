@@ -6,20 +6,20 @@
   :dependencies [[org.clojure/clojure     "1.4.0"]
                  [org.clojure/tools.macro "0.1.5"]
                  [markdown-clj            "0.9.33"]
-                 [com.taoensso/timbre     "2.6.2"]]
+                 [com.taoensso/timbre     "2.7.0"]]
   :profiles {:1.4  {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :1.5  {:dependencies [[org.clojure/clojure "1.5.1"]]}
              :1.6  {:dependencies [[org.clojure/clojure "1.6.0-master-SNAPSHOT"]]}
              :dev  {:dependencies []}
              :test {:dependencies [[expectations   "1.4.56"]
-                                   [ring/ring-core "1.2.0"]]}}
+                                   [ring/ring-core "1.2.1"]]}}
   :aliases {"test-all"    ["with-profile" "+test,+1.4:+test,+1.5:+test,+1.6" "expectations"]
             "test-auto"   ["with-profile" "+test" "autoexpect"]
             "start-dev"   ["with-profile" "+dev,+test,+bench" "repl" ":headless"]
             "codox"       ["with-profile" "+test" "doc"]}
   :plugins [[lein-expectations "0.0.8"]
             [lein-autoexpect   "1.0"]
-            [lein-ancient      "0.4.4"]
+            [lein-ancient      "0.5.3"]
             [codox             "0.6.6"]]
   :min-lein-version "2.0.0"
   :global-vars {*warn-on-reflection* true}
