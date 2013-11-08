@@ -6,7 +6,7 @@
   :dependencies [[org.clojure/clojure     "1.4.0"]
                  [org.clojure/tools.macro "0.1.5"]
                  [markdown-clj            "0.9.33"]
-                 [com.taoensso/timbre     "2.7.0"]]
+                 [com.taoensso/timbre     "2.7.1"]]
   :profiles {:1.4  {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :1.5  {:dependencies [[org.clojure/clojure "1.5.1"]]}
              :1.6  {:dependencies [[org.clojure/clojure "1.6.0-master-SNAPSHOT"]]}
