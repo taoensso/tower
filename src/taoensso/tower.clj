@@ -195,7 +195,8 @@
                         (.compare (collator (locale display-loc)) x y))))]
        [(mapv first sorted-pairs) (mapv second sorted-pairs)]))))
 
-(def ^:private all-iso-countries (vec (Locale/getISOCountries)))
+(def ^:private all-iso-countries (->> (Locale/getISOCountries)
+                                      (mapv (comp keyword str/lower-case))))
 
 (defn countries
   "Returns ISO country codes and corresponding localized country names, both
@@ -203,12 +204,13 @@
   ([loc] (countries loc all-iso-countries))
   ([loc iso-countries]
      (get-sorted-localized-names
-      (fn [code] (.getDisplayCountry (Locale. "" code) (locale loc)))
+      (fn [code] (.getDisplayCountry (Locale. "" (name code)) (locale loc)))
       iso-countries (locale loc))))
 
-(comment (countries :pl ["GB" "DE" "PL"]))
+(comment (countries :pl [:gb :de :pl]))
 
-(def ^:private all-iso-languages (vec (Locale/getISOLanguages)))
+(def ^:private all-iso-languages (->> (Locale/getISOLanguages)
+                                      (mapv (comp keyword str/lower-case))))
 
 (defn languages
   "Returns ISO language codes and corresponding localized language names, both
@@ -216,14 +218,14 @@
   ([loc] (languages loc all-iso-languages))
   ([loc iso-languages]
      (get-sorted-localized-names
-      (fn [code] (let [Loc (Locale. code)]
+      (fn [code] (let [Loc (Locale. (name code))]
                   (str (.getDisplayLanguage Loc (locale loc))
                        ;; Also provide each name in it's OWN language
                        (when (not= Loc (locale loc))
                          (str " (" (.getDisplayLanguage Loc Loc) ")")))))
       iso-languages (locale loc))))
 
-(comment (languages :pl ["en" "de" "pl"]))
+(comment (languages :pl [:en :de :pl]))
 
 ;;;; Timezones (doesn't depend on locales)
 
