@@ -191,22 +191,22 @@
                                             ln-x ln-y))]
     (into (sorted-map-by comparator) pairs)))
 
-(def ^:private all-iso-countries (->> (Locale/getISOCountries)
-                                      (mapv (comp keyword str/lower-case))))
+(def iso-countries (->> (Locale/getISOCountries)
+                        (mapv (comp keyword str/lower-case)) (set)))
 
 (def countries "Returns (sorted-map <localized-name> <iso-code> ...)."
   (utils/memoize-ttl (* 3 60 60 1000) ; 3hr ttl
-    (fn ([loc] (countries loc all-iso-countries))
+    (fn ([loc] (countries loc iso-countries))
        ([loc iso-countries]
           (get-localized-sorted-map iso-countries (locale loc)
             (fn [code] (.getDisplayCountry (Locale. "" (name code)) (locale loc))))))))
 
-(def ^:private all-iso-languages (->> (Locale/getISOLanguages)
-                                      (mapv (comp keyword str/lower-case))))
+(def iso-languages (->> (Locale/getISOLanguages)
+                        (mapv (comp keyword str/lower-case)) (set)))
 
 (def languages "Returns (sorted-map <localized-name> <iso-code> ...)."
   (utils/memoize-ttl (* 3 60 60 1000) ; 3hr ttl
-    (fn ([loc] (languages loc all-iso-languages))
+    (fn ([loc] (languages loc iso-languages))
        ([loc iso-languages]
           (get-localized-sorted-map iso-languages (locale loc)
            (fn [code] (let [Loc (Locale. (name code))]
@@ -215,7 +215,8 @@
                             (when (not= Loc (locale loc))
                               (str " (" (.getDisplayLanguage Loc Loc) ")"))))))))))
 
-(comment (languages :pl [:en :de :pl]))
+(comment (countries :en)
+         (languages :pl [:en :de :pl]))
 
 ;;;; Timezones (doesn't depend on locales)
 
