@@ -1,4 +1,4 @@
-## v2.0.0-beta3 → 2.0.0-RC2
+## v2.0.0-beta3 → 2.0.0-RC3
   * **BREAKING**: extra args to `t` now get formatted with `java.util.Formatter` (`fmt-str`) rather than `MessageFormat` (`fmt-msg`). You can override this preference by specifying a `:fmt-fn` config option. `oldt` retains the old behavior by default.
   * **BREAKING**: `languages` and `countries` now return lowercase keyword codes.
   * **BREAKING**: `languages`, `countries`, and `timezones` now return sorted maps.
