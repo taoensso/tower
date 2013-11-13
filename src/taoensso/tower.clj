@@ -183,9 +183,8 @@
 
 ;;;; Localized country & language names
 
-(def ^:private get-sorted-localized-names
-  "Returns ISO codes and corresponding localized names, both sorted by the
-  localized names."
+(def ^:private get-localized-sorted-map
+  "Returns (sorted-map <localized-name> <iso-code> ...)."
   (memoize
    (fn [display-fn iso-codes display-loc]
      (let [;; [localized-display-name code] seq sorted by localized-display-name
@@ -193,31 +192,26 @@
            (->> (for [code iso-codes] [(display-fn code) code])
                 (sort (fn [[x _] [y _]]
                         (.compare (collator (locale display-loc)) x y))))]
-       [(mapv first sorted-pairs) (mapv second sorted-pairs)]))))
+       ;;[(mapv first sorted-pairs) (mapv second sorted-pairs)]
+       (into (sorted-map) sorted-pairs)))))
 
 (def ^:private all-iso-countries (->> (Locale/getISOCountries)
                                       (mapv (comp keyword str/lower-case))))
 
-(defn countries
-  "Returns ISO country codes and corresponding localized country names, both
-  sorted by the localized names."
+(defn countries "Returns (sorted-map <localized-name> <iso-code> ...)."
   ([loc] (countries loc all-iso-countries))
   ([loc iso-countries]
-     (get-sorted-localized-names
+     (get-localized-sorted-map
       (fn [code] (.getDisplayCountry (Locale. "" (name code)) (locale loc)))
       iso-countries (locale loc))))
-
-(comment (countries :pl [:gb :de :pl]))
 
 (def ^:private all-iso-languages (->> (Locale/getISOLanguages)
                                       (mapv (comp keyword str/lower-case))))
 
-(defn languages
-  "Returns ISO language codes and corresponding localized language names, both
-  sorted by the localized names."
+(defn languages "Returns (sorted-map <localized-name> <iso-code> ...)."
   ([loc] (languages loc all-iso-languages))
   ([loc iso-languages]
-     (get-sorted-localized-names
+     (get-localized-sorted-map
       (fn [code] (let [Loc (Locale. (name code))]
                   (str (.getDisplayLanguage Loc (locale loc))
                        ;; Also provide each name in it's OWN language
@@ -245,26 +239,23 @@
 
 (comment (timezone-display-name "Asia/Bangkok" (* 90 60 1000)))
 
-(def timezones
-  "Returns timezone IDs and corresponding pretty timezone names, both sorted by
-  the timezone's offset. Caches result for 3 hours."
+(def timezones "Returns (sorted-map-by offset <tz-name> <tz-id> ...)."
   (utils/memoize-ttl
    #=(* 3 60 60 1000) ; 3hr ttl
    (fn []
-     (let [;; [timezone-display-name id] seq sorted by timezone's offset
-           sorted-pairs
-           (->> (for [id major-timezone-ids]
-                  (let [instant (System/currentTimeMillis)
-                        tz      (TimeZone/getTimeZone id)
-                        offset  (.getOffset tz instant)]
-                    [offset (timezone-display-name id offset) id]))
-                (sort-by first)
-                (map (comp vec rest)))]
-       [(mapv first  sorted-pairs)
-        (mapv second sorted-pairs)]))))
+     (let [instant (System/currentTimeMillis)
+           tzs (->> (for [id major-timezone-ids]
+                      (let [tz     (TimeZone/getTimeZone id)
+                            offset (.getOffset tz instant)]
+                        [(timezone-display-name id offset) id offset])))
+           tz-pairs (->> tzs (mapv   (fn [[dn id offset]] [dn id])))
+           offsets  (->> tzs (reduce (fn [m [dn id offset]] (assoc m dn offset)) {}))]
+       (into (sorted-map-by (fn [dn-x dn-y] (compare (offsets dn-x) (offsets dn-y))))
+             tz-pairs)))))
 
-(comment (take 10      (first  (timezones)))
-         (take-last 10 (second (timezones))))
+(comment (reverse (sort ["-00:00" "+00:00" "-01:00" "+01:00" "-01:30" "+01:30"]))
+         (take 5      (timezones))
+         (take-last 5 (timezones)))
 
 ;;;; Translations
 
