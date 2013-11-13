@@ -183,41 +183,37 @@
 
 ;;;; Localized country & language names
 
-(def ^:private get-localized-sorted-map
-  "Returns (sorted-map <localized-name> <iso-code> ...)."
-  (memoize
-   (fn [display-fn iso-codes display-loc]
-     (let [;; [localized-display-name code] seq sorted by localized-display-name
-           sorted-pairs
-           (->> (for [code iso-codes] [(display-fn code) code])
-                (sort (fn [[x _] [y _]]
-                        (.compare (collator (locale display-loc)) x y))))]
-       ;;[(mapv first sorted-pairs) (mapv second sorted-pairs)]
-       (into (sorted-map) sorted-pairs)))))
+(defn- get-localized-sorted-map
+  "Returns {<localized-name> <iso-code>} sorted map."
+  [iso-codes display-loc display-fn]
+  (let [pairs (->> iso-codes (mapv (fn [code] [(display-fn code) code])))
+        comparator (fn [ln-x ln-y] (.compare (collator (locale display-loc))
+                                            ln-x ln-y))]
+    (into (sorted-map-by comparator) pairs)))
 
 (def ^:private all-iso-countries (->> (Locale/getISOCountries)
                                       (mapv (comp keyword str/lower-case))))
 
-(defn countries "Returns (sorted-map <localized-name> <iso-code> ...)."
-  ([loc] (countries loc all-iso-countries))
-  ([loc iso-countries]
-     (get-localized-sorted-map
-      (fn [code] (.getDisplayCountry (Locale. "" (name code)) (locale loc)))
-      iso-countries (locale loc))))
+(def countries "Returns (sorted-map <localized-name> <iso-code> ...)."
+  (utils/memoize-ttl (* 3 60 60 1000) ; 3hr ttl
+    (fn ([loc] (countries loc all-iso-countries))
+       ([loc iso-countries]
+          (get-localized-sorted-map iso-countries (locale loc)
+            (fn [code] (.getDisplayCountry (Locale. "" (name code)) (locale loc))))))))
 
 (def ^:private all-iso-languages (->> (Locale/getISOLanguages)
                                       (mapv (comp keyword str/lower-case))))
 
-(defn languages "Returns (sorted-map <localized-name> <iso-code> ...)."
-  ([loc] (languages loc all-iso-languages))
-  ([loc iso-languages]
-     (get-localized-sorted-map
-      (fn [code] (let [Loc (Locale. (name code))]
-                  (str (.getDisplayLanguage Loc (locale loc))
-                       ;; Also provide each name in it's OWN language
-                       (when (not= Loc (locale loc))
-                         (str " (" (.getDisplayLanguage Loc Loc) ")")))))
-      iso-languages (locale loc))))
+(def languages "Returns (sorted-map <localized-name> <iso-code> ...)."
+  (utils/memoize-ttl (* 3 60 60 1000) ; 3hr ttl
+    (fn ([loc] (languages loc all-iso-languages))
+       ([loc iso-languages]
+          (get-localized-sorted-map iso-languages (locale loc)
+           (fn [code] (let [Loc (Locale. (name code))]
+                       (str (.getDisplayLanguage Loc (locale loc))
+                            ;; Also provide each name in it's OWN language
+                            (when (not= Loc (locale loc))
+                              (str " (" (.getDisplayLanguage Loc Loc) ")"))))))))))
 
 (comment (languages :pl [:en :de :pl]))
 
@@ -231,23 +227,23 @@
   [city-tz-id offset]
   (let [[region city] (str/split city-tz-id #"/")
         offset-mins   (/ offset 1000 60)]
-    (str "(GMT " (if (neg? offset-mins) "-" "+")
-         (format "%02d:%02d"
-                 (Math/abs (int (/ offset-mins 60)))
-                 (mod (int offset-mins) 60))
-         ") " city)))
+    (format "(GMT %s%02d:%02d) %s"
+            (if (neg? offset-mins) "-" "+")
+            (Math/abs (int (/ offset-mins 60)))
+            (mod (int offset-mins) 60)
+            city)))
 
 (comment (timezone-display-name "Asia/Bangkok" (* 90 60 1000)))
 
 (def timezones "Returns (sorted-map-by offset <tz-name> <tz-id> ...)."
-  (utils/memoize-ttl
-   #=(* 3 60 60 1000) ; 3hr ttl
+  (utils/memoize-ttl (* 3 60 60 1000) ; 3hr ttl
    (fn []
      (let [instant (System/currentTimeMillis)
-           tzs (->> (for [id major-timezone-ids]
-                      (let [tz     (TimeZone/getTimeZone id)
-                            offset (.getOffset tz instant)]
-                        [(timezone-display-name id offset) id offset])))
+           tzs (->> major-timezone-ids
+                    (mapv (fn [id]
+                            (let [tz     (TimeZone/getTimeZone id)
+                                  offset (.getOffset tz instant)]
+                              [(timezone-display-name id offset) id offset]))))
            tz-pairs (->> tzs (mapv   (fn [[dn id offset]] [dn id])))
            offsets  (->> tzs (reduce (fn [m [dn id offset]] (assoc m dn offset)) {}))]
        (into (sorted-map-by (fn [dn-x dn-y] (compare (offsets dn-x) (offsets dn-y))))
