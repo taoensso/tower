@@ -220,9 +220,10 @@
 
 ;;;; Timezones (doesn't depend on locales)
 
-(def ^:private major-timezone-ids
+(def major-timezone-ids
   (->> (TimeZone/getAvailableIDs)
-       (filterv #(re-find #"^(Africa|America|Asia|Atlantic|Australia|Europe|Indian|Pacific)/.*" %))))
+       (filterv #(re-find #"^(Africa|America|Asia|Atlantic|Australia|Europe|Indian|Pacific)/.*" %))
+       (set)))
 
 (defn- timezone-display-name "(GMT +05:30) Colombo"
   [city-tz-id offset]

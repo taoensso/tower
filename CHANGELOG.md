@@ -4,7 +4,7 @@
   * **BREAKING**: `languages`, `countries`, and `timezones` now return sorted maps.
   * Dictionaries: can now load locales from additional resource files (mopemope).
   * Dictionaries: refactored.
-  * New public vars: `iso-countries`, `iso-languages`.
+  * New public vars: `iso-countries`, `iso-languages`, `major-timezone-ids`.
 
 
 ## v1.7.1 → 2.0.0-beta3
