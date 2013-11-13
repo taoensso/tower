@@ -233,7 +233,7 @@
             (if (neg? offset-mins) "-" "+")
             (Math/abs (int (/ offset-mins 60)))
             (mod (int offset-mins) 60)
-            city)))
+            (str/replace city "_" " "))))
 
 (comment (timezone-display-name "Asia/Bangkok" (* 90 60 1000)))
 
@@ -247,11 +247,15 @@
                                   offset (.getOffset tz instant)]
                               [(timezone-display-name id offset) id offset]))))
            tz-pairs (->> tzs (mapv   (fn [[dn id offset]] [dn id])))
-           offsets  (->> tzs (reduce (fn [m [dn id offset]] (assoc m dn offset)) {}))]
-       (into (sorted-map-by (fn [dn-x dn-y] (compare (offsets dn-x) (offsets dn-y))))
-             tz-pairs)))))
+           offsets  (->> tzs (reduce (fn [m [dn id offset]] (assoc m dn offset)) {}))
+           comparator (fn [dn-x dn-y]
+                        (let [cmp1 (compare (offsets dn-x) (offsets dn-y))]
+                          (if-not (zero? cmp1) cmp1
+                            (compare dn-x dn-y))))]
+       (into (sorted-map-by comparator) tz-pairs)))))
 
 (comment (reverse (sort ["-00:00" "+00:00" "-01:00" "+01:00" "-01:30" "+01:30"]))
+         (count       (timezones))
          (take 5      (timezones))
          (take-last 5 (timezones)))
 
