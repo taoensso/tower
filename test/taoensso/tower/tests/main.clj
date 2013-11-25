@@ -141,6 +141,8 @@
 ;;; Missing keys & key fallback
 (expect "&lt;Missing translation: [:en nil [:invalid]]&gt;"
         (pt :en :invalid))
+(expect "&lt;Missing translation: [:en :whatever [:invalid]]&gt;"
+        (with-tscope :whatever (pt :en :invalid)))
 (expect "&lt;Missing translation: [:en nil [:invalid]]&gt;"
         (pt :en :invalid "arg"))
 (expect ":en :example/foo text"
