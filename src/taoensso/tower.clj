@@ -436,13 +436,14 @@
                      (some #(get-tr % fallback-locale) ks)
 
                      ;; Try :missing key in loc, parents, fallback-loc, & parents
-                     (when-let [pattern (or (get-tr :missing loc)
-                                            (get-tr :missing fallback-locale))]
+                     (when-let [pattern (or (get-in dict [:missing loc])
+                                            (get-in dict [:missing fallback-locale]))]
                        (let [str* #(if (nil? %) "nil" (str %))]
                          (fmt-str loc pattern (str* loc) (str* scope) (str* ks)))))))))]
 
     (if-not fmt-args tr
-      (apply fmt-fn loc tr fmt-args))))
+      (if-not tr (throw (Exception. "Can't format nil translation pattern."))
+        (apply fmt-fn loc tr fmt-args)))))
 
 (defn t "Like `translate` but uses a thread-local translation scope."
   [loc config k-or-ks & fmt-str-args]
