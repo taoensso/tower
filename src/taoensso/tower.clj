@@ -436,8 +436,8 @@
                      (some #(get-tr % fallback-locale) ks)
 
                      ;; Try :missing key in loc, parents, fallback-loc, & parents
-                     (when-let [pattern (or (get-tr :missing loc)
-                                            (get-tr :missing fallback-locale))]
+                     (when-let [pattern (or (get-in dict [:missing loc])
+                                            (get-in dict [:missing fallback-locale]))]
                        (let [str* #(if (nil? %) "nil" (str %))]
                          (fmt-str loc pattern (str* loc) (str* scope) (str* ks)))))))))]
 
