@@ -442,7 +442,8 @@
                          (fmt-str loc pattern (str* loc) (str* scope) (str* ks)))))))))]
 
     (if-not fmt-args tr
-      (apply fmt-fn loc tr fmt-args))))
+      (if-not tr (throw (Exception. "Can't format nil translation pattern."))
+        (apply fmt-fn loc tr fmt-args)))))
 
 (defn t "Like `translate` but uses a thread-local translation scope."
   [loc config k-or-ks & fmt-str-args]
