@@ -1,3 +1,11 @@
+## v2.0.0 → v2.0.1
+
+  Minor, non-breaking release: **2013 Nov 26**.
+
+  * [FIX] Translations: `with-tscope` was preventing `:missing` translation fallbacks from working correctly (ystael).
+  * [HK] Translations: `t` now throws a proper error message when trying to format arguments against a `nil` translation pattern.
+
+
 ## v2.0.0-beta3 → 2.0.0
   * **BREAKING**: extra args to `t` now get formatted with `java.util.Formatter` (`fmt-str`) rather than `MessageFormat` (`fmt-msg`). You can override this preference by specifying a `:fmt-fn` config option. `oldt` retains the old behavior by default.
   * **BREAKING**: `languages` and `countries` now return lowercase keyword codes.
