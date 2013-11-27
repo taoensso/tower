@@ -153,7 +153,16 @@
   "Transforms Unicode string into W3C-recommended standard de/composition form
   allowing easier searching and sorting of strings. Normalization is considered
   good hygiene when communicating with a DB or other software."
-  [s] (java.text.Normalizer/normalize s java.text.Normalizer$Form/NFC))
+  [s & [form]]
+  (java.text.Normalizer/normalize s
+    (case form
+      (nil :nfc) java.text.Normalizer$Form/NFC
+      :nfkc      java.text.Normalizer$Form/NFKC
+      :nfd       java.text.Normalizer$Form/NFD
+      :nfkd      java.text.Normalizer$Form/NFKD
+      (throw (Exception. (format "Unrecognized normalization form: %s" form))))))
+
+(comment (normalize "hello" :invalid))
 
 ;;;; Localized text formatting
 
