@@ -56,20 +56,25 @@
        ~(with-meta '[& args] {:tag type-hint})
        (apply memfn# ~'args))))
 
-(defn memoize-ttl
-  "Like `memoize` but invalidates the cache for a set of arguments after TTL
-  msecs has elapsed."
-  [ttl f]
+(defn memoize-ttl "Low-overhead, common-case `memoize*`."
+  [ttl-ms f]
   (let [cache (atom {})]
     (fn [& args]
-      (let [{:keys [time-cached d-result]} (@cache args)
-            now (System/currentTimeMillis)]
-
-        (if (and time-cached (< (- now time-cached) ttl))
-          @d-result
-          (let [d-result (delay (apply f args))]
-            (swap! cache assoc args {:time-cached now :d-result d-result})
-            @d-result))))))
+      (when (<= (rand) 0.001) ; GC
+        (let [instant (System/currentTimeMillis)]
+          (swap! cache
+            (fn [m] (reduce-kv (fn [m* k [dv udt :as cv]]
+                                (if (> (- instant udt) ttl-ms) m*
+                                    (assoc m* k cv))) {} m)))))
+      (let [[dv udt] (@cache args)]
+        (if (and dv (< (- (System/currentTimeMillis) udt) ttl-ms)) @dv
+          (locking cache ; For thread racing
+            (let [[dv udt] (@cache args)] ; Retry after lock acquisition!
+              (if (and dv (< (- (System/currentTimeMillis) udt) ttl-ms)) @dv
+                (let [dv (delay (apply f args))
+                      cv [dv (System/currentTimeMillis)]]
+                  (swap! cache assoc args cv)
+                  @dv)))))))))
 
 (defn file-resource-last-modified
   "Returns last-modified time for file backing given named resource, or nil if
