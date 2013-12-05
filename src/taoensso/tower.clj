@@ -447,15 +447,15 @@
                      (when-let [pattern (or (get-in dict [:missing loc])
                                             (get-in dict [:missing fallback-locale]))]
                        (let [str* #(if (nil? %) "nil" (str %))]
-                         (fmt-str loc pattern (str* loc) (str* scope) (str* ks)))))))))]
+                         (fmt-fn loc pattern (str* loc) (str* scope) (str* ks)))))))))]
 
     (if-not fmt-args tr
       (if-not tr (throw (Exception. "Can't format nil translation pattern."))
         (apply fmt-fn loc tr fmt-args)))))
 
 (defn t "Like `translate` but uses a thread-local translation scope."
-  [loc config k-or-ks & fmt-str-args]
-  (apply translate loc config ::scope-var k-or-ks fmt-str-args))
+  [loc config k-or-ks & fmt-args]
+  (apply translate loc config ::scope-var k-or-ks fmt-args))
 
 (comment (t :en-ZA example-tconfig :example/foo)
          (with-tscope :example (t :en-ZA example-tconfig :foo))
