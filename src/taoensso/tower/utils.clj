@@ -2,7 +2,8 @@
   {:author "Peter Taoussanis"}
   (:require [clojure.string      :as str]
             [clojure.java.io     :as io]
-            [clojure.tools.macro :as macro])
+            [clojure.tools.macro :as macro]
+            [markdown.core])
   (:import  [java.io File]))
 
 (defmacro defonce*

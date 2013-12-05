@@ -4,7 +4,6 @@
   {:author "Peter Taoussanis, Janne Asmala"}
   (:require [clojure.string  :as str]
             [clojure.java.io :as io]
-            [markdown.core]
             [taoensso.timbre :as timbre]
             [taoensso.tower.utils :as utils :refer (defmem-)])
   (:import  [java.util Date Locale TimeZone Formatter]
