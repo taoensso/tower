@@ -468,6 +468,12 @@
   [loc config k-or-ks & fmt-args]
   (apply translate loc config ::scope-var k-or-ks fmt-args))
 
+(defn t'
+  "Alpha - subject to change.
+  More sensible arg order for common-case partials?"
+  [config loc k-or-ks & fmt-args]
+  (apply translate loc config ::scope-var k-or-ks fmt-args))
+
 (comment (t :en-ZA example-tconfig :example/foo)
          (with-tscope :example (t :en-ZA example-tconfig :foo))
          (with-tscope :invalid
