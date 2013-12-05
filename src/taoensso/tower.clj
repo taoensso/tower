@@ -429,7 +429,8 @@
         dict   (if dev-mode? (dict-compile* dictionary)
                              (dict-compile  dictionary))
         ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
-        get-tr #(get-in dict [(scoped scope %1) (locale-key %2)])
+        get-tr* #(get-in dict [%1 (locale-key %2)]) ; Unscoped
+        get-tr  #(get-tr* (scoped scope %1) %2)     ; Scoped
         tr
         (or (some #(get-tr % loc) (take-while keyword? ks)) ; Try loc & parents
             (let [last-k (peek ks)]
@@ -444,8 +445,8 @@
                      (some #(get-tr % fallback-locale) ks)
 
                      ;; Try :missing key in loc, parents, fallback-loc, & parents
-                     (when-let [pattern (or (get-in dict [:missing loc])
-                                            (get-in dict [:missing fallback-locale]))]
+                     (when-let [pattern (or (get-tr* :missing loc)
+                                            (get-tr* :missing fallback-locale))]
                        (let [str* #(if (nil? %) "nil" (str %))]
                          (fmt-fn loc pattern (str* loc) (str* scope) (str* ks)))))))))]
 
