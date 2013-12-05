@@ -401,7 +401,7 @@
           (apply merge-with merge)))))
 
 (def ^:private dict-compile* (comp dict-compile-prepared dict-prepare)) ; For dev-mode
-(def ^:private dict-compile  (memoize dict-compile*)) ; For prod-mode
+(def           dict-compile  (memoize dict-compile*)) ; For prod-mode
 
 (comment
   (time (dotimes [_ 1000] (dict-compile* (:dictionary example-tconfig))))

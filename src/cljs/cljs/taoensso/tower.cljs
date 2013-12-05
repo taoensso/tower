@@ -5,12 +5,5 @@
   (:require [clojure.string :as str])
   (:require-macros [cljs.taoensso.tower.macros :as tower-macros]))
 
-(defn echo [x] x) ; Just testing
-
-(defn testfn [x] (tower-macros/testmacro x))
-
-;; TODO Take dictionary from named resource and compile at compile-time?
-
-(def example-tconfig
-  {:dictionary
-   {:ja "test_ja.clj"}})
+(def my-dict-inline   (tower-macros/dict-compile {:en {:a "**hello**"}}))
+(def my-dict-resource (tower-macros/dict-compile "slurps/i18n/utils.clj"))
