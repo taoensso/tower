@@ -1,4 +1,4 @@
-(ns cljs.taoensso.tower.macros
+(ns cljs.taoensso.tower ; macros
   {:author "Peter Taoussanis"}
   (:require [taoensso.tower :as tower]))
 

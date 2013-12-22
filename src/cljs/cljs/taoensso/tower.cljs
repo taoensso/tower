@@ -3,7 +3,7 @@
   PRE-alpha - almost certain to change."
   {:author "Peter Taoussanis"}
   (:require [clojure.string :as str])
-  (:require-macros [cljs.taoensso.tower.macros :as tower-macros]))
+  (:require-macros [cljs.taoensso.tower :as tower-macros]))
 
 ;;;; Utils
 
