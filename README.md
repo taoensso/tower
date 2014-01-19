@@ -1,7 +1,7 @@
 **[API docs](http://ptaoussanis.github.io/tower/)** | **[CHANGELOG](https://github.com/ptaoussanis/tower/blob/master/CHANGELOG.md)** | [contact & contributing](#contact--contributing) | [other Clojure libs](https://www.taoensso.com/clojure-libraries) | [Twitter](https://twitter.com/#!/ptaoussanis) | current [semantic](http://semver.org/) version:
 
 ```clojure
-[com.taoensso/tower "2.0.1"] ; Stable, see CHANGELOG for details
+[com.taoensso/tower "2.0.2"] ; Stable, see CHANGELOG for details
 ```
 
 v2 provides an improved API. It is a **BREAKING** release for `t` users. See the [CHANGELOG](https://github.com/ptaoussanis/tower/blob/master/CHANGELOG.md) for migration details. Note that the examples in this README are for the v2 API. See [here](https://github.com/ptaoussanis/tower/blob/master/v1-examples.md) for v1 examples.
@@ -31,7 +31,7 @@ Tower's an attempt to present a **simple, idiomatic internationalization and loc
 Add the necessary dependency to your [Leiningen](http://leiningen.org/) `project.clj` and `require` the library in your ns:
 
 ```clojure
-[com.taoensso/tower "2.0.1"] ; project.clj
+[com.taoensso/tower "2.0.2"] ; project.clj
 (ns my-app (:require [taoensso.tower :as tower
                       :refer (with-locale with-tscope t *locale*)])) ; ns
 ```
