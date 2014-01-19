@@ -4,7 +4,6 @@
   {:author "Peter Taoussanis, Janne Asmala"}
   (:require [clojure.string  :as str]
             [clojure.java.io :as io]
-            [markdown.core]
             [taoensso.timbre :as timbre]
             [taoensso.tower.utils :as utils :refer (defmem-)])
   (:import  [java.util Date Locale TimeZone Formatter]
@@ -153,7 +152,16 @@
   "Transforms Unicode string into W3C-recommended standard de/composition form
   allowing easier searching and sorting of strings. Normalization is considered
   good hygiene when communicating with a DB or other software."
-  [s] (java.text.Normalizer/normalize s java.text.Normalizer$Form/NFC))
+  [s & [form]]
+  (java.text.Normalizer/normalize s
+    (case form
+      (nil :nfc) java.text.Normalizer$Form/NFC
+      :nfkc      java.text.Normalizer$Form/NFKC
+      :nfd       java.text.Normalizer$Form/NFD
+      :nfkd      java.text.Normalizer$Form/NFKD
+      (throw (Exception. (format "Unrecognized normalization form: %s" form))))))
+
+(comment (normalize "hello" :invalid))
 
 ;;;; Localized text formatting
 
@@ -283,21 +291,21 @@
 
   Named resource will be watched for changes when `:dev-mode?` is true."
   {:dev-mode? true
-   :fallback-locale :en
+   :fallback-locale :de
    :dictionary ; Map or named resource containing map
-   {:en         {:example {:foo         ":en :example/foo text"
-                           :foo_comment "Hello translator, please do x"
-                           :bar {:baz ":en :example.bar/baz text"}
-                           :greeting "Hello %s, how are you?"
-                           :inline-markdown "<tag>**strong**</tag>"
-                           :block-markdown* "<tag>**strong**</tag>"
-                           :with-exclaim!   "<tag>**strong**</tag>"
-                           :greeting-alias :example/greeting
-                           :baz-alias      :example.bar/baz}
-                 :missing  "<Missing translation: [%1$s %2$s %3$s]>"}
-    :en-US      {:example {:foo ":en-US :example/foo text"}}
-    :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}
-    :ja "test_ja.clj" ; Import locale's map from another resource
+   {:en   {:example {:foo         ":en :example/foo text"
+                     :foo_comment "Hello translator, please do x"
+                     :bar {:baz ":en :example.bar/baz text"}
+                     :greeting "Hello %s, how are you?"
+                     :inline-markdown "<tag>**strong**</tag>"
+                     :block-markdown* "<tag>**strong**</tag>"
+                     :with-exclaim!   "<tag>**strong**</tag>"
+                     :greeting-alias :example/greeting
+                     :baz-alias      :example.bar/baz}
+           :missing  "<Missing translation: [%1$s %2$s %3$s]>"}
+    :en-US {:example {:foo ":en-US :example/foo text"}}
+    :de    {:example {:foo ":de :example/foo text"}}
+    :ja "test_ja.clj" ; Import locale's map from external resource
     }
     ;;; Advanced options
    :scope-var  #'*tscope*
@@ -316,18 +324,24 @@
         (throw (Exception. (format "Failed to load dictionary from resource: %s"
                                    dict) e))))))
 
+(def ^:private loc-tree ":en-US-var1 -> [:en-US-var1 :en-US :en]"
+  (memoize ; Also used runtime by `translate` fn
+   (fn [loc]
+     (let [loc-parts (str/split (-> loc locale-key name) #"[-_]")
+           loc-tree  (mapv #(keyword (str/join "-" %))
+                           (take-while identity (iterate butlast loc-parts)))]
+       loc-tree))))
+
 (defn- dict-inherit-parent-trs
   "Merges each locale's translations over its parent locale translations."
   [dict] {:pre [(map? dict)]}
   (into {}
    (for [loc (keys dict)]
-     (let [loc-parts (str/split (name loc) #"[-_]")
-           loc-tree  (mapv #(keyword (str/join "-" %))
-                           (take-while identity (iterate butlast loc-parts)))
+     (let [loc-tree' (loc-tree loc)
            ;; Import locale's map from another resource:
            dict      (if-not (string? (dict loc)) dict
                        (assoc dict loc (dict-load (dict loc))))]
-       [loc (apply utils/merge-deep (mapv dict (rseq loc-tree)))]))))
+       [loc (apply utils/merge-deep (mapv dict (rseq loc-tree')))]))))
 
 (comment (dict-inherit-parent-trs {:en    {:foo ":en foo"
                                            :bar ":en :bar"}
@@ -421,9 +435,14 @@
         dict   (if dev-mode? (dict-compile* dictionary)
                              (dict-compile  dictionary))
         ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
-        get-tr #(get-in dict [(scoped scope %1) (locale-key %2)])
+
+        get-tr*  (fn [k l] (get-in dict [              k  l]))  ; Unscoped k
+        get-tr   (fn [k l] (get-in dict [(scoped scope k) l]))  ; Scoped k
+        find-tr* (fn [k l] (some #(get-tr* k %1) (loc-tree l))) ; Try loc & parents
+        find-tr  (fn [k l] (some #(get-tr  k %1) (loc-tree l))) ; ''
+
         tr
-        (or (some #(get-tr % loc) (take-while keyword? ks)) ; Try loc & parents
+        (or (some #(find-tr % loc) (take-while keyword? ks)) ; Try loc & parents
             (let [last-k (peek ks)]
               (if-not (keyword? last-k)
                 last-k ; Explicit final, non-keyword fallback (may be nil)
@@ -433,21 +452,21 @@
                               :locale loc :scope scope :ks ks}))
                     (or
                      ;; Try fallback-locale & parents
-                     (some #(get-tr % fallback-locale) ks)
+                     (some #(find-tr % fallback-locale) ks)
 
                      ;; Try :missing key in loc, parents, fallback-loc, & parents
-                     (when-let [pattern (or (get-in dict [:missing loc])
-                                            (get-in dict [:missing fallback-locale]))]
+                     (when-let [pattern (or (find-tr* :missing loc)
+                                            (find-tr* :missing fallback-locale))]
                        (let [str* #(if (nil? %) "nil" (str %))]
-                         (fmt-str loc pattern (str* loc) (str* scope) (str* ks)))))))))]
+                         (fmt-fn loc pattern (str* loc) (str* scope) (str* ks)))))))))]
 
     (if-not fmt-args tr
       (if-not tr (throw (Exception. "Can't format nil translation pattern."))
         (apply fmt-fn loc tr fmt-args)))))
 
 (defn t "Like `translate` but uses a thread-local translation scope."
-  [loc config k-or-ks & fmt-str-args]
-  (apply translate loc config ::scope-var k-or-ks fmt-str-args))
+  [loc config k-or-ks & fmt-args]
+  (apply translate loc config ::scope-var k-or-ks fmt-args))
 
 (comment (t :en-ZA example-tconfig :example/foo)
          (with-tscope :example (t :en-ZA example-tconfig :foo))

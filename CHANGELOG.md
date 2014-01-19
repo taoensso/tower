@@ -1,3 +1,19 @@
+## v2.0.2 / 2014-Jan-19
+
+This is a **backwards compatible bug fix release**. Recommended upgrade.
+
+### Features
+ * `normalize` fn now takes optional normalization form.
+
+### Changes
+ None.
+
+## Fixes
+ * [unreported] broken `fmt-fn` argument for translate fn.
+ * [unreported] fallback locales should have `locale-key` called on their locale.
+ * [#37] broken `t` parent fallback for empty child locales.
+
+
 ## v2.0.0 → v2.0.1
 
   Minor, non-breaking release: **2013 Nov 26**.
