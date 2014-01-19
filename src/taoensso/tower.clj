@@ -291,21 +291,21 @@
 
   Named resource will be watched for changes when `:dev-mode?` is true."
   {:dev-mode? true
-   :fallback-locale :en
+   :fallback-locale :de
    :dictionary ; Map or named resource containing map
-   {:en         {:example {:foo         ":en :example/foo text"
-                           :foo_comment "Hello translator, please do x"
-                           :bar {:baz ":en :example.bar/baz text"}
-                           :greeting "Hello %s, how are you?"
-                           :inline-markdown "<tag>**strong**</tag>"
-                           :block-markdown* "<tag>**strong**</tag>"
-                           :with-exclaim!   "<tag>**strong**</tag>"
-                           :greeting-alias :example/greeting
-                           :baz-alias      :example.bar/baz}
-                 :missing  "<Missing translation: [%1$s %2$s %3$s]>"}
-    :en-US      {:example {:foo ":en-US :example/foo text"}}
-    :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}
-    :ja "test_ja.clj" ; Import locale's map from another resource
+   {:en   {:example {:foo         ":en :example/foo text"
+                     :foo_comment "Hello translator, please do x"
+                     :bar {:baz ":en :example.bar/baz text"}
+                     :greeting "Hello %s, how are you?"
+                     :inline-markdown "<tag>**strong**</tag>"
+                     :block-markdown* "<tag>**strong**</tag>"
+                     :with-exclaim!   "<tag>**strong**</tag>"
+                     :greeting-alias :example/greeting
+                     :baz-alias      :example.bar/baz}
+           :missing  "<Missing translation: [%1$s %2$s %3$s]>"}
+    :en-US {:example {:foo ":en-US :example/foo text"}}
+    :de    {:example {:foo ":de :example/foo text"}}
+    :ja "test_ja.clj" ; Import locale's map from external resource
     }
     ;;; Advanced options
    :scope-var  #'*tscope*
@@ -324,18 +324,24 @@
         (throw (Exception. (format "Failed to load dictionary from resource: %s"
                                    dict) e))))))
 
+(def ^:private loc-tree ":en-US-var1 -> [:en-US-var1 :en-US :en]"
+  (memoize ; Also used runtime by `translate` fn
+   (fn [loc]
+     (let [loc-parts (str/split (-> loc locale-key name) #"[-_]")
+           loc-tree  (mapv #(keyword (str/join "-" %))
+                           (take-while identity (iterate butlast loc-parts)))]
+       loc-tree))))
+
 (defn- dict-inherit-parent-trs
   "Merges each locale's translations over its parent locale translations."
   [dict] {:pre [(map? dict)]}
   (into {}
    (for [loc (keys dict)]
-     (let [loc-parts (str/split (name loc) #"[-_]")
-           loc-tree  (mapv #(keyword (str/join "-" %))
-                           (take-while identity (iterate butlast loc-parts)))
+     (let [loc-tree' (loc-tree loc)
            ;; Import locale's map from another resource:
            dict      (if-not (string? (dict loc)) dict
                        (assoc dict loc (dict-load (dict loc))))]
-       [loc (apply utils/merge-deep (mapv dict (rseq loc-tree)))]))))
+       [loc (apply utils/merge-deep (mapv dict (rseq loc-tree')))]))))
 
 (comment (dict-inherit-parent-trs {:en    {:foo ":en foo"
                                            :bar ":en :bar"}
@@ -429,10 +435,14 @@
         dict   (if dev-mode? (dict-compile* dictionary)
                              (dict-compile  dictionary))
         ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
-        get-tr* #(get-in dict [%1 (locale-key %2)]) ; Unscoped
-        get-tr  #(get-tr* (scoped scope %1) %2)     ; Scoped
+
+        get-tr*  (fn [k l] (get-in dict [              k  l]))  ; Unscoped k
+        get-tr   (fn [k l] (get-in dict [(scoped scope k) l]))  ; Scoped k
+        find-tr* (fn [k l] (some #(get-tr* k %1) (loc-tree l))) ; Try loc & parents
+        find-tr  (fn [k l] (some #(get-tr  k %1) (loc-tree l))) ; ''
+
         tr
-        (or (some #(get-tr % loc) (take-while keyword? ks)) ; Try loc & parents
+        (or (some #(find-tr % loc) (take-while keyword? ks)) ; Try loc & parents
             (let [last-k (peek ks)]
               (if-not (keyword? last-k)
                 last-k ; Explicit final, non-keyword fallback (may be nil)
@@ -442,11 +452,11 @@
                               :locale loc :scope scope :ks ks}))
                     (or
                      ;; Try fallback-locale & parents
-                     (some #(get-tr % fallback-locale) ks)
+                     (some #(find-tr % fallback-locale) ks)
 
                      ;; Try :missing key in loc, parents, fallback-loc, & parents
-                     (when-let [pattern (or (get-tr* :missing loc)
-                                            (get-tr* :missing fallback-locale))]
+                     (when-let [pattern (or (find-tr* :missing loc)
+                                            (find-tr* :missing fallback-locale))]
                        (let [str* #(if (nil? %) "nil" (str %))]
                          (fmt-fn loc pattern (str* loc) (str* scope) (str* ks)))))))))]
 

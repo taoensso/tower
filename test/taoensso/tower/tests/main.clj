@@ -108,18 +108,24 @@
 (def pt (fn [a1 & an] (apply tower/t a1 tower/example-tconfig an)))
 
 ;;;; Translations
+;;; (t :en-US my-tconfig [:example/foo :example/bar])) searches:
+;; :example/foo in the :en-US locale.
+;; :example/bar in the :en-US locale.
+;; :example/foo in the :en locale.
+;; :example/bar in the :en locale.
+;; :example/foo in the fallback locale.
+;; :example/bar in the fallback locale.
+;; :missing in any of the above locales.
 
-;;; Locale selection & fallback
-(given [s loc] (expect s (pt loc :example/foo))
-  ":en :example/foo text"    :en
-  ":en-US :example/foo text" :en-US
-  ":en :example/foo text"    :en-GB
-  ":en-US :example/foo text" :jvm-default
-  ":en :example/foo text"    :zh-CN
-  ":ja 日本語"               :ja)
+;;; Basic locale selection & fallback
+(expect ":en :example/foo text"    (pt :en    :example/foo)) ; :en
+(expect ":en-US :example/foo text" (pt :en-US :example/foo)) ; :en-US
+(expect ":en :example/foo text"    (pt :en-GB :example/foo)) ; :en-GB -> :en
+(expect ":de :example/foo text"    (pt :zh-CN :example/foo)) ; :zh-CN -> :zh -> fb-loc
+(expect ":ja 日本語"               (pt :ja    :example/foo)) ; External resource
+(expect ":ja 日本語"               (pt :ja-JP :example/foo)) ; :ja-JP -> :ja
 
-;;; Fall back to config's :de-DE fault-locale
-(expect ":en :example/foo text" (pt :de-DE :example/foo))
+(expect ":en-US :example/foo text" (pt :jvm-default :example/foo)) ; not= fb-loc
 
 ;;; Scoping
 (expect ":en :example/foo text"     (pt :en :example/foo))
@@ -142,6 +148,7 @@
 ;;; Missing keys & key fallback
 (expect "&lt;Missing translation: [:en nil [:invalid]]&gt;"
         (pt :en :invalid))
+(expect nil (pt :de :invalid)) ; No locale-appropriate :missing key
 (expect "&lt;Missing translation: [:en :whatever [:invalid]]&gt;"
         (with-tscope :whatever (pt :en :invalid)))
 (expect "&lt;Missing translation: [:en nil [:invalid]]&gt;"

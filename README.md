@@ -42,20 +42,22 @@ The `t` fn handles translations. You give it a config map which includes your di
 ```clojure
 (def my-tconfig
   {:dev-mode? true
-   :fallback-locale :en
+   :fallback-locale :de
    :dictionary
-   {:en         {:example {:foo         ":en :example/foo text"
-                           :foo_comment "Hello translator, please do x"
-                           :bar {:baz ":en :example.bar/baz text"}
-                           :greeting "Hello %s, how are you?"
-                           :inline-markdown "<tag>**strong**</tag>"
-                           :block-markdown* "<tag>**strong**</tag>"
-                           :with-exclaim!   "<tag>**strong**</tag>"
-                           :greeting-alias :example/greeting
-                           :baz-alias      :example.bar/baz}
-                 :missing  "<Missing translation: [%1$s %2$s %3$s]>"}
-    :en-US      {:example {:foo ":en-US :example/foo text"}}
-    :en-US-var1 {:example {:foo ":en-US-var1 :example/foo text"}}}})
+   {:en   {:example {:foo         ":en :example/foo text"
+                     :foo_comment "Hello translator, please do x"
+                     :bar {:baz ":en :example.bar/baz text"}
+                     :greeting "Hello %s, how are you?"
+                     :inline-markdown "<tag>**strong**</tag>"
+                     :block-markdown* "<tag>**strong**</tag>"
+                     :with-exclaim!   "<tag>**strong**</tag>"
+                     :greeting-alias :example/greeting
+                     :baz-alias      :example.bar/baz}
+           :missing  "<Missing translation: [%1$s %2$s %3$s]>"}
+    :en-US {:example {:foo ":en-US :example/foo text"}}
+    :de    {:example {:foo ":de :example/foo text"}}
+    :ja "test_ja.clj" ; Import locale's map from external resource
+    }})
 
 (t :en-US my-tconfig :example/foo) => ":en-US :example/foo text"
 (t :en    my-tconfig :example/foo) => ":en :example/foo text"
@@ -83,7 +85,7 @@ It's simple to get started, but there's a number of advanced features for if/whe
 **Missing translations**: These are handled gracefully. `(t :en-US my-tconfig :example/foo)` will search for a translation as follows:
   1. `:example/foo` in the `:en-US` locale.
   2. `:example/foo` in the `:en` locale.
-  3. `:example/foo` in the dictionary's default locale.
+  3. `:example/foo` in the dictionary's fallback locale.
   4. `:missing` in any of the above locales.
 
 You can also specify fallback keys that'll be tried before other locales. `(t :en-US my-tconfig [:example/foo :example/bar]))` searches:
@@ -91,11 +93,11 @@ You can also specify fallback keys that'll be tried before other locales. `(t :e
   2. `:example/bar` in the `:en-US` locale.
   3. `:example/foo` in the `:en` locale.
   4. `:example/bar` in the `:en` locale.
-  5. `:example/foo` in the default locale.
-  6. `:example/bar` in the default locale.
+  5. `:example/foo` in the fallback locale.
+  6. `:example/bar` in the fallback locale.
   7. `:missing` in any of the above locales.
 
-In all cases, translation requests are logged upon fallback to default locale or :missing key.
+In all cases, translation requests are logged upon fallback to fallback locale or :missing key.
 
 ### Localization
 
