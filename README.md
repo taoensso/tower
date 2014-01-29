@@ -16,7 +16,7 @@ Tower's an attempt to present a **simple, idiomatic internationalization and loc
 
 ## What's in the box™?
   * Small, uncomplicated **all-Clojure** library.
-  * Ridiculously simple, high-performance wrappers for standard Java **localization features*.
+  * Ridiculously simple, high-performance wrappers for standard Java **localization features**.
   * Rails-like, all-Clojure **translation function**.
   * **Simple, map-based** translation dictionary format. No XML or resource files!
   * Automatic dev-mode **dictionary reloading** for rapid REPL development.
