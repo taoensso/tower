@@ -2,10 +2,12 @@
   "EXPERIMENTAL ClojureScript support for Tower.
   PRE-alpha - almost certain to change."
   {:author "Peter Taoussanis"}
-  (:require [clojure.string :as str])
+  (:require [clojure.string :as str]
+            [goog.string    :as gstr]
+            [goog.string.format])
   (:require-macros [cljs.taoensso.tower :as tower-macros]))
 
-;;;; Utils
+;;;; Utils ; TODO Move to a utils ns?
 
 (defn- ^:crossover fq-name
   [x] (if (string? x) x
@@ -24,9 +26,10 @@
 
 (def ^:crossover scoped (memoize (fn [& ks] (merge-keywords ks))))
 
-;; TODO Some (?) locale-aware text format fn
+;; TODO This fn (unlike the JVM's formatter) is locale unaware. Try find an
+;; alternative that _is_:
 (defn- format "Removed from cljs.core 0.0-1885, Ref. http://goo.gl/su7Xkj"
-  [fmt & args] (apply goog.string/format fmt args))
+  [fmt & args] (apply gstr/format fmt args))
 
 ;;;; Config
 
@@ -34,7 +37,8 @@
 (def ^:dynamic *tscope* nil)
 
 (def ^:crossover locale-key
-  (memoize #(keyword (str/replace (str (#_locale %) %) "_" "-"))))
+  ;; Careful - subtle diff from jvm version:
+  (memoize #(keyword (str/replace (name %) #_(str (locale %)) "_" "-"))))
 
 (def locale locale-key)
 
@@ -55,6 +59,7 @@
        loc-tree))))
 
 (defn translate [loc config scope k-or-ks & fmt-args]
+  ;; TODO Maybe + :dev-mode?
   (let [{:keys [compiled-dictionary fallback-locale log-missing-translation-fn
                 root-scope fmt-fn]
          :or   {fallback-locale :en
@@ -65,10 +70,10 @@
         dict   compiled-dictionary
         ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
 
-        get-tr*  (fn [k l] (get-in dict [              k  l]))  ; Unscoped k
-        get-tr   (fn [k l] (get-in dict [(scoped scope k) l]))  ; Scoped k
-        find-tr* (fn [k l] (some #(get-tr* k %1) (loc-tree l))) ; Try loc & parents
-        find-tr  (fn [k l] (some #(get-tr  k %1) (loc-tree l))) ; ''
+        get-tr*  (fn [k l] (get-in dict [              k  l])) ; Unscoped k
+        get-tr   (fn [k l] (get-in dict [(scoped scope k) l])) ; Scoped k
+        find-tr* (fn [k l] (some #(get-tr* k %) (loc-tree l))) ; Try loc & parents
+        find-tr  (fn [k l] (some #(get-tr  k %) (loc-tree l))) ; ''
 
         tr
         (or (some #(find-tr % loc) (take-while keyword? ks)) ; Try loc & parents

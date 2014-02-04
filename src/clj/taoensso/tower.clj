@@ -400,8 +400,9 @@
           ;; 1-level deep merge:
           (apply merge-with merge)))))
 
-(def ^:private dict-compile* (comp dict-compile-prepared dict-prepare)) ; For dev-mode
-(def           dict-compile  (memoize dict-compile*)) ; For prod-mode
+;;; Public for cljs:
+(def dict-compile* (comp dict-compile-prepared dict-prepare)) ; For dev-mode
+(def dict-compile  (memoize dict-compile*)) ; For prod-mode
 
 (comment
   (time (dotimes [_ 1000] (dict-compile* (:dictionary example-tconfig))))
@@ -423,6 +424,7 @@
          :or   {dev-mode?       @dev-mode?
                 fallback-locale (or (:default-locale config) ; Backwards comp
                                     @fallback-locale)
+                ;; TODO Consider dropping in favour of cljs-like impl:
                 scope-var       #'*tscope*
                 fmt-fn          fmt-str}} config
 
@@ -436,10 +438,10 @@
                              (dict-compile  dictionary))
         ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
 
-        get-tr*  (fn [k l] (get-in dict [              k  l]))  ; Unscoped k
-        get-tr   (fn [k l] (get-in dict [(scoped scope k) l]))  ; Scoped k
-        find-tr* (fn [k l] (some #(get-tr* k %1) (loc-tree l))) ; Try loc & parents
-        find-tr  (fn [k l] (some #(get-tr  k %1) (loc-tree l))) ; ''
+        get-tr*  (fn [k l] (get-in dict [              k  l])) ; Unscoped k
+        get-tr   (fn [k l] (get-in dict [(scoped scope k) l])) ; Scoped k
+        find-tr* (fn [k l] (some #(get-tr* k %) (loc-tree l))) ; Try loc & parents
+        find-tr  (fn [k l] (some #(get-tr  k %) (loc-tree l))) ; ''
 
         tr
         (or (some #(find-tr % loc) (take-while keyword? ks)) ; Try loc & parents
