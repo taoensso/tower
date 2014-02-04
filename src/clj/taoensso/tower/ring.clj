@@ -10,7 +10,7 @@
 
 (comment (locale-from-headers- {"accept-language" "en-GB,en;q=0.8,en-US;q=0.6"}))
 
-(defn wrap-tower-middleware
+(defn wrap-tower
   "Determines a locale preference for request by attempting to parse a valid
   locale from (locale-selector request), (:locale session), (:locale params),
   request headers, etc. `locale-selector` can be used to select locale by IP
@@ -18,9 +18,8 @@
 
   Establishes a thread-local locale binding with `tower/*locale*`, and adds
   `:locale` and `:t` keys to request."
-  [handler & [{:keys [locale-selector fallback-locale tconfig]
-               :or   {fallback-locale :jvm-default
-                      tconfig tower/example-tconfig}}]]
+  [handler tconfig & [{:keys [locale-selector fallback-locale]
+                       :or   {fallback-locale :jvm-default}}]]
   (fn [{:keys [session params uri server-name headers] :as request}]
     (let [loc (some tower/try-locale [(:locale request)
                                       (when-let [ls locale-selector] (ls request))
@@ -29,14 +28,20 @@
                                       (locale-from-headers headers)
                                       fallback-locale])]
       (tower/with-locale loc
-        (handler (assoc request :locale (tower/locale-key loc)
-                                :tconfig tconfig
-                                :t (if tconfig
-                                     (partial tower/t loc tconfig)
-                                     (partial tower/t loc))))))))
+        (handler (assoc request
+                   :locale  (tower/locale-key loc)
+                   :tconfig tconfig
+                   :t       (partial (tower/make-t tconfig) loc)))))))
 
 ;;;; Deprecated
 
-(defn wrap-i18n-middleware "DEPRECATED: Use `wrap-tower-middleware` instead."
+(defn wrap-tower-middleware "DEPRECATED. Use `wrap-tower` instead."
+  [handler & [{:as   opts
+               :keys [locale-selector fallback-locale tconfig]
+               :or   {fallback-locale :jvm-default
+                      tconfig tower/example-tconfig}}]]
+  (wrap-tower handler tconfig opts))
+
+(defn wrap-i18n-middleware "DEPRECATED: Use `wrap-tower` instead."
   [handler & {:keys [locale-selector-fn]}]
   (wrap-tower-middleware handler {:locale-selector locale-selector-fn}))
