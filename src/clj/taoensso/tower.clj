@@ -303,7 +303,7 @@
     :de    {:example {:foo ":de :example/foo text"}}
     :ja "test_ja.clj" ; Import locale's map from external resource
     }
-   :dev-mode? true
+   :dev-mode? true ; Set to true for auto dictionary reloading
    :fallback-locale :de
    :scope-fn  (fn [k] (scoped *tscope* k)) ; Experimental, undocumented
    :fmt-fn    fmt-str ; (fn [loc fmt args])
@@ -407,10 +407,7 @@
 
 ;;;
 
-(defn make-t
-  "Returns a new translation fn for given config map:
-  (make-t example-tconfig) => (fn t [locale k-or-ks & fmt-args]).
-  See `example-tconfig` for config details."
+(defn- make-t-uncached
   [tconfig] {:pre [(map? tconfig) (:dictionary tconfig)]}
   (let [{:keys [dictionary dev-mode? fallback-locale scope-fn fmt-fn
                 log-missing-translation-fn]
@@ -454,7 +451,16 @@
 
           (if (nil? fmt-args) tr
             (if (nil? tr) (throw (Exception. "Can't format nil translation pattern."))
-              (apply fmt-fn loc tr fmt-args))))))))
+                (apply fmt-fn loc tr fmt-args))))))))
+
+(def ^:private make-t-cached (memoize make-t-uncached))
+(defn make-t
+  "Returns a new translation fn for given config map:
+  (make-t example-tconfig) => (fn t [locale k-or-ks & fmt-args]).
+  See `example-tconfig` for config details."
+  [{:as tconfig :keys [dev-mode?]}]
+  (if dev-mode? (make-t-uncached tconfig)
+                (make-t-cached   tconfig)))
 
 (comment
   (t :en-ZA example-tconfig :example/foo)
