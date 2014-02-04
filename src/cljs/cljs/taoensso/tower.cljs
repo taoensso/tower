@@ -28,7 +28,7 @@
 
 ;; TODO This fn (unlike the JVM's formatter) is locale unaware. Try find an
 ;; alternative that _is_:
-(defn- format "Removed from cljs.core 0.0-1885, Ref. http://goo.gl/su7Xkj"
+(defn- fmt-str "Removed from cljs.core 0.0-1885, Ref. http://goo.gl/su7Xkj"
   [fmt & args] (apply gstr/format fmt args))
 
 ;;;; Config
@@ -59,14 +59,21 @@
        loc-tree))))
 
 (defn translate [loc config scope k-or-ks & fmt-args]
-  ;; TODO Maybe + :dev-mode?
+
+  (assert (:compiled-dictionary config)
+    "Missing Cljs config key: :compiled-dictionary")
+  (assert (not (:dictionary config))
+    "Invalid Cljs config key: :dictionary")
+
   (let [{:keys [compiled-dictionary fallback-locale log-missing-translation-fn
                 root-scope fmt-fn]
          :or   {fallback-locale :en
-                fmt-fn          format ; fmt-str
-                }} config
+                root-scope      ::*tscope*
+                fmt-fn          fmt-str}} config
 
-        scope  (scoped root-scope scope)
+        scope  (scoped (if (identical? root-scope ::*tscope*)
+                         *tscope* root-scope) scope) ; Experimental, undocumented
+
         dict   compiled-dictionary
         ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
 
@@ -99,4 +106,4 @@
         (apply fmt-fn loc tr fmt-args)))))
 
 (defn t [loc config k-or-ks & fmt-args]
-  (apply translate loc config *tscope* k-or-ks fmt-args))
+  (apply translate loc config nil k-or-ks fmt-args))

@@ -308,8 +308,8 @@
     :ja "test_ja.clj" ; Import locale's map from external resource
     }
    ;;; Advanced options
-   :root-scope nil
-   :fmt-fn     fmt-str ; (fn [loc fmt args])
+   :root-scope ::*tscope* ; Libs may want to set this to `nil`
+   :fmt-fn fmt-str ; (fn [loc fmt args])
    :log-missing-translation-fn
    (fn [{:keys [dev-mode? locale ks scope] :as args}]
      (timbre/logp (if dev-mode? :debug :warn) "Missing translation" args))})
@@ -423,10 +423,11 @@
          :or   {dev-mode?       @dev-mode?
                 fallback-locale (or (:default-locale config) ; Backwards comp
                                     @fallback-locale)
+                root-scope      ::*tscope*
                 fmt-fn          fmt-str}} config
 
-        ;; For shared dictionaries. Experimental - intentionally undocumented
-        scope  (scoped root-scope scope)
+        scope  (scoped (if (identical? root-scope ::*tscope*)
+                         *tscope* root-scope) scope) ; Experimental, undocumented
 
         dict   (if dev-mode? (dict-compile* dictionary)
                              (dict-compile  dictionary))
@@ -462,13 +463,13 @@
 
 (defn t "Like `translate` but uses a thread-local translation scope."
   [loc config k-or-ks & fmt-args]
-  (apply translate loc config *tscope* k-or-ks fmt-args))
+  (apply translate loc config nil k-or-ks fmt-args))
 
 (defn t'
   "Alpha - subject to change.
   More sensible arg order for common-case partials?"
   [config loc k-or-ks & fmt-args]
-  (apply translate loc config *tscope* k-or-ks fmt-args))
+  (apply translate loc config nil k-or-ks fmt-args))
 
 (comment (t :en-ZA example-tconfig :example/foo)
          (with-tscope :example (t :en-ZA example-tconfig :foo))
