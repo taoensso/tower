@@ -1,6 +1,6 @@
 (ns taoensso.tower.tests.main
   (:require [expectations   :as test  :refer :all]
-            [taoensso.tower :as tower :refer (with-locale with-tscope t)])
+            [taoensso.tower :as tower :refer (with-locale with-tscope)])
   (:import  [java.util Date]))
 
 (defn- before-run {:expectations-options :before-run} [])
@@ -105,10 +105,10 @@
   "01.02.2012" 2012 2 1
   "25.03.2012" 2012 3 25)
 
-(def pt (fn [a1 & an] (apply tower/t a1 tower/example-tconfig an)))
+(def pt (tower/make-t tower/example-tconfig))
 
 ;;;; Translations
-;;; (t :en-US my-tconfig [:example/foo :example/bar])) searches:
+;;; (pt :en-US [:example/foo :example/bar])) searches:
 ;; :example/foo in the :en-US locale.
 ;; :example/bar in the :en-US locale.
 ;; :example/foo in the :en locale.
@@ -143,7 +143,7 @@
 
 ;;; Arg interpolation
 (expect "Hello Steve, how are you?" (pt :en :example/greeting "Steve"))
-(expect Exception (t :en {:dictionary {}} :anything "Any arg"))
+(expect Exception ((tower/make-t {:dictionary {}}) :en :anything "Any arg"))
 
 ;;; Missing keys & key fallback
 (expect "&lt;Missing translation: [:en nil [:invalid]]&gt;"
