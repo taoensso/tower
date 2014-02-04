@@ -307,8 +307,7 @@
     :de    {:example {:foo ":de :example/foo text"}}
     :ja "test_ja.clj" ; Import locale's map from external resource
     }
-    ;;; Advanced options
-   :scope-var  #'*tscope*
+   ;;; Advanced options
    :root-scope nil
    :fmt-fn     fmt-str ; (fn [loc fmt args])
    :log-missing-translation-fn
@@ -420,16 +419,11 @@
   See `example-tconfig` for config details."
   [loc config scope k-or-ks & fmt-args]
   (let [{:keys [dev-mode? dictionary fallback-locale log-missing-translation-fn
-                scope-var root-scope fmt-fn]
+                root-scope fmt-fn]
          :or   {dev-mode?       @dev-mode?
                 fallback-locale (or (:default-locale config) ; Backwards comp
                                     @fallback-locale)
-                ;; TODO Consider dropping in favour of cljs-like impl:
-                scope-var       #'*tscope*
                 fmt-fn          fmt-str}} config
-
-        scope  (if-not (identical? scope ::scope-var) scope
-                       (when-let [v scope-var] (var-get v)))
 
         ;; For shared dictionaries. Experimental - intentionally undocumented
         scope  (scoped root-scope scope)
@@ -468,18 +462,18 @@
 
 (defn t "Like `translate` but uses a thread-local translation scope."
   [loc config k-or-ks & fmt-args]
-  (apply translate loc config ::scope-var k-or-ks fmt-args))
+  (apply translate loc config *tscope* k-or-ks fmt-args))
 
 (defn t'
   "Alpha - subject to change.
   More sensible arg order for common-case partials?"
   [config loc k-or-ks & fmt-args]
-  (apply translate loc config ::scope-var k-or-ks fmt-args))
+  (apply translate loc config *tscope* k-or-ks fmt-args))
 
 (comment (t :en-ZA example-tconfig :example/foo)
          (with-tscope :example (t :en-ZA example-tconfig :foo))
          (with-tscope :invalid
-           (t :en (assoc example-tconfig :scope-var nil) :example/foo))
+           (translate :en example-tconfig nil :example/foo))
 
          (t :en example-tconfig :invalid)
          (t :en example-tconfig [:invalid :example/foo])
