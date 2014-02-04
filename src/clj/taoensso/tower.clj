@@ -35,7 +35,7 @@
   :en-US-variant, or :jvm-default."
   (memoize
    (fn [loc] (or (try-locale loc)
-                (throw (Exception. (str "Invalid locale: " loc)))))))
+                 (throw (Exception. (str "Invalid locale: " loc)))))))
 
 (def locale-key "Returns locale keyword for given Locale object or locale keyword."
   (memoize #(keyword (str/replace (str (locale %)) "_" "-"))))
@@ -262,15 +262,15 @@
                             (compare dn-x dn-y))))]
        (into (sorted-map-by comparator) tz-pairs)))))
 
-(comment (reverse (sort ["-00:00" "+00:00" "-01:00" "+01:00" "-01:30" "+01:30"]))
-         (count       (timezones))
-         (take 5      (timezones))
-         (take-last 5 (timezones)))
+(comment
+  (reverse (sort ["-00:00" "+00:00" "-01:00" "+01:00" "-01:30" "+01:30"]))
+  (count       (timezones))
+  (take 5      (timezones))
+  (take-last 5 (timezones)))
 
 ;;;; Translations
 
-(def dev-mode?       "Global fallback dev-mode?." (atom true))
-(def fallback-locale "Global fallback locale."    (atom :en))
+(declare dev-mode? fallback-locale) ; DEPRECATED
 
 (def scoped "Merges scope keywords: (scope :a.b :c/d :e) => :a.b.c.d/e"
   (memoize (fn [& ks] (utils/merge-keywords ks))))
@@ -278,21 +278,17 @@
 (comment (scoped :a.b :c :d))
 
 (def ^:dynamic *tscope* nil)
-(defmacro with-tscope
-  "Executes body within the context of thread-local translation scope binding.
-  `translation-scope` should be a keyword like :example.greetings, or nil."
+(defmacro with-tscope "Executes body with given translation scope binding."
   [translation-scope & body] `(binding [*tscope* ~translation-scope] ~@body))
 
 (def example-tconfig
-  "Example/test config as passed to `t`, `wrap-i18n-middlware`, etc.
+  "Example/test config as passed to `t`, Ring middleware, etc.
 
   :dictionary should be a map, or named resource containing a map of form
   {:locale {:ns1 ... {:nsN {:key<decorator> text ...} ...} ...} ...}}.
 
   Named resource will be watched for changes when `:dev-mode?` is true."
-  {:dev-mode? true
-   :fallback-locale :de
-   :dictionary ; Map or named resource containing map
+  {:dictionary ; Map or named resource containing map
    {:en   {:example {:foo         ":en :example/foo text"
                      :foo_comment "Hello translator, please do x"
                      :bar {:baz ":en :example.bar/baz text"}
@@ -307,12 +303,14 @@
     :de    {:example {:foo ":de :example/foo text"}}
     :ja "test_ja.clj" ; Import locale's map from external resource
     }
-   ;;; Advanced options
-   :root-scope ::*tscope* ; Libs may want to set this to `nil`
-   :fmt-fn fmt-str ; (fn [loc fmt args])
+   :dev-mode? true
+   :fallback-locale :de
+   :scope-fn  (fn [k] (scoped *tscope* k)) ; Experimental, undocumented
+   :fmt-fn    fmt-str ; (fn [loc fmt args])
    :log-missing-translation-fn
-   (fn [{:keys [dev-mode? locale ks scope] :as args}]
-     (timbre/logp (if dev-mode? :debug :warn) "Missing translation" args))})
+   (fn [{:keys [locale ks scope] :as args}]
+     (timbre/logp (if dev-mode? :debug :warn)
+       "Missing translation" args))})
 
 ;;; Dictionaries
 
@@ -399,92 +397,77 @@
           ;; 1-level deep merge:
           (apply merge-with merge)))))
 
-;;; Public for cljs:
-(def dict-compile* (comp dict-compile-prepared dict-prepare)) ; For dev-mode
-(def dict-compile  (memoize dict-compile*)) ; For prod-mode
+;; Public for cljs:
+(def           dict-compile-uncached (comp dict-compile-prepared dict-prepare))
+(def ^:private dict-compile-cached   (memoize dict-compile-uncached))
 
 (comment
-  (time (dotimes [_ 1000] (dict-compile* (:dictionary example-tconfig))))
-  (time (dotimes [_ 1000] (dict-compile  (:dictionary example-tconfig)))))
+  (time (dotimes [_ 1000] (dict-compile-uncached (:dictionary example-tconfig))))
+  (time (dotimes [_ 1000] (dict-compile-cached   (:dictionary example-tconfig)))))
 
 ;;;
 
-(defn translate
-  "Takes dictionary key (or vector of descending- preference keys) within a
-  (possibly nil) scope, and returns the best translation available for given
-  locale. With additional arguments, treats translation as pattern for
-  config's `:fmt-fn` (defaults to `fmt-str`). `:fmt-fn` can also be used for
-  advanced arg transformations like Hiccup form rendering, etc.
-
+(defn make-t
+  "Returns a new translation fn for given config map:
+  (make-t example-tconfig) => (fn t [locale k-or-ks & fmt-args]).
   See `example-tconfig` for config details."
-  [loc config scope k-or-ks & fmt-args]
-  (let [{:keys [dev-mode? dictionary fallback-locale log-missing-translation-fn
-                root-scope fmt-fn]
-         :or   {dev-mode?       @dev-mode?
-                fallback-locale (or (:default-locale config) ; Backwards comp
-                                    @fallback-locale)
-                root-scope      ::*tscope*
-                fmt-fn          fmt-str}} config
+  [tconfig] {:pre [(map? tconfig) (:dictionary tconfig)]}
+  (let [{:keys [dictionary dev-mode? fallback-locale scope-fn fmt-fn
+                log-missing-translation-fn]
+         :or   {fallback-locale :en
+                scope-fn (fn [k] (scoped *tscope* k))
+                fmt-fn   fmt-str
+                log-missing-translation-fn
+                (fn [{:keys [locale ks scope] :as args}]
+                  (timbre/logp (if dev-mode? :debug :warn)
+                    "Missing translation" args))}} tconfig]
 
-        scope  (scoped (if (identical? root-scope ::*tscope*)
-                         *tscope* root-scope) scope) ; Experimental, undocumented
+    (let [nstr (fn [x] (if (nil? x) "nil" (str x)))
+          dict-cached   (when-not dev-mode? (dict-compile-cached dictionary))
+          find-scoped   (fn [d k l] (some #(get-in d [(scope-fn k) %]) (loc-tree l)))
+          find-unscoped (fn [d k l] (some #(get-in d [          k  %]) (loc-tree l)))]
 
-        dict   (if dev-mode? (dict-compile* dictionary)
-                             (dict-compile  dictionary))
-        ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
+      (fn new-t [loc k-or-ks & fmt-args]
+        (let [dict (or dict-cached (dict-compile-uncached dictionary))
+              ks   (if (vector? k-or-ks) k-or-ks [k-or-ks])
+              tr
+              (or
+               ;; Try loc & parents:
+               (some #(find-scoped dict % loc) (take-while keyword? ks))
+               (let [last-k (peek ks)]
+                 (if-not (keyword? last-k)
+                   last-k ; Explicit final, non-keyword fallback (may be nil)
+                   (do
+                     (when-let [log-f log-missing-translation-fn]
+                       (log-f {:locale loc :scope (scope-fn nil) :ks ks
+                               :dev-mode? dev-mode? :ns (str *ns*)}))
+                     (or
+                      ;; Try fallback-locale & parents:
+                      (some #(find-scoped dict % fallback-locale) ks)
 
-        get-tr*  (fn [k l] (get-in dict [              k  l])) ; Unscoped k
-        get-tr   (fn [k l] (get-in dict [(scoped scope k) l])) ; Scoped k
-        find-tr* (fn [k l] (some #(get-tr* k %) (loc-tree l))) ; Try loc & parents
-        find-tr  (fn [k l] (some #(get-tr  k %) (loc-tree l))) ; ''
+                      ;; Try :missing in loc, parents, fallback-loc, & parents:
+                      (when-let [pattern
+                                 (or (find-unscoped dict :missing loc)
+                                     (find-unscoped dict :missing fallback-locale))]
+                        (fmt-fn loc pattern (nstr loc) (nstr (scope-fn nil))
+                          (nstr ks))))))))]
 
-        tr
-        (or (some #(find-tr % loc) (take-while keyword? ks)) ; Try loc & parents
-            (let [last-k (peek ks)]
-              (if-not (keyword? last-k)
-                last-k ; Explicit final, non-keyword fallback (may be nil)
+          (if (nil? fmt-args) tr
+            (if (nil? tr) (throw (Exception. "Can't format nil translation pattern."))
+              (apply fmt-fn loc tr fmt-args))))))))
 
-                (do (when-let [log-f log-missing-translation-fn]
-                      (log-f {:dev-mode? dev-mode? :ns (str *ns*)
-                              :locale loc :scope scope :ks ks}))
-                    (or
-                     ;; Try fallback-locale & parents
-                     (some #(find-tr % fallback-locale) ks)
+(comment
+  (t :en-ZA example-tconfig :example/foo)
+  (with-tscope :example (t :en-ZA example-tconfig :foo))
+  (t :en example-tconfig :invalid)
+  (t :en example-tconfig [:invalid :example/foo])
+  (t :en example-tconfig [:invalid "Explicit fallback"])
 
-                     ;; Try :missing key in loc, parents, fallback-loc, & parents
-                     (when-let [pattern (or (find-tr* :missing loc)
-                                            (find-tr* :missing fallback-locale))]
-                       (let [str* #(if (nil? %) "nil" (str %))]
-                         (fmt-fn loc pattern (str* loc) (str* scope) (str* ks)))))))))]
-
-    (if-not fmt-args tr
-      (if-not tr (throw (Exception. "Can't format nil translation pattern."))
-        (apply fmt-fn loc tr fmt-args)))))
-
-(defn t "Like `translate` but uses a thread-local translation scope."
-  [loc config k-or-ks & fmt-args]
-  (apply translate loc config nil k-or-ks fmt-args))
-
-(defn t'
-  "Alpha - subject to change.
-  More sensible arg order for common-case partials?"
-  [config loc k-or-ks & fmt-args]
-  (apply translate loc config nil k-or-ks fmt-args))
-
-(comment (t :en-ZA example-tconfig :example/foo)
-         (with-tscope :example (t :en-ZA example-tconfig :foo))
-         (with-tscope :invalid
-           (translate :en example-tconfig nil :example/foo))
-
-         (t :en example-tconfig :invalid)
-         (t :en example-tconfig [:invalid :example/foo])
-         (t :en example-tconfig [:invalid "Explicit fallback"])
-
-         (def prod-c (assoc example-tconfig :dev-mode? false))
-         (time (dotimes [_ 10000] (t :en prod-c :example/foo)))            ; ~30ms
-         (time (dotimes [_ 10000] (t :en prod-c [:invalid :example/foo]))) ; ~45ms
-         (time (dotimes [_ 10000] (t :en prod-c [:invalid nil])))          ; ~35ms
-         )
+  (def prod-t (create-t (assoc example-tconfig :dev-mode? false)))
+  (time (dotimes [_ 10000] (prod-t :en :example/foo)))            ; ~18ms
+  (time (dotimes [_ 10000] (prod-t :en [:invalid :example/foo]))) ; ~38ms
+  (time (dotimes [_ 10000] (prod-t :en [:invalid nil])))          ; ~20ms
+  )
 
 (defn dictionary->xliff [m]) ; TODO Use hiccup?
 (defn xliff->dictionary [s]) ; TODO Use clojure.xml/parse?
@@ -494,6 +477,28 @@
 ;; gradually, the entire v1 API is reproduced below. This should allow Tower v2
 ;; to act as a quasi drop-in replacement for v1, despite the huge changes
 ;; under-the-covers.
+
+(def ^:private migrate-tconfig
+  (memoize
+   (fn [tconfig scope]
+     (assoc tconfig
+       :scope-fn  (fn [k] (scoped (:root-scope tconfig) *tscope* scope k))
+       :dev-mode? (if (contains? tconfig :dev-mode?)
+                    (:dev-mode? tconfig) @dev-mode?)
+       :fallback-locale (if (contains? tconfig :fallback-locale)
+                          (:fallback-locale tconfig)
+                          (or (:default-locale tconfig) @fallback-locale))))))
+
+(defn translate "DEPRECATED. Use `make-t` instead."
+  [loc tconfig scope k-or-ks & fmt-args]
+  (apply (make-t (migrate-tconfig tconfig scope)) loc k-or-ks fmt-args))
+
+(defn t "DEPRECATED. Use `make-t` instead."
+  [loc tconfig k-or-ks & fmt-args]
+  (apply (make-t (migrate-tconfig tconfig nil)) loc k-or-ks fmt-args))
+
+(def dev-mode?       "DEPRECATED." (atom true))
+(def fallback-locale "DEPRECATED." (atom :en))
 
 (defn parse-Locale "DEPRECATED: Use `locale` instead."
   [loc] (if (= loc :default) (locale :jvm-default) (locale loc)))

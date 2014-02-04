@@ -66,13 +66,10 @@
     "Invalid Cljs config key: :dictionary")
 
   (let [{:keys [compiled-dictionary fallback-locale log-missing-translation-fn
-                root-scope fmt-fn]
-         :or   {fallback-locale :en
-                root-scope      ::*tscope*
-                fmt-fn          fmt-str}} config
+                fmt-fn #_dev-mode?]
 
-        scope  (scoped (if (identical? root-scope ::*tscope*)
-                         *tscope* root-scope) scope) ; Experimental, undocumented
+         :or   {fallback-locale :en
+                fmt-fn fmt-str}} config
 
         dict   compiled-dictionary
         ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
@@ -101,9 +98,9 @@
                        (let [str* #(if (nil? %) "nil" (str %))]
                          (fmt-fn loc pattern (str* loc) (str* scope) (str* ks)))))))))]
 
-    (if-not fmt-args tr
-      (if-not tr (throw (js/Error. "Can't format nil translation pattern."))
+    (if (nil? fmt-args) tr
+      (if (nil? tr) (throw (js/Error. "Can't format nil translation pattern."))
         (apply fmt-fn loc tr fmt-args)))))
 
 (defn t [loc config k-or-ks & fmt-args]
-  (apply translate loc config nil k-or-ks fmt-args))
+  (apply translate loc config *tscope* k-or-ks fmt-args))
