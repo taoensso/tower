@@ -446,7 +446,7 @@
                           (nstr ks))))))))]
 
           (if (nil? fmt-args) tr
-            (if (nil? tr) (throw (Exception. "Can't format nil translation pattern."))
+            (if (nil? tr) (throw (Exception. "Can't format nil translation pattern"))
                 (apply fmt-fn loc tr fmt-args))))))))
 
 (def ^:private make-t-cached (memoize make-t-uncached))
