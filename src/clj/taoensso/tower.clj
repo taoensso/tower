@@ -373,7 +373,8 @@
                                           (utils/markdown {:inline? false}))
                    (-> translation utils/html-escape
                        (utils/markdown {:inline? true})))]
-        {(apply scoped (conj scope-ks unscoped-k)) {loc translation*}}))))
+        {(apply scoped (conj scope-ks unscoped-k))
+         {loc translation*}}))))
 
 (def ^:private dict-compile-prepared
   "Compiles text translations stored in simple development-friendly
