@@ -36,7 +36,7 @@ Add the necessary dependency to your [Leiningen](http://leiningen.org/) `project
 
 ### Translation
 
-The `make-t` fn handles translations. You give it a config map which includes your dictionary, and get back a `(fn [locale k-or-ks & fmt-args]):
+The `make-t` fn handles translations. You give it a config map which includes your dictionary, and get back a `(fn [locale k-or-ks & fmt-args])`:
 
 ```clojure
 (def my-tconfig
@@ -121,8 +121,9 @@ In all cases, translation requests are logged upon fallback to fallback locale o
 ```
 
 There's two notable differences from the JVM translator:
-1. The dictionary is provided in a _pre-compiled_ form so that it can be inlined directly into your Cljs.
-2. Since we lack a locale-aware Cljs `format` fn, your translations _cannot_ use JVM locale formatting patterns.
+
+  1. The dictionary is provided in a _pre-compiled_ form so that it can be inlined directly into your Cljs.
+  2. Since we lack a locale-aware Cljs `format` fn, your translations _cannot_ use JVM locale formatting patterns.
 
 The API is otherwise exactly the same, including support for all decorators.
 
