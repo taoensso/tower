@@ -397,13 +397,8 @@
           ;; 1-level deep merge:
           (apply merge-with merge)))))
 
-;; Public for cljs:
-(def           dict-compile-uncached (comp dict-compile-prepared dict-prepare))
-(def ^:private dict-compile-cached   (memoize dict-compile-uncached))
-
-(comment
-  (time (dotimes [_ 1000] (dict-compile-uncached (:dictionary example-tconfig))))
-  (time (dotimes [_ 1000] (dict-compile-cached   (:dictionary example-tconfig)))))
+(def dict-compile (comp dict-compile-prepared dict-prepare)) ; Public for cljs
+(comment (time (dotimes [_ 1000] (dict-compile (:dictionary example-tconfig)))))
 
 ;;;
 
@@ -420,12 +415,13 @@
                     "Missing translation" args))}} tconfig]
 
     (let [nstr (fn [x] (if (nil? x) "nil" (str x)))
-          dict-cached   (when-not dev-mode? (dict-compile-cached dictionary))
+          dict-cached   (when-not dev-mode? (dict-compile dictionary))
+          ;;; Could cache these for extra perf (probably overkill):
           find-scoped   (fn [d k l] (some #(get-in d [(scope-fn k) %]) (loc-tree l)))
           find-unscoped (fn [d k l] (some #(get-in d [          k  %]) (loc-tree l)))]
 
       (fn new-t [loc k-or-ks & fmt-args]
-        (let [dict (or dict-cached (dict-compile-uncached dictionary))
+        (let [dict (or dict-cached (dict-compile dictionary)) ; Recompile (slow)
               ks   (if (vector? k-or-ks) k-or-ks [k-or-ks])
               tr
               (or

@@ -4,7 +4,7 @@
 
 (defmacro dict-compile
   "Tower's standard dictionary compiler, as a compile-time macro."
-  [dict] (tower/dict-compile-uncached dict))
+  [dict] (tower/dict-compile dict))
 
 (defmacro with-locale [loc & body]
   `(binding [cljs.taoensso.tower/*locale* (cljs.taoensso.tower/locale ~loc)]
