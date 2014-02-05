@@ -1,7 +1,7 @@
 **[API docs](http://ptaoussanis.github.io/tower/)** | **[CHANGELOG](https://github.com/ptaoussanis/tower/blob/master/CHANGELOG.md)** | [contact & contributing](#contact--contributing) | [other Clojure libs](https://www.taoensso.com/clojure-libraries) | [Twitter](https://twitter.com/#!/ptaoussanis) | current [semantic](http://semver.org/) version:
 
 ```clojure
-[com.taoensso/tower "2.0.2"] ; Stable, see CHANGELOG for details
+[com.taoensso/tower "2.1.0"] ; Stable, see CHANGELOG for details
 ```
 
 Special thanks to **Janne Asmala** ([GitHub](https://github.com/asmala) & [Twitter](https://twitter.com/janne_asmala)) for his awesome contributions to Tower's v2 design. He also has an i18n/L10n lib called [clj18n](https://github.com/asmala/clj18n) which is definitely worth checking out!
@@ -29,7 +29,7 @@ Tower's an attempt to present a **simple, idiomatic internationalization and loc
 Add the necessary dependency to your [Leiningen](http://leiningen.org/) `project.clj` and `require` the library in your ns:
 
 ```clojure
-[com.taoensso/tower "2.0.2"] ; project.clj
+[com.taoensso/tower "2.1.0"] ; project.clj
 (ns my-app (:require [taoensso.tower :as tower
                       :refer (with-locale with-tscope *locale*)])) ; ns
 ```

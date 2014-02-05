@@ -1,3 +1,19 @@
+## v2.1.0 / 2014-??
+
+This is a **significant, non-breaking update** but with **recommended changes**.
+
+The translation system has been overhauled for simplicity, flexibility, and portability to ClojureScript.
+
+### Features
+ * Added experimental ClojureScript translation support. See the README for an example and notes.
+
+### Changes
+ * **DEPRECATED**: `translate` and `t` are both being phased out in favor of a new `make-t` fn. The new approach is more flexible and faster. This change is irrelevant to you if you use the Ring middleware; otherwise please see the README for new recommended usage examples.
+ * **DEPRECATED**: `wrap-tower-middleware` -> `wrap-tower`. The new middleware takes an explicit `tconfig` argument (it was previously supplied optionally).
+ * Dropped (experimental) `:scope-var` tconfig option.
+ * Dropped (experimental) `:root-scope` tconfig option.
+
+
 ## v2.0.2 / 2014-Jan-19
 
 This is a **backwards compatible bug fix release**. Recommended upgrade.
@@ -8,7 +24,7 @@ This is a **backwards compatible bug fix release**. Recommended upgrade.
 ### Changes
  None.
 
-## Fixes
+### Fixes
  * [unreported] broken `fmt-fn` argument for translate fn.
  * [unreported] fallback locales should have `locale-key` called on their locale.
  * [#37] broken `t` parent fallback for empty child locales.
