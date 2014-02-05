@@ -15,7 +15,7 @@ Tower's an attempt to present a **simple, idiomatic internationalization and loc
 ## What's in the box™?
   * Small, uncomplicated **all-Clojure** library.
   * Ridiculously simple, high-performance wrappers for standard Java **localization features**.
-  * Rails-like, all-Clojure **translation function**.
+  * Rails-like, all-Clojure **translation function** (incl. experimental ClojureScript support).
   * **Simple, map-based** translation dictionary format. No XML or resource files!
   * Automatic dev-mode **dictionary reloading** for rapid REPL development.
   * Seamless **markdown support** for translators.
@@ -105,6 +105,26 @@ You can also specify fallback keys that'll be tried before other locales. `(t :e
   7. `:missing` in any of the above locales.
 
 In all cases, translation requests are logged upon fallback to fallback locale or :missing key.
+
+**ClojureScript translation support**: This is still **experimental**!
+
+```clojure
+(ns my-clojurescript-ns
+  (:require [cljs.taoensso.tower :as tower :include-macros true]))
+
+(def ^:private tconfig
+  {:fallback-locale :en
+   ;; Inlined (macro) dict => this ns needs rebuild for dict changes to reflect:
+   :compiled-dictionary (tower/dict-compile "my-dict.clj")})
+
+(def t (partial (tower/make-t tconfig) (:locale init-state)))
+```
+
+There's two notable differences from the JVM translator:
+1. The dictionary is provided in a _pre-compiled_ form so that it can be inlined directly into your Cljs.
+2. Since we lack a locale-aware Cljs `format` fn, your translations _cannot_ use JVM locale formatting patterns.
+
+The API is otherwise exactly the same, including support for all decorators.
 
 ### Localization
 
