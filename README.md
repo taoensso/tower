@@ -115,7 +115,6 @@ In all cases, translation requests are logged upon fallback to fallback locale o
 (def ^:private tconfig
   {:fallback-locale :en
    ;; Inlined (macro) dict => this ns needs rebuild for dict changes to reflect:
-   ;; :fmt-fn tower/reagent-fmt-str ; For use with Reagent (experimental)
    :compiled-dictionary (tower/dict-compile "my-dict.clj")})
 
 (def t (partial (tower/make-t tconfig) (:locale init-state)))

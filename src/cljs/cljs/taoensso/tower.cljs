@@ -120,22 +120,3 @@
           (if (nil? fmt-args) tr
             (if (nil? tr) (throw (js/Error. "Can't format nil translation pattern."))
               (apply fmt-fn loc tr fmt-args))))))))
-
-;;;; Experimental Reagent (Reactjs) support
-
-(defn reagent-fmt-str
-  "EXPERIMENTAL. Wraps `fmt-str` to add Reagent (Reactjs) compatibility.
-
-  React will auto-escape inline HTML which is undesirable for use with
-  translations (which may include locale-sensitive html style tags, etc.). To
-  get around this we'll wrap translated output with React tags set to display
-  unsafe (unescaped) content.
-
-  **NB READ THIS**
-  Tower escapes translation patterns automatically but you _must_ manually
-  sanitize (escape) any format arguments (esp. user input)."
-  [& args]
-  (let [html-content (apply fmt-str args)]
-    (if (zero? (.indexOf html-content "<p>")) ; Hackish but works + fast
-      [:div  {:dangerouslySetInnerHTML {:__html html-content}}]
-      [:span {:dangerouslySetInnerHTML {:__html html-content}}])))
