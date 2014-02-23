@@ -3,6 +3,8 @@
             [taoensso.tower :as tower :refer (with-locale with-tscope)])
   (:import  [java.util Date]))
 
+(comment (test/run-tests '[taoensso.tower.tests.main]))
+
 (defn- before-run {:expectations-options :before-run} [])
 (defn- after-run  {:expectations-options :after-run}  [])
 
