@@ -1,57 +1,36 @@
-(ns cljs.taoensso.tower
-  "EXPERIMENTAL ClojureScript support for Tower.
-  PRE-alpha - almost certain to change."
+(ns taoensso.tower
+  "Experimental ClojureScript support for Tower."
   {:author "Peter Taoussanis"}
-  (:require [clojure.string :as str]
-            [goog.string    :as gstr]
-            [goog.string.format])
-  (:require-macros [cljs.taoensso.tower :as tower-macros]))
+  (:require [clojure.string  :as str]
+            [taoensso.encore :as encore])
+  (:require-macros [taoensso.tower :as tower-macros]))
 
 ;;;; TODO
 ;; * NB: Locale-aware format fn for fmt-str.
-;; * Move utils to dedicated ns?
-;; * Migrate to cljx codebase?
 ;; * Localization stuff?
 
 ;;;; Utils
 
-(defn- log [x]
-  (if (js* "typeof console != 'undefined'")
-    (.log js/console x)
-    (js/print x))
-  nil)
+(def ^:crossover scoped (memoize (fn [& ks] (encore/merge-keywords ks))))
 
-(defn- ^:crossover fq-name
-  [x] (if (string? x) x
-        (let [n (name x)]
-          (if-let [ns (namespace x)] (str ns "/" n) n))))
-
-(defn- ^:crossover explode-keyword [k] (str/split (fq-name k) #"[\./]"))
-(defn- ^:crossover merge-keywords  [ks & [as-ns?]]
-  (let [parts (->> ks (filterv identity) (mapv explode-keyword) (reduce into []))]
-    (when-not (empty? parts)
-      (if as-ns? ; Don't terminate with /
-        (keyword (str/join "." parts))
-        (let [ppop (pop parts)]
-          (keyword (when-not (empty? ppop) (str/join "." ppop))
-                   (peek parts)))))))
-
-(def ^:crossover scoped (memoize (fn [& ks] (merge-keywords ks))))
-
-(defn- fmt-str "Removed from cljs.core 0.0-1885, Ref. http://goo.gl/su7Xkj"
-  [_loc fmt & args] (apply gstr/format fmt args))
+(defn- fmt-str
+  "goog.string's `format` was removed from cljs.core 0.0-1885,
+  Ref. http://goo.gl/su7Xkj"
+  [_loc fmt & args] (apply encore/format fmt args))
 
 ;;;; Config
 
 (def ^:dynamic *locale* nil)
 (def ^:dynamic *tscope* nil)
 
-(def ^:crossover locale-key ; Careful - subtle diff from jvm version:
+(def locale-key ; Crossover (modified)
   (memoize #(keyword (str/replace (name %) #_(str (locale %)) "_" "-"))))
 
 (def locale locale-key)
 
-;;;; Localization ; TODO
+;;;; Localization
+
+;; Nothing here yet
 
 ;;;; Translations
 
@@ -59,7 +38,7 @@
   (def my-dict-inline   (tower-macros/dict-compile {:en {:a "**hello**"}}))
   (def my-dict-resource (tower-macros/dict-compile "slurps/i18n/utils.clj")))
 
-(def ^:crossover loc-tree
+(def loc-tree ; Crossover (direct)
   (memoize ; Also used runtime by `translate` fn
    (fn [loc]
      (let [loc-parts (str/split (-> loc locale-key name) #"[-_]")
@@ -67,7 +46,7 @@
                            (take-while identity (iterate butlast loc-parts)))]
        loc-tree))))
 
-(defn make-t
+(defn make-t ; Crossover (modified)
   [tconfig] {:pre [(map? tconfig) ; (:dictionary tconfig)
                    ]}
   (let [{:keys [compiled-dictionary ; dictionary
@@ -78,7 +57,7 @@
                 fmt-fn   fmt-str
                 log-missing-translation-fn
                 (fn [{:keys [locale ks scope] :as args}]
-                  (log (str "Missing translation" args)))}} tconfig]
+                  (encore/log (str "Missing translation" args)))}} tconfig]
 
     (assert (:compiled-dictionary tconfig) "Missing tconfig key: :compiled-dictionary")
     (assert (not (:dictionary tconfig))    "Invalid tconfig key: :dictionary")
