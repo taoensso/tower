@@ -38,7 +38,7 @@ Add the necessary dependency to your [Leiningen](http://leiningen.org/) `project
 
 ### Translation
 
-The `t` fn handles translations. You give it a config map which includes your dictionary, and you're ready to go (see `tower/example-tconfig` for advanced options):
+The `t` fn handles translations. You give it a config map which includes your dictionary, and you're ready to go (see [`tower/example-tconfig`](https://github.com/ptaoussanis/tower/blob/master/src/taoensso/tower.clj#L286-L316) for advanced options):
 ```clojure
 (def my-tconfig
   {:dev-mode? true
