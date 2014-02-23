@@ -586,3 +586,13 @@
 
 ;; BREAKS v1 due to unavoidable name clash
 (def oldt #(apply t (or *locale* :jvm-default) (assoc @config :fmt-fn fmt-msg) %&))
+
+
+;;;; TODO
+;; (defmacro with-locale [loc & body]
+;;   `(binding [cljs.taoensso.tower/*locale* (cljs.taoensso.tower/locale ~loc)]
+;;      ~@body))
+
+;; (defmacro with-tscope [translation-scope & body]
+;;   `(binding [cljs.taoensso.tower/*tscope* ~translation-scope]
+;;      ~@body))

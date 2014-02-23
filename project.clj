@@ -11,9 +11,9 @@
                 *assert* true}
   :dependencies
   [[org.clojure/clojure "1.4.0"]
-   [markdown-clj        "0.9.35"]
    [com.taoensso/encore "0.8.0"]
-   [com.taoensso/timbre "3.1.0"]]
+   [com.taoensso/timbre "3.1.0"]
+   [markdown-clj        "0.9.35"]]
 
   :cljsbuild {:builds []}
   :test-paths ["test" "src"]
@@ -23,7 +23,8 @@
    :1.6  {:dependencies [[org.clojure/clojure "1.6.0-beta1"]]}
    :test {:dependencies [[expectations            "1.4.56"]
                          [reiddraper/simple-check "0.5.6"]
-                         [ring/ring-core          "1.2.1"]]
+                         [ring/ring-core          "1.2.1"
+                          :exclusions [org.clojure/tools.reader]]]
           :plugins [[lein-expectations "0.0.8"]
                     [lein-autoexpect   "1.2.2"]]}
    :dev
@@ -31,7 +32,7 @@
     {:jvm-opts ^:replace ["-server"]
      :hooks [cljx.hooks leiningen.cljsbuild]
      :dependencies
-     [[org.clojure/clojurescript "0.0-2173" :scope "provided"]]
+     [[org.clojure/clojurescript "0.0-2173"]]
      :plugins
      [[lein-cljsbuild                  "1.0.2"]
       [com.cemerick/clojurescript.test "0.2.2"]
