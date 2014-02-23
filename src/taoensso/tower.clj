@@ -4,6 +4,7 @@
   {:author "Peter Taoussanis, Janne Asmala"}
   (:require [clojure.string  :as str]
             [clojure.java.io :as io]
+            [taoensso.encore :as encore]
             [taoensso.timbre :as timbre]
             [taoensso.tower.utils :as utils :refer (defmem-)])
   (:import  [java.util Date Locale TimeZone Formatter]
@@ -246,7 +247,7 @@
 (comment (timezone-display-name "Asia/Bangkok" (* 90 60 1000)))
 
 (def timezones "Returns (sorted-map-by offset <tz-name> <tz-id> ...)."
-  (utils/memoize-ttl (* 3 60 60 1000) ; 3hr ttl
+  (encore/memoize* (* 3 60 60 1000) ; 3hr ttl
    (fn []
      (let [instant (System/currentTimeMillis)
            tzs (->> major-timezone-ids
@@ -273,7 +274,7 @@
 (declare dev-mode? fallback-locale) ; DEPRECATED
 
 (def scoped "Merges scope keywords: (scope :a.b :c/d :e) => :a.b.c.d/e"
-  (memoize (fn [& ks] (utils/merge-keywords ks))))
+  (memoize (fn [& ks] (encore/merge-keywords ks))))
 
 (comment (scoped :a.b :c :d))
 
@@ -338,7 +339,7 @@
            ;; Import locale's map from another resource:
            dict      (if-not (string? (dict loc)) dict
                        (assoc dict loc (dict-load (dict loc))))]
-       [loc (apply utils/merge-deep (mapv dict (rseq loc-tree')))]))))
+       [loc (apply encore/merge-deep (mapv dict (rseq loc-tree')))]))))
 
 (comment (dict-inherit-parent-trs {:en    {:foo ":en foo"
                                            :bar ":en :bar"}
@@ -360,7 +361,7 @@
         translation ; Resolve possible translation alias
         (if-not (keyword? translation) translation
           (let [target (get-in dict
-                         (into [loc] (->> (utils/explode-keyword translation)
+                         (into [loc] (->> (encore/explode-keyword translation)
                                           (mapv keyword))))]
             (when-not (keyword? target) target)))]
 
@@ -563,7 +564,7 @@
 
 (def config "DEPRECATED." (atom example-tconfig))
 (defn set-config!   "DEPRECATED." [ks val] (swap! config assoc-in ks val))
-(defn merge-config! "DEPRECATED." [& maps] (apply swap! config utils/merge-deep maps))
+(defn merge-config! "DEPRECATED." [& maps] (apply swap! config encore/merge-deep maps))
 
 (defn load-dictionary-from-map-resource! "DEPRECATED."
   ([] (load-dictionary-from-map-resource! "tower-dictionary.clj"))
@@ -575,7 +576,7 @@
               (merge-config! {:dictionary  new-dictionary})))
 
           (set-config! [:dict-res-name] resource-name)
-          (utils/file-resources-modified? resource-name)
+          (encore/file-resources-modified? resource-name)
           (catch Exception e
             (throw (Exception. (str "Failed to load dictionary from resource: "
                                     resource-name) e))))))

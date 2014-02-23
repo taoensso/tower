@@ -1,18 +1,7 @@
 (ns taoensso.tower.utils
   {:author "Peter Taoussanis"}
-  (:require [clojure.string      :as str]
-            [clojure.java.io     :as io]
-            [clojure.tools.macro :as macro]
-            [markdown.core])
-  (:import  [java.io File]))
-
-(defmacro defonce*
-  "Like `clojure.core/defonce` but supports optional docstring and attributes
-  map for name symbol."
-  {:arglists '([name expr])}
-  [name & sigs]
-  (let [[name [expr]] (macro/name-with-attributes name sigs)]
-    `(clojure.core/defonce ~name ~expr)))
+  (:require [clojure.string :as str]
+            [markdown.core]))
 
 (defn leaf-nodes
   "Takes a nested map and squashes it into a sequence of paths to leaf nodes.
@@ -57,48 +46,6 @@
        ~(with-meta '[& args] {:tag type-hint})
        (apply memfn# ~'args))))
 
-(defn memoize-ttl "Low-overhead, common-case `memoize*`."
-  [ttl-ms f]
-  (let [cache (atom {})]
-    (fn [& args]
-      (when (<= (rand) 0.001) ; GC
-        (let [instant (System/currentTimeMillis)]
-          (swap! cache
-            (fn [m] (reduce-kv (fn [m* k [dv udt :as cv]]
-                                (if (> (- instant udt) ttl-ms) m*
-                                    (assoc m* k cv))) {} m)))))
-      (let [[dv udt] (@cache args)]
-        (if (and dv (< (- (System/currentTimeMillis) udt) ttl-ms)) @dv
-          (locking cache ; For thread racing
-            (let [[dv udt] (@cache args)] ; Retry after lock acquisition!
-              (if (and dv (< (- (System/currentTimeMillis) udt) ttl-ms)) @dv
-                (let [dv (delay (apply f args))
-                      cv [dv (System/currentTimeMillis)]]
-                  (swap! cache assoc args cv)
-                  @dv)))))))))
-
-(defn file-resource-last-modified
-  "Returns last-modified time for file backing given named resource, or nil if
-  file doesn't exist."
-  [resource-name]
-  (when-let [^File file (try (->> resource-name io/resource io/file)
-                             (catch Exception _))]
-    (.lastModified file)))
-
-(def file-resources-modified?
-  "Returns true iff any files backing the given group of named resources
-  have changed since this function was last called."
-  (let [;; {#{file1A file1B ...#} (time1A time1A ...),
-        ;;  #{file2A file2B ...#} (time2A time2B ...), ...}
-        group-times (atom {})]
-    (fn [resource-names]
-      (let [file-group (into (sorted-set) resource-names)
-            file-times (map file-resource-last-modified file-group)
-            last-file-times (get @group-times file-group)]
-        (when-not (= file-times last-file-times)
-          (swap! group-times assoc file-group file-times)
-          (boolean last-file-times))))))
-
 (defn parse-http-accept-header
   "Parses HTTP Accept header and returns sequence of [choice weight] pairs
   sorted by weight."
@@ -117,50 +64,3 @@
          (parse-http-accept-header "en-GB  ,  en; q=0.8, en-US;  q=0.6")
          (parse-http-accept-header "a,")
          (parse-http-accept-header "es-ES, en-US"))
-
-(defn fq-name "Like `name` but includes namespace in string when present."
-  [x] (if (string? x) x
-          (let [n (name x)]
-            (if-let [ns (namespace x)] (str ns "/" n) n))))
-
-(comment (map fq-name ["foo" :foo :foo.bar/baz]))
-
-(defn explode-keyword [k] (str/split (fq-name k) #"[\./]"))
-(comment (explode-keyword :foo.bar/baz))
-
-(defn merge-keywords [ks & [as-ns?]]
-  (let [parts (->> ks (filterv identity) (mapv explode-keyword) (reduce into []))]
-    (when-not (empty? parts)
-      (if as-ns? ; Don't terminate with /
-        (keyword (str/join "." parts))
-        (let [ppop (pop parts)]
-          (keyword (when-not (empty? ppop) (str/join "." ppop))
-                   (peek parts)))))))
-
-(comment (merge-keywords [:foo.bar nil :baz.qux/end nil])
-         (merge-keywords [:foo.bar nil :baz.qux/end nil] true)
-         (merge-keywords [:a.b.c "d.e/k"])
-         (merge-keywords [:a.b.c :d.e/k])
-         (merge-keywords [nil :k])
-         (merge-keywords [nil]))
-
-(defn merge-deep-with ; From clojure.contrib.map-utils
-  "Like `merge-with` but merges maps recursively, applying the given fn
-  only when there's a non-map at a particular level.
-
-  (merge-deep-with + {:a {:b {:c 1 :d {:x 1 :y 2}} :e 3} :f 4}
-                    {:a {:b {:c 2 :d {:z 9} :z 3} :e 100}})
-  => {:a {:b {:z 3, :c 3, :d {:z 9, :x 1, :y 2}}, :e 103}, :f 4}"
-  [f & maps]
-  (apply
-   (fn m [& maps]
-     (if (every? map? maps)
-       (apply merge-with m maps)
-       (apply f maps)))
-   maps))
-
-;; Used by: Timbre, Tower
-(def merge-deep (partial merge-deep-with (fn [x y] y)))
-
-(comment (merge-deep {:a {:b {:c {:d :D :e :E}}}}
-                     {:a {:b {:g :G :c {:c {:f :F}}}}}))

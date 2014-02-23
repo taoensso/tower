@@ -1,4 +1,4 @@
-(ns taoensso.tower
+(ns taoensso.tower.cljs
   "Experimental ClojureScript support for Tower."
   {:author "Peter Taoussanis"}
   (:require [clojure.string  :as str]
