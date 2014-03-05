@@ -110,14 +110,17 @@ In all cases, translation requests are logged upon fallback to fallback locale o
 
 ```clojure
 (ns my-clojurescript-ns
-  (:require [cljs.taoensso.tower :as tower :include-macros true]))
+  (:require-macros [taoensso.tower.cljs-macros :as tower-macros :refer (with-tscope)])
+  (:require        [taoensso.tower             :as tower]))
 
 (def ^:private tconfig
   {:fallback-locale :en
    ;; Inlined (macro) dict => this ns needs rebuild for dict changes to reflect:
-   :compiled-dictionary (tower/dict-compile "my-dict.clj")})
+   :compiled-dictionary (tower-macros/dict-compile "my-dict.clj")})
 
-(def t (partial (tower/make-t tconfig) (:locale init-state)))
+(def t (tower/make-t tconfig)) ; Create translation fn
+
+(t :en-US :example/foo) => ":en-US :example/foo text"
 ```
 
 There's two notable differences from the JVM translator:

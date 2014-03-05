@@ -283,7 +283,7 @@
   [translation-scope & body] `(binding [*tscope* ~translation-scope] ~@body))
 
 (def example-tconfig
-  "Example/test config as passed to `t`, Ring middleware, etc.
+  "Example/test config as passed to `make-t`, Ring middleware, etc.
 
   :dictionary should be a map, or named resource containing a map of form
   {:locale {:ns1 ... {:nsN {:key<decorator> text ...} ...} ...} ...}}.
