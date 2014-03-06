@@ -1,8 +1,8 @@
 ## Pending / unreleased
 
-> This is a **significant, non-breaking update** but with **recommended changes**.
->
 > The translation system has been overhauled for simplicity, flexibility, and portability to ClojureScript.
+>
+> This is a **significant update** that **may be BREAKING** in certain cases. Please see the notes below carefully for details & migration instructions.
 
 ### New
 
@@ -10,8 +10,26 @@
 
 ### Changes
 
- * **DEPRECATED**: `translate` and `t` are both being phased out in favor of a new `make-t` fn. The new approach is more flexible and faster. This change is irrelevant to you if you use the Ring middleware; otherwise please see the README for new recommended usage examples.
- * **DEPRECATED**: `wrap-tower-middleware` -> `wrap-tower`. The new middleware takes an explicit `tconfig` argument (it was previously supplied optionally).
+ * **DEPRECATED**: `wrap-tower-middleware` -> `wrap-tower`. This is a recommended change, but it's **BREAKING** if you make it:
+
+  ```clojure
+  ;;; 1. The fn signature has changed (tconfig is now an explicit arg):
+  (wrap-tower-middleware <ring-handler> {:tconfig _ <other opts>}) ; old
+  ;; vs
+  (wrap-tower <ring-handler> <tconfig> {<other-opts>}) ; new
+
+  ;;; 2. The Ring request's `:t` key has changed:
+  {:locale _ :t  (fn [k-or-ks & fmt-args])} ; old
+  ;; vs
+  {:locale _ :t  (fn [locale k-or-ks & fmt-args]) ; Now takes a locale
+             :t' (fn [k-or-ks & fmt-args])} ; new
+  ```
+
+ The new behaviour is more consistent. `t` always refers to a translation fn that takes a locale arg, and `t'` always refer to a partial translation fn that has already been provided a locale arg.
+
+ **Migrate** by swapping your middleware, and using `t'` instead of `t` as your locale-less translation fn. **OR** you can give a `:legacy-t? true` opt to `wrap-tower` to keep the old behaviour.
+
+ * **DEPRECATED**: `translate` and `t` are both being phased out in favor of a new `make-t` fn. The new approach is more flexible and faster. This change is **completely non-breaking** _if_ you use the Ring middleware; otherwise please see the README for new recommended usage examples.
  * Dropped (experimental) `:scope-var` tconfig option.
  * Dropped (experimental) `:root-scope` tconfig option.
 
