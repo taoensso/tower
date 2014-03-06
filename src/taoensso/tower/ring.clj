@@ -16,22 +16,33 @@
   request headers, etc. `locale-selector` can be used to select locale by IP
   address, subdomain, TLD, etc.
 
-  Establishes a thread-local locale binding with `tower/*locale*`, and adds
-  `:locale` and `:t` keys to request."
+  Adds keys to Ring request:
+    * `:locale`  - :en, :en-US, etc.
+    * `:tconfig` - tconfig map as given.
+    * `:t`       - (fn [locale k-or-ks & fmt-args]).
+    * `:t'`      - (fn [k-or-ks & fmt-args]), using `:locale` as above."
   [handler tconfig & [{:keys [locale-selector fallback-locale]
-                       :or   {fallback-locale :jvm-default}}]]
+                       :or   {fallback-locale :jvm-default} :as opts}]]
   (fn [{:keys [session params uri server-name headers] :as request}]
     (let [loc (some tower/try-locale [(:locale request)
                                       (when-let [ls locale-selector] (ls request))
                                       (:locale session)
                                       (:locale params)
                                       (locale-from-headers headers)
-                                      fallback-locale])]
-      (tower/with-locale loc
-        (handler (assoc request
-                   :locale  (tower/locale-key loc)
-                   :tconfig tconfig
-                   :t       (partial (tower/make-t tconfig) loc)))))))
+                                      fallback-locale])
+          t  (tower/make-t tconfig)
+          t' (partial t loc)]
+      (tower/with-locale loc ; Used for deprecated API
+        (handler
+         (merge request
+           {:locale  (tower/locale-key loc)
+            :tconfig tconfig}
+
+           (if (:legacy-t? opts)
+             {:t  t'} ; DEPRECATED (:t will use parsed locale)
+             {:t  t   ; Takes locale arg
+              :t' t'  ; Uses parsed locale
+              })))))))
 
 ;;;; Deprecated
 
@@ -40,7 +51,7 @@
                :keys [locale-selector fallback-locale tconfig]
                :or   {fallback-locale :jvm-default
                       tconfig tower/example-tconfig}}]]
-  (wrap-tower handler tconfig opts))
+  (wrap-tower handler tconfig (assoc opts :legacy-t? true)))
 
 (defn wrap-i18n-middleware "DEPRECATED: Use `wrap-tower` instead."
   [handler & {:keys [locale-selector-fn]}]
