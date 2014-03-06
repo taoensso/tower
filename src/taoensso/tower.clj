@@ -45,13 +45,6 @@
   (mapv try-locale [nil :invalid :jvm-default :en-US :en-US-var1 (Locale/getDefault)])
   (time (dotimes [_ 10000] (locale :en))))
 
-(def ^:dynamic *locale* nil)
-(defmacro with-locale
-  "Executes body within the context of thread-local locale binding, enabling
-  use of translation and localization functions. `loc` should be of form :en,
-  :en-US, :en-US-variant, or :jvm-default."
-  [loc & body] `(binding [*locale* (locale ~loc)] ~@body))
-
 ;;;; Localization
 
 (def ^:private ^:const dt-styles
@@ -480,6 +473,10 @@
 ;; gradually, the entire v1 API is reproduced below. This should allow Tower v2
 ;; to act as a quasi drop-in replacement for v1, despite the huge changes
 ;; under-the-covers.
+
+(def ^:dynamic *locale* nil)
+(defmacro with-locale "DEPRECATED."
+  [loc & body] `(binding [*locale* (locale ~loc)] ~@body))
 
 (def ^:private migrate-tconfig
   (memoize

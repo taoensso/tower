@@ -1,6 +1,6 @@
 (ns taoensso.tower.tests.main
   (:require [expectations   :as test  :refer :all]
-            [taoensso.tower :as tower :refer (with-locale with-tscope)])
+            [taoensso.tower :as tower :refer (with-tscope)])
   (:import  [java.util Date]))
 
 (comment (test/run-tests '[taoensso.tower.tests.main]))

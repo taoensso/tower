@@ -30,8 +30,7 @@ Add the necessary dependency to your [Leiningen][] `project.clj` and `require` t
 
 ```clojure
 [com.taoensso/tower "2.1.0"] ; project.clj
-(ns my-app (:require [taoensso.tower :as tower
-                      :refer (with-locale with-tscope *locale*)])) ; ns
+(ns my-app (:require [taoensso.tower :as tower :refer (with-tscope)])) ; ns
 ```
 
 ### Translation
@@ -160,8 +159,6 @@ Check out `countries`, `languages`, and `timezones`.
 ### Ring middleware
 
 Quickly internationalize your Ring web apps by adding `taoensso.tower.ring/wrap-tower` to your middleware stack.
-
-It'll select the best available locale for each request then establish a thread-local locale binding with `tower/*locale*`, and add `:locale` and `:t` request keys.
 
 See the docstring for details.
 
