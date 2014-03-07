@@ -187,11 +187,11 @@
   ^String [loc fmt & args] (String/format (locale loc) fmt (to-array args)))
 
 (defn fmt-msg
-  "Creates a localized message formatter and parse pattern string, substituting
-  given arguments as per MessageFormat spec."
-  ^String [loc pattern & args]
-  (let [formatter (java.text.MessageFormat. pattern (locale loc))]
-    (.format formatter (to-array args))))
+  "Creates a localized MessageFormat and uses it to format given pattern string,
+  substituting arguments as per MessageFormat spec."
+  ^String [loc ^String pattern & args]
+  (let [mformat (java.text.MessageFormat. pattern (locale loc))]
+    (.format mformat (to-array args))))
 
 (comment
   (fmt-msg :de "foobar {0}!" 102.22)
