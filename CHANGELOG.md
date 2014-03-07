@@ -33,6 +33,10 @@
  * Dropped (experimental) `:scope-var` tconfig option.
  * Dropped (experimental) `:root-scope` tconfig option.
 
+### Fixes
+
+ * All localization formatters are now correctly thread safe.
+
 
 ## v2.0.2 / 2014 Jan 19
 

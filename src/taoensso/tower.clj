@@ -6,7 +6,7 @@
             [clojure.java.io :as io]
             [taoensso.encore :as encore]
             [taoensso.timbre :as timbre]
-            [taoensso.tower.utils :as utils :refer (defmem-)])
+            [taoensso.tower.utils :as utils :refer (defmem- defmem-*)])
   (:import  [java.util Date Locale TimeZone Formatter]
             [java.text Collator NumberFormat DateFormat]))
 
@@ -46,7 +46,17 @@
   (time (dotimes [_ 10000] (locale :en))))
 
 ;;;; Localization
+;; The Java date API is a mess, but we (thankfully!) don't need much of it for
+;; the simple date formatting+parsing that Tower provides. So while the
+;; java.time (Java 8) and Joda-Time APIs are better, we choose instead to just
+;; use the widely-available date API and patch over the relevant nasty bits.
+;; This is an implementation detail from the perspective of lib consumers.
+;;
+;; Note that we use DateFormat rather than SimpleDateFormat since it offers
+;; better facilities (esp. wider locale support, etc.).
 
+;; Unlike SimpleDateFormat (with it's arbitrary patterns), DateFormat supports
+;; a limited set of predefined locale-specific styles:
 (def ^:private ^:const dt-styles
   {:default DateFormat/DEFAULT
    :short   DateFormat/SHORT
@@ -63,14 +73,26 @@
            st2              (dt-styles (or len2 len1 :default))]
        [type st1 st2]))))
 
-(defmem- f-date DateFormat [Loc st]    (DateFormat/getDateInstance st Loc))
-(defmem- f-time DateFormat [Loc st]    (DateFormat/getTimeInstance st Loc))
-(defmem- f-dt   DateFormat [Loc ds ts] (DateFormat/getDateTimeInstance ds ts Loc))
-
-(defmem- f-number   NumberFormat [Loc] (NumberFormat/getNumberInstance   Loc))
-(defmem- f-integer  NumberFormat [Loc] (NumberFormat/getIntegerInstance  Loc))
-(defmem- f-percent  NumberFormat [Loc] (NumberFormat/getPercentInstance  Loc))
-(defmem- f-currency NumberFormat [Loc] (NumberFormat/getCurrencyInstance Loc))
+;;; Some contortions here to get high performance thread-safe formatters (none
+;;; of the java.text formatters are thread-safe!). Each constructor* call will
+;;; return a memoized (=> shared) proxy, that'll return thread-local instances
+;;; on `.get`.
+;;
+(defmem-* f-date*             [Loc st] (DateFormat/getDateInstance st Loc)) ; proxy
+(defn-    f-date  ^DateFormat [Loc st] (.get (f-date* Loc st)))
+(defmem-* f-time*             [Loc st] (DateFormat/getTimeInstance st Loc)) ; proxy
+(defn-    f-time  ^DateFormat [Loc st] (.get (f-time* Loc st)))
+(defmem-* f-dt*            [Loc ds ts] (DateFormat/getDateTimeInstance ds ts Loc)) ; proxy
+(defn-    f-dt ^DateFormat [Loc ds ts] (.get (f-dt* Loc ds ts)))
+;;
+(defmem-* f-number*                [Loc] (NumberFormat/getNumberInstance   Loc)) ; proxy
+(defn-    f-number   ^NumberFormat [Loc] (.get (f-number* Loc)))
+(defmem-* f-integer*               [Loc] (NumberFormat/getIntegerInstance  Loc)) ; proxy
+(defn-    f-integer  ^NumberFormat [Loc] (.get (f-integer* Loc)))
+(defmem-* f-percent*               [Loc] (NumberFormat/getPercentInstance  Loc)) ; proxy
+(defn-    f-percent  ^NumberFormat [Loc] (.get (f-percent* Loc)))
+(defmem-* f-currency*              [Loc] (NumberFormat/getCurrencyInstance Loc)) ; proxy
+(defn-    f-currency ^NumberFormat [Loc] (.get (f-currency* Loc)))
 
 (defprotocol     IFmt (pfmt [x loc style]))
 (extend-protocol IFmt

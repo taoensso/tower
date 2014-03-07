@@ -1,7 +1,8 @@
 (ns taoensso.tower.utils
   {:author "Peter Taoussanis"}
   (:require [clojure.string :as str]
-            [markdown.core]))
+            [markdown.core]
+            [taoensso.encore :as encore]))
 
 (defn leaf-nodes
   "Takes a nested map and squashes it into a sequence of paths to leaf nodes.
@@ -45,6 +46,12 @@
      (defn ~(with-meta (symbol name) {:private true})
        ~(with-meta '[& args] {:tag type-hint})
        (apply memfn# ~'args))))
+
+(defmacro defmem-*
+  "Like `defmem-` but wraps body with `thread-local-proxy`."
+  [name fn-params fn-body]
+  `(defmem- ~name ThreadLocal ~fn-params
+     (encore/thread-local-proxy ~fn-body)))
 
 (defn parse-http-accept-header
   "Parses HTTP Accept header and returns sequence of [choice weight] pairs
