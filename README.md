@@ -128,7 +128,7 @@ Check out `countries`, `languages`, and `timezones`.
 
 ### Ring middleware
 
-Quickly internationalize your Ring web apps by adding `tower.ring/wrap-tower-middleware` to your middleware stack.
+Quickly internationalize your Ring web apps by adding `taoensso.tower.ring/wrap-tower-middleware` to your middleware stack.
 
 It'll select the best available locale for each request then establish a thread-local locale binding with `tower/*locale*`, and add `:locale` and `:t` request keys.
 
