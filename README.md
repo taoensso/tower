@@ -1,8 +1,10 @@
 **[API docs][]** | **[CHANGELOG][]** | [other Clojure libs][] | [Twitter][] | [contact/contributing](#contact--contributing) | current ([semantic][]) version:
 
 ```clojure
-[com.taoensso/tower "2.1.0"] ; Stable, see CHANGELOG for details
+[com.taoensso/tower "2.1.0"] ; Stable
 ```
+
+v2.1 is a major release that **may be BREAKING** in certain cases. It adds _experimental_ ClojureScript translation support. Please see the [CHANGELOG][] for details.
 
 Special thanks to **Janne Asmala** ([GitHub](https://github.com/asmala) & [Twitter](https://twitter.com/janne_asmala)) for his awesome contributions to Tower's v2 design. He also has an i18n/L10n lib called [clj18n](https://github.com/asmala/clj18n) which is definitely worth checking out!
 
@@ -182,7 +184,8 @@ Copyright &copy; 2012-2014 Peter Taoussanis. Distributed under the [Eclipse Publ
 
 
 [API docs]: <http://ptaoussanis.github.io/tower/>
-[CHANGELOG]: <https://github.com/ptaoussanis/tower/blob/master/CHANGELOG.md>
+[CHANGELOG_]: <https://github.com/ptaoussanis/tower/blob/master/CHANGELOG.md>
+[CHANGELOG]: <https://github.com/ptaoussanis/tower/releases>
 [other Clojure libs]: <https://www.taoensso.com/clojure-libraries>
 [Twitter]: <https://twitter.com/ptaoussanis>
 [semantic]: <http://semver.org/>

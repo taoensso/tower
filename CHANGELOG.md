@@ -1,8 +1,8 @@
 ## Pending / unreleased
 
-> The translation system has been overhauled for simplicity, flexibility, and portability to ClojureScript.
+> This is a **significant update** that **may be BREAKING** in certain cases.
 >
-> This is a **significant update** that **may be BREAKING** in certain cases. Please see the notes below carefully for details & migration instructions.
+> Sorry about the hassle. The changes were necessary as part of an overhaul to the translation system for portability to ClojureScript.
 
 ### New
 
@@ -29,7 +29,7 @@
 
  **Migrate** by swapping your middleware, and using `t'` instead of `t` as your locale-less translation fn. **OR** you can give a `:legacy-t? true` opt to `wrap-tower` to keep the old behaviour.
 
- * **DEPRECATED**: `translate` and `t` are both being phased out in favor of a new `make-t` fn. The new approach is more flexible and faster. This change is **completely non-breaking** _if_ you use the Ring middleware; otherwise please see the README for new recommended usage examples.
+ * **DEPRECATED, POSSIBLY BREAKING**: `translate` and `t` are both being phased out in favor of a new `make-t` fn. The new approach is more flexible and faster. This change is _non-breaking_ **if** you use the Ring middleware; otherwise please see the README for new recommended usage examples.
  * Dropped (experimental) `:scope-var` tconfig option.
  * Dropped (experimental) `:root-scope` tconfig option.
 
