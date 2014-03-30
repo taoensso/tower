@@ -11,18 +11,18 @@
                 *assert* true}
   :dependencies
   [[org.clojure/clojure "1.4.0"]
-   [com.taoensso/encore "0.9.6"]
-   [com.taoensso/timbre "3.1.1"]
-   [markdown-clj        "0.9.35"]]
+   [com.taoensso/encore "1.2.0"]
+   [com.taoensso/timbre "3.1.6"]
+   [markdown-clj        "0.9.41"]]
 
   :test-paths ["test" "src"]
   :profiles
   {;; :default [:base :system :user :provided :dev]
    :1.5  {:dependencies [[org.clojure/clojure "1.5.1"]]}
-   :1.6  {:dependencies [[org.clojure/clojure "1.6.0-beta1"]]}
+   :1.6  {:dependencies [[org.clojure/clojure "1.6.0"]]}
    :test {:dependencies [[expectations            "1.4.56"]
                          [org.clojure/test.check  "0.5.7"]
-                         [ring/ring-core          "1.2.1"
+                         [ring/ring-core          "1.2.2"
                           :exclusions [org.clojure/tools.reader]]]
           :plugins [[lein-expectations "0.0.8"]
                     [lein-autoexpect   "1.2.2"]]}
