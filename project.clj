@@ -1,4 +1,4 @@
-(defproject com.taoensso/tower "2.1.0-SNAPSHOT"
+(defproject com.taoensso/tower "2.1.0-RC1"
   :author "Peter Taoussanis <https://www.taoensso.com>"
   :description "Clojure i18n & L10n library"
   :url "https://github.com/ptaoussanis/tower"

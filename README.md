@@ -1,7 +1,7 @@
 **[API docs][]** | **[CHANGELOG][]** | [other Clojure libs][] | [Twitter][] | [contact/contributing](#contact--contributing) | current ([semantic][]) version:
 
 ```clojure
-[com.taoensso/tower "2.1.0"] ; Stable
+[com.taoensso/tower "2.1.0-RC1"] ; Stable
 ```
 
 v2.1 is a major release that **may be BREAKING** in certain cases. It adds _experimental_ ClojureScript translation support. Please see the [CHANGELOG][] for details.
@@ -31,7 +31,7 @@ Tower's an attempt to present a **simple, idiomatic internationalization and loc
 Add the necessary dependency to your [Leiningen][] `project.clj` and `require` the library in your ns:
 
 ```clojure
-[com.taoensso/tower "2.1.0"] ; project.clj
+[com.taoensso/tower "2.1.0-RC1"] ; project.clj
 (ns my-app (:require [taoensso.tower :as tower :refer (with-tscope)])) ; ns
 ```
 

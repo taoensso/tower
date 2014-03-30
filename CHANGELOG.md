@@ -1,4 +1,4 @@
-## Pending / unreleased
+## v2.1.0-RC1 / 2014 Mar 30
 
 > This is a **significant update** that **may be BREAKING** in certain cases.
 >
