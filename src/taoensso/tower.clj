@@ -314,7 +314,7 @@
                      :with-exclaim!   "<tag>**strong**</tag>"
                      :greeting-alias :example/greeting
                      :baz-alias      :example.bar/baz}
-           :missing  "<Missing translation: [%1$s %2$s %3$s]>"}
+           :missing  "|Missing translation: [%1$s %2$s %3$s]|"}
     :en-US {:example {:foo ":en-US :example/foo text"}}
     :de    {:example {:foo ":de :example/foo text"}}
     :ja "test_ja.clj" ; Import locale's map from external resource

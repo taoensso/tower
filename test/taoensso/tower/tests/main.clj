@@ -148,16 +148,16 @@
 (expect Exception ((tower/make-t {:dictionary {}}) :en :anything "Any arg"))
 
 ;;; Missing keys & key fallback
-(expect "&lt;Missing translation: [:en nil [:invalid]]&gt;"
+(expect "|Missing translation: [:en nil [:invalid]]|"
         (pt :en :invalid))
 (expect nil (pt :de :invalid)) ; No locale-appropriate :missing key
-(expect "&lt;Missing translation: [:en :whatever [:invalid]]&gt;"
+(expect "|Missing translation: [:en :whatever [:invalid]]|"
         (with-tscope :whatever (pt :en :invalid)))
-(expect "&lt;Missing translation: [:en nil [:invalid]]&gt;"
+(expect "|Missing translation: [:en nil [:invalid]]|"
         (pt :en :invalid "arg"))
 (expect ":en :example/foo text"
         (pt :en [:invalid :example/foo]))
-(expect "&lt;Missing translation: [:en nil [:invalid :invalid]]&gt;"
+(expect "|Missing translation: [:en nil [:invalid :invalid]]|"
         (pt :en [:invalid :invalid]))
 (expect "Explicit fallback" (pt :en [:invalid "Explicit fallback"]))
 (expect nil (pt :en [:invalid nil]))

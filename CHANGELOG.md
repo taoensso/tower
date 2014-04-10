@@ -1,3 +1,8 @@
+## Pending / unreleased
+
+ * **CHANGE**: Default :missing translations entry now avoids <>'s (no need for html escaping).
+
+
 ## v2.1.0-RC1 / 2014 Mar 30
 
 > This is a **significant update** that **may be BREAKING** in certain cases.
