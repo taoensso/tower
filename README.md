@@ -51,7 +51,7 @@ The `make-t` fn handles translations. You give it a config map which includes yo
                      :with-exclaim!   "<tag>**strong**</tag>"
                      :greeting-alias :example/greeting
                      :baz-alias      :example.bar/baz}
-           :missing  "<Missing translation: [%1$s %2$s %3$s]>"}
+           :missing  "|Missing translation: [%1$s %2$s %3$s]|"}
     :en-US {:example {:foo ":en-US :example/foo text"}}
     :de    {:example {:foo ":de :example/foo text"}}
     :ja "test_ja.clj" ; Import locale's map from external resource
@@ -107,7 +107,7 @@ You can also specify fallback keys that'll be tried before other locales. `(t :e
 
 In all cases, translation requests are logged upon fallback to fallback locale or :missing key.
 
-**ClojureScript translation support**: This is still **experimental**!
+#### ClojureScript translation support (still experimental!)
 
 ```clojure
 (ns my-clojurescript-ns
@@ -130,6 +130,15 @@ There's two notable differences from the JVM translator:
   2. Since we lack a locale-aware Cljs `format` fn, your translations _cannot_ use JVM locale formatting patterns.
 
 The API is otherwise exactly the same, including support for all decorators.
+
+##### Use with React (Reagent/Om/etc.)
+
+React presents a bit of a challenge to translations since it **automatically escapes all text content** as a security measure.
+
+This has two important implications for use with Tower's translations:
+
+  1. Content intended to allow _translator-controlled inline styles_ needs to provided to React with the `dangerouslySetInnerHTML` property.
+  2. All other content should get a `:<key>!`-style translation to prevent double escaping (Tower already escapes translations not marked with an exlamation point).
 
 ### Localization
 
