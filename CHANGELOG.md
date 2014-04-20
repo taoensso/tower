@@ -1,6 +1,7 @@
 ## Pending / unreleased
 
  * **CHANGE**: Default :missing translations entry now avoids <>'s (no need for html escaping).
+ * **CHANGE**: `languages` now returns languages as "localized (unlocalized)" pairs rather than "unlocalized (localized)" pairs.
 
 
 ## v2.1.0-RC1 / 2014 Mar 30

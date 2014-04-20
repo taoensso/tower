@@ -234,13 +234,14 @@
       ([loc iso-languages]
          (get-localized-sorted-map iso-languages (locale loc)
            (fn [code] (let [Loc (Locale. (name code))]
-                       (str (.getDisplayLanguage Loc (locale loc))
-                            ;; Also provide each name in it's OWN language
-                            (when (not= Loc (locale loc))
-                              (str " (" (.getDisplayLanguage Loc Loc) ")"))))))))))
+                       (str (.getDisplayLanguage Loc Loc) ; Lang, in itself
+                         (when (not= Loc (locale loc))
+                           (format " (%s)" ; Lang, in current lang
+                             (.getDisplayLanguage Loc (locale loc))))))))))))
 
 (comment (countries :en)
-         (languages :pl [:en :de :pl]))
+         (languages :pl [:en :de :pl])
+         (languages :en [:en :de :pl]))
 
 ;;;; Timezones (doesn't depend on locales)
 
