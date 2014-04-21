@@ -24,11 +24,12 @@
 (defn try-locale
   "Like `locale` but returns nil if no valid matching Locale could be found."
   [loc]
-  (cond (nil? loc) nil
-        (instance? Locale loc) loc
-        (= :jvm-default loc) (Locale/getDefault)
-        :else (ensure-valid-Locale
-               (apply make-Locale (str/split (name loc) #"[-_]")))))
+  (when loc
+    (cond
+     (instance? Locale loc) loc
+     (identical? :jvm-default loc) (Locale/getDefault)
+     :else (ensure-valid-Locale
+            (apply make-Locale (str/split (name loc) #"[-_]"))))))
 
 (def locale
   "Returns valid Locale matching given name string/keyword, or throws an
@@ -36,7 +37,7 @@
   :en-US-variant, or :jvm-default."
   (memoize
    (fn [loc] (or (try-locale loc)
-                 (throw (Exception. (str "Invalid locale: " loc)))))))
+                (throw (Exception. (format "Invalid locale: %s" (str loc))))))))
 
 (def locale-key "Returns locale keyword for given Locale object or locale keyword."
   (memoize #(keyword (str/replace (str (locale %)) "_" "-"))))
@@ -264,20 +265,22 @@
 
 (def timezones "Returns (sorted-map-by offset <tz-name> <tz-id> ...)."
   (encore/memoize* (* 3 60 60 1000) ; 3hr ttl
-   (fn []
-     (let [instant (System/currentTimeMillis)
-           tzs (->> major-timezone-ids
-                    (mapv (fn [id]
-                            (let [tz     (TimeZone/getTimeZone id)
-                                  offset (.getOffset tz instant)]
-                              [(timezone-display-name id offset) id offset]))))
-           tz-pairs (->> tzs (mapv   (fn [[dn id offset]] [dn id])))
-           offsets  (->> tzs (reduce (fn [m [dn id offset]] (assoc m dn offset)) {}))
-           comparator (fn [dn-x dn-y]
-                        (let [cmp1 (compare (offsets dn-x) (offsets dn-y))]
-                          (if-not (zero? cmp1) cmp1
-                            (compare dn-x dn-y))))]
-       (into (sorted-map-by comparator) tz-pairs)))))
+    (fn
+      ([] (timezones major-timezone-ids))
+      ([timezone-ids]
+         (let [instant (System/currentTimeMillis)
+               tzs (->> timezone-ids
+                        (mapv (fn [id]
+                                (let [tz     (TimeZone/getTimeZone id)
+                                      offset (.getOffset tz instant)]
+                                  [(timezone-display-name id offset) id offset]))))
+               tz-pairs (->> tzs (mapv   (fn [[dn id offset]] [dn id])))
+               offsets  (->> tzs (reduce (fn [m [dn id offset]] (assoc m dn offset)) {}))
+               comparator (fn [dn-x dn-y]
+                            (let [cmp1 (compare (offsets dn-x) (offsets dn-y))]
+                              (if-not (zero? cmp1) cmp1
+                                      (compare dn-x dn-y))))]
+           (into (sorted-map-by comparator) tz-pairs))))))
 
 (comment
   (reverse (sort ["-00:00" "+00:00" "-01:00" "+01:00" "-01:30" "+01:30"]))
