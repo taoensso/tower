@@ -23,28 +23,41 @@
 
 (defn try-locale
   "Like `locale` but returns nil if no valid matching Locale could be found."
-  [loc]
+  [loc & [lang-only?]]
   (when loc
     (cond
-     (instance? Locale loc) loc
-     (identical? :jvm-default loc) (Locale/getDefault)
-     :else (ensure-valid-Locale
-            (apply make-Locale (str/split (name loc) #"[-_]"))))))
+     (identical? :jvm-default loc)
+     (if-not lang-only? (Locale/getDefault)
+       (make-Locale (.getLanguage ^Locale (Locale/getDefault))))
+
+     (instance? Locale loc)
+     (if-not lang-only? loc
+       (make-Locale (.getLanguage ^Locale loc)))
+
+     :else
+     (let [loc-parts (str/split (name loc) #"[-_]")]
+       (ensure-valid-Locale
+        (if-not lang-only?
+          (apply make-Locale loc-parts)
+          (make-Locale (first loc-parts))))))))
 
 (def locale
   "Returns valid Locale matching given name string/keyword, or throws an
   exception if none could be found. `loc` should be of form :en, :en-US,
   :en-US-variant, or :jvm-default."
   (memoize
-   (fn [loc] (or (try-locale loc)
-                (throw (Exception. (format "Invalid locale: %s" (str loc))))))))
+   (fn [loc & [lang-only?]]
+     (or (try-locale loc lang-only?)
+         (throw (Exception. (format "Invalid locale: %s" (str loc))))))))
 
 (def locale-key "Returns locale keyword for given Locale object or locale keyword."
   (memoize #(keyword (str/replace (str (locale %)) "_" "-"))))
 
 (comment
   (mapv try-locale [nil :invalid :jvm-default :en-US :en-US-var1 (Locale/getDefault)])
-  (time (dotimes [_ 10000] (locale :en))))
+  (time (dotimes [_ 10000] (locale :en)))
+  (mapv #(try-locale % :lang-only)
+    [nil :invalid :en-invalid :en-GB (Locale/getDefault)]))
 
 ;;;; Localization
 ;; The Java date API is a mess, but we (thankfully!) don't need much of it for
@@ -236,13 +249,13 @@
          (get-localized-sorted-map iso-languages (locale loc)
            (fn [code] (let [Loc (Locale. (name code))]
                        (str (.getDisplayLanguage Loc Loc) ; Lang, in itself
-                         (when (not= Loc (locale loc))
+                         (when (not= Loc (locale loc :lang-only))
                            (format " (%s)" ; Lang, in current lang
                              (.getDisplayLanguage Loc (locale loc))))))))))))
 
 (comment (countries :en)
-         (languages :pl [:en :de :pl])
-         (languages :en [:en :de :pl]))
+         (languages :pl    [:en :de :pl])
+         (languages :en-GB [:en :de :pl]))
 
 ;;;; Timezones (doesn't depend on locales)
 

@@ -4,6 +4,7 @@
  * **CHANGE**: `languages` now returns languages as "localized (unlocalized)" pairs rather than "unlocalized (localized)" pairs.
  * **NEW**: `timezones` fn now supports optional timezone-ids arg.
  * **NEW**: Add `all-timezone-ids` set.
+ * **NEW**: `locale`, `try-locale` now have an optional arg to return simplified (lang-only) locales.
 
 
 ## v2.1.0-RC1 / 2014 Mar 30
