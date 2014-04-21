@@ -246,8 +246,9 @@
 
 ;;;; Timezones (doesn't depend on locales)
 
+(def all-timezone-ids (set (TimeZone/getAvailableIDs)))
 (def major-timezone-ids
-  (->> (TimeZone/getAvailableIDs)
+  (->> all-timezone-ids
        (filterv #(re-find #"^(Africa|America|Asia|Atlantic|Australia|Europe|Indian|Pacific)/.*" %))
        (set)))
 

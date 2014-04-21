@@ -3,6 +3,7 @@
  * **CHANGE**: Default :missing translations entry now avoids <>'s (no need for html escaping).
  * **CHANGE**: `languages` now returns languages as "localized (unlocalized)" pairs rather than "unlocalized (localized)" pairs.
  * **NEW**: `timezones` fn now supports optional timezone-ids arg.
+ * **NEW**: Add `all-timezone-ids` set.
 
 
 ## v2.1.0-RC1 / 2014 Mar 30
