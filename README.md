@@ -119,8 +119,7 @@ In all cases, translation requests are logged upon fallback to fallback locale o
 
 ```clojure
 (ns my-clojurescript-ns
-  (:require-macros [taoensso.tower :as tower-macros :refer (with-tscope)])
-  (:require        [taoensso.tower :as tower]))
+  (:require [taoensso.tower :as tower :refer-macros (with-tscope)]))
 
 (def ^:private tconfig
   {:fallback-locale :en

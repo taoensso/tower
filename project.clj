@@ -1,4 +1,4 @@
-(defproject com.taoensso/tower "2.1.0-RC1"
+(defproject com.taoensso/tower "2.1.0-SNAPSHOT"
   :author "Peter Taoussanis <https://www.taoensso.com>"
   :description "Clojure i18n & L10n library"
   :url "https://github.com/ptaoussanis/tower"
@@ -13,7 +13,7 @@
   [[org.clojure/clojure "1.4.0"]
    [com.taoensso/encore "1.5.0"]
    [com.taoensso/timbre "3.1.6"]
-   [markdown-clj        "0.9.41"]]
+   [markdown-clj        "0.9.43"]]
 
   :test-paths ["test" "src"]
   :profiles
