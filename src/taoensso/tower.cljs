@@ -1,9 +1,9 @@
 (ns taoensso.tower
   "Experimental ClojureScript support for Tower."
   {:author "Peter Taoussanis"}
+  (:require-macros [taoensso.tower :as tower-macros])
   (:require [clojure.string  :as str]
-            [taoensso.encore :as encore])
-  (:require-macros [taoensso.tower.cljs-macros :as tower-macros]))
+            [taoensso.encore :as encore]))
 
 ;;;; TODO
 ;; * NB: Locale-aware format fn for fmt-str.

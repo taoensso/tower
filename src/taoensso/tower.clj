@@ -312,8 +312,10 @@
 (comment (scoped :a.b :c :d))
 
 (def ^:dynamic *tscope* nil)
-(defmacro with-tscope "Executes body with given translation scope binding."
-  [translation-scope & body] `(binding [*tscope* ~translation-scope] ~@body))
+(defmacro ^:also-cljs with-tscope
+  "Executes body with given translation scope binding."
+  [translation-scope & body]
+  `(binding [taoensso.tower/*tscope* ~translation-scope] ~@body))
 
 (def example-tconfig
   "Example/test config as passed to `make-t`, Ring middleware, etc.
@@ -431,8 +433,13 @@
           ;; 1-level deep merge:
           (apply merge-with merge)))))
 
-(def dict-compile (comp dict-compile-prepared dict-prepare)) ; Public for cljs
-(comment (time (dotimes [_ 1000] (dict-compile (:dictionary example-tconfig)))))
+(def dict-compile* (comp dict-compile-prepared dict-prepare)) ; Public for cljs macro
+(comment (time (dotimes [_ 1000] (dict-compile* (:dictionary example-tconfig)))))
+
+(defmacro ^:only-cljs dict-compile
+  "Tower's standard dictionary compiler, as a compile-time macro. For use with
+  ClojureScript."
+  [dict] (dict-compile* dict))
 
 ;;;
 
@@ -449,13 +456,13 @@
                     "Missing translation" args))}} tconfig]
 
     (let [nstr (fn [x] (if (nil? x) "nil" (str x)))
-          dict-cached   (when-not dev-mode? (dict-compile dictionary))
+          dict-cached   (when-not dev-mode? (dict-compile* dictionary))
           ;;; Could cache these for extra perf (probably overkill):
           find-scoped   (fn [d k l] (some #(get-in d [(scope-fn k) %]) (loc-tree l)))
           find-unscoped (fn [d k l] (some #(get-in d [          k  %]) (loc-tree l)))]
 
       (fn new-t [loc k-or-ks & fmt-args]
-        (let [dict (or dict-cached (dict-compile dictionary)) ; Recompile (slow)
+        (let [dict (or dict-cached (dict-compile* dictionary)) ; Recompile (slow)
               ks   (if (vector? k-or-ks) k-or-ks [k-or-ks])
               tr
               (or
