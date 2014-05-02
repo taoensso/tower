@@ -107,8 +107,8 @@ You can also specify fallback keys that'll be tried before other locales. `(t :e
 
 And even fallback locales. `(t [:fr-FR :en-US] :example/foo)` searches:
   1. `:example/foo` in the `:fr-FR` locale.
-  2. `:example/foo` in the `:en-US` locale.
-  3. `:example/foo` in the `:fr` locale.
+  2. `:example/foo` in the `:fr` locale.
+  3. `:example/foo` in the `:en-US` locale.
   4. `:example/foo` in the `:en` locale.
   5. `:example/foo` in the fallback locale.
   6. `:missing` in any of the above locales.

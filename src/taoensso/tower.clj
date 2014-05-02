@@ -359,7 +359,7 @@
 
 (def ^:private loc-tree
   ":en-US-var1                   -> [:en-US-var1 :en-US :en]
-   [:en-US-var1 :fr-FR-var1 :fr] -> [:en-US-var1 :fr-FR-var1 :en-US :fr-FR :en :fr]"
+   [:en-US-var1 :fr-FR-var1 :fr] -> [:en-US-var1 :en-US :en :fr-FR-var1 :fr-FR :fr]"
   (let [loc-tree*
         (fn [loc]
           (let [loc-parts (str/split (-> loc locale-key name) #"[-_]")
@@ -372,7 +372,7 @@
           (loc-tree* loc-or-locs) ; Build search tree from single locale
           (->> loc-or-locs ; Build search tree from multiple desc-preference locales
                (mapv loc-tree*)
-               (apply encore/interleave-all) ; (reduce into)
+               (reduce into) ; (apply encore/interleave-all)
                (encore/distinctv)))))))
 
 (comment (map loc-tree [:en-US [:en-US] [:en-US :fr-FR :fr :en]])
