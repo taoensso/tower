@@ -361,12 +361,13 @@
   ":en-US-var1                   -> [:en-US-var1 :en-US :en]
    [:en-US-var1 :fr-FR-var1 :fr] -> [:en-US-var1 :en-US :en :fr-FR-var1 :fr-FR :fr]"
   (let [loc-tree*
-        (fn [loc]
-          (let [loc-parts (str/split (-> loc locale-key name) #"[-_]")
-                loc-tree  (mapv #(keyword (str/join "-" %))
-                            (take-while identity (iterate butlast loc-parts)))]
-            loc-tree))]
-    (memoize ; Also used runtime by translation fns
+        (memoize
+          (fn [loc]
+            (let [loc-parts (str/split (-> loc locale-key name) #"[-_]")
+                  loc-tree  (mapv #(keyword (str/join "-" %))
+                              (take-while identity (iterate butlast loc-parts)))]
+              loc-tree)))]
+    (identity ; memoize ; Also used runtime by translation fns
       (fn [loc-or-locs]
         (if-not (vector? loc-or-locs)
           (loc-tree* loc-or-locs) ; Build search tree from single locale
@@ -375,8 +376,10 @@
                (reduce into) ; (apply encore/interleave-all)
                (encore/distinctv)))))))
 
-(comment (map loc-tree [:en-US [:en-US] [:en-US :fr-FR :fr :en]])
-         (loc-tree ["en_GB" "en_US" "fr_FR" "en"]))
+(comment
+  (map loc-tree [:en-US [:en-US] [:en-US :fr-FR :fr :en]])
+  (loc-tree ["en_GB" "en_US" "fr_FR" "en"])
+  (time (dotimes [_ 10000] (loc-tree [:en-US :fr-FR :fr :en :DE-de]))))
 
 (defn- dict-inherit-parent-trs
   "Merges each locale's translations over its parent locale translations."
@@ -468,9 +471,8 @@
                   (timbre/logp (if dev-mode? :debug :warn)
                     "Missing translation" args))}} tconfig]
 
-    (let [nstr (fn [x] (if (nil? x) "nil" (str x)))
+    (let [nstr          (fn [x] (if (nil? x) "nil" (str x)))
           dict-cached   (when-not dev-mode? (dict-compile* dictionary))
-          ;;; Could cache these for extra perf (probably overkill):
           find-scoped   (fn [d k l] (some #(get-in d [(scope-fn k) %]) (loc-tree l)))
           find-unscoped (fn [d k l] (some #(get-in d [          k  %]) (loc-tree l)))]
 
@@ -522,10 +524,13 @@
   (t :en example-tconfig [:invalid :example/foo])
   (t :en example-tconfig [:invalid "Explicit fallback"])
 
-  (def prod-t (create-t (assoc example-tconfig :dev-mode? false)))
+  (def prod-t (make-t (assoc example-tconfig :dev-mode? false)))
   (time (dotimes [_ 10000] (prod-t :en :example/foo)))            ; ~18ms
   (time (dotimes [_ 10000] (prod-t :en [:invalid :example/foo]))) ; ~38ms
   (time (dotimes [_ 10000] (prod-t :en [:invalid nil])))          ; ~20ms
+  (time (dotimes [_ 10000] (prod-t [:es-UY :ar-KW :sr-CS :en]
+                             [:invalid nil]))) ; ~170ms for 14 lookups
+  (count (loc-tree [:es-UY :ar-KW :sr-CS :en])) ; 7 locales
   )
 
 (defn dictionary->xliff [m]) ; TODO Use hiccup?
