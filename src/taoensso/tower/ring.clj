@@ -4,38 +4,49 @@
               [taoensso.tower :as tower]
               [taoensso.tower.utils :as utils]))
 
-(defn- locale-from-headers [headers]
-  (when-let [header (get headers "accept-language")]
-    (some tower/try-locale (map first (utils/parse-http-accept-header header)))))
-
-(comment (locale-from-headers- {"accept-language" "en-GB,en;q=0.8,en-US;q=0.6"}))
-
 (defn wrap-tower
-  "Determines a locale preference for request by attempting to parse a valid
+  "Determines locale preference for request by attempting to parse a valid
   locale from (locale-selector request), (:locale session), (:locale params),
   request headers, etc. `locale-selector` can be used to select locale by IP
   address, subdomain, TLD, etc.
 
   Adds keys to Ring request:
-    * `:locale`  - :en, :en-US, etc.
+    * `:locale`  - Preferred locale: `:en`, `:en-US`, etc.
+    * `:locales` - Accept-lang locales: `[:en-GB :en :en-US :fr-FR :fr]`, etc.
     * `:tconfig` - tconfig map as given.
-    * `:t`       - (fn [locale k-or-ks & fmt-args]).
-    * `:t'`      - (fn [k-or-ks & fmt-args]), using `:locale` as above."
+    * `:t`       - (fn [locale-or-locales k-or-ks & fmt-args]).
+    * `:t'`      - (fn [k-or-ks & fmt-args]), using `:locales` as above."
   [handler tconfig & [{:keys [locale-selector fallback-locale]
                        :or   {fallback-locale :jvm-default} :as opts}]]
   (fn [{:keys [session params uri server-name headers] :as request}]
-    (let [loc (some tower/try-locale [(:locale request)
-                                      (when-let [ls locale-selector] (ls request))
-                                      (:locale session)
-                                      (:locale params)
-                                      (locale-from-headers headers)
-                                      fallback-locale])
+    (let [accept-lang-locales ; [:en-GB :en :en-US], etc.
+          (->> (get headers "accept-language")
+               (utils/parse-http-accept-header)
+               (mapv    first)
+               (filterv tower/try-locale)
+               (mapv    tower/locale-key))
+
+          preferred-locale ; Always used for formatting
+          (tower/locale-key
+            (some tower/try-locale
+              [(:locale request)
+               (when-let [ls locale-selector] (ls request))
+               (:locale session)
+               (:locale params)
+               (some identity accept-lang-locales)
+               fallback-locale]))
+
+          t'-locales ; Ordered, non-distinct locales to search for translations
+          (-> (into [preferred-locale] accept-lang-locales)
+              (conj :jvm-default))
+
           t  (tower/make-t tconfig)
-          t' (partial t loc)]
-      (tower/with-locale loc ; Used for deprecated API
+          t' (partial t t'-locales)]
+      (tower/with-locale preferred-locale ; Used for deprecated API
         (handler
          (merge request
-           {:locale  (tower/locale-key loc)
+           {:locale  preferred-locale
+            :locales accept-lang-locales
             :tconfig tconfig}
 
            (if (:legacy-t? opts)
