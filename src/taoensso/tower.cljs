@@ -70,10 +70,8 @@
     (assert (:compiled-dictionary tconfig) "Missing tconfig key: :compiled-dictionary")
     (assert (not (:dictionary tconfig))    "Invalid tconfig key: :dictionary")
 
-    (let [nstr (fn [x] (if (nil? x) "nil" (str x)))
+    (let [nstr          (fn [x] (if (nil? x) "nil" (str x)))
           dict-cached   compiled-dictionary
-          ;; (when-not dev-mode? (dict-compile-cached dictionary))
-          ;;; Could cache these for extra perf (probably overkill):
           find-scoped   (fn [d k l] (some #(get-in d [(scope-fn k) %]) (loc-tree l)))
           find-unscoped (fn [d k l] (some #(get-in d [          k  %]) (loc-tree l)))]
 

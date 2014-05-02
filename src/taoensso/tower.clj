@@ -468,9 +468,8 @@
                   (timbre/logp (if dev-mode? :debug :warn)
                     "Missing translation" args))}} tconfig]
 
-    (let [nstr (fn [x] (if (nil? x) "nil" (str x)))
+    (let [nstr          (fn [x] (if (nil? x) "nil" (str x)))
           dict-cached   (when-not dev-mode? (dict-compile* dictionary))
-          ;;; Could cache these for extra perf (probably overkill):
           find-scoped   (fn [d k l] (some #(get-in d [(scope-fn k) %]) (loc-tree l)))
           find-unscoped (fn [d k l] (some #(get-in d [          k  %]) (loc-tree l)))]
 
