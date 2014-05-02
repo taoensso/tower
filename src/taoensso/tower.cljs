@@ -51,7 +51,7 @@
           (loc-tree* loc-or-locs) ; Build search tree from single locale
           (->> loc-or-locs ; Build search tree from multiple locales
                (mapv loc-tree*)
-               (apply encore/interleave-all) ; (reduce into)
+               (reduce into) ; (apply encore/interleave-all)
                (encore/distinctv)))))))
 
 (defn make-t ; Crossover (modified)
