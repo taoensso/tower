@@ -37,7 +37,7 @@ Add the necessary dependency to your [Leiningen][] `project.clj` and `require` t
 
 ### Translation
 
-The `make-t` fn handles translations. You give it a config map which includes your dictionary, and get back a `(fn [locale k-or-ks & fmt-args])`:
+The `make-t` fn handles translations. You give it a config map which includes your dictionary, and get back a `(fn [locale-or-locales k-or-ks & fmt-args])`:
 
 ```clojure
 (def my-tconfig
@@ -104,6 +104,14 @@ You can also specify fallback keys that'll be tried before other locales. `(t :e
   5. `:example/foo` in the fallback locale.
   6. `:example/bar` in the fallback locale.
   7. `:missing` in any of the above locales.
+
+And even fallback locales. `(t [:fr-FR :en-US] :example/foo)` searches:
+  1. `:example/foo` in the `:fr-FR` locale.
+  2. `:example/foo` in the `:en-US` locale.
+  3. `:example/foo` in the `:fr` locale.
+  4. `:example/foo` in the `:en` locale.
+  5. `:example/foo` in the fallback locale.
+  6. `:missing` in any of the above locales.
 
 In all cases, translation requests are logged upon fallback to fallback locale or :missing key.
 
