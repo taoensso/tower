@@ -147,20 +147,23 @@
 (expect "Hello Steve, how are you?" (pt :en :example/greeting "Steve"))
 (expect Exception ((tower/make-t {:dictionary {}}) :en :anything "Any arg"))
 
-;;; Missing keys & key fallback
-(expect "|Missing translation: [:en nil [:invalid]]|"
+;;; Missing translations
+(expect "|Missing translation: [[:en] nil [:invalid]]|"
         (pt :en :invalid))
 (expect nil (pt :de :invalid)) ; No locale-appropriate :missing key
-(expect "|Missing translation: [:en :whatever [:invalid]]|"
+(expect "|Missing translation: [[:en] :whatever [:invalid]]|"
         (with-tscope :whatever (pt :en :invalid)))
-(expect "|Missing translation: [:en nil [:invalid]]|"
+(expect "|Missing translation: [[:en] nil [:invalid]]|"
         (pt :en :invalid "arg"))
-(expect ":en :example/foo text"
-        (pt :en [:invalid :example/foo]))
-(expect "|Missing translation: [:en nil [:invalid :invalid]]|"
+(expect "|Missing translation: [[:en] nil [:invalid :invalid]]|"
         (pt :en [:invalid :invalid]))
-(expect "Explicit fallback" (pt :en [:invalid "Explicit fallback"]))
-(expect nil (pt :en [:invalid nil]))
+
+;;; Fallbacks
+(expect ":en :example/foo text" (pt :en       [:invalid :example/foo]))
+(expect "Explicit fallback"     (pt :en       [:invalid "Explicit fallback"]))
+(expect nil                     (pt :en       [:invalid nil]))
+(expect ":de :example/foo text" (pt [:zh :de] :example/foo))
+(expect ":de :example/foo text" (pt [:zh :de] [:invalid :example/foo]))
 
 ;;; Aliases
 (expect "Hello Bob, how are you?" (pt :en :example/greeting-alias "Bob"))

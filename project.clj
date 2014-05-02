@@ -11,7 +11,7 @@
                 *assert* true}
   :dependencies
   [[org.clojure/clojure "1.4.0"]
-   [com.taoensso/encore "1.2.0"]
+   [com.taoensso/encore "1.5.0"]
    [com.taoensso/timbre "3.1.6"]
    [markdown-clj        "0.9.41"]]
 

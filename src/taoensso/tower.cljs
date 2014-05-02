@@ -38,13 +38,21 @@
   (def my-dict-inline   (tower-macros/dict-compile {:en {:a "**hello**"}}))
   (def my-dict-resource (tower-macros/dict-compile "slurps/i18n/utils.clj")))
 
-(def loc-tree ; Crossover (direct)
-  (memoize ; Also used runtime by `translate` fn
-   (fn [loc]
-     (let [loc-parts (str/split (-> loc locale-key name) #"[-_]")
-           loc-tree  (mapv #(keyword (str/join "-" %))
-                           (take-while identity (iterate butlast loc-parts)))]
-       loc-tree))))
+(def ^:private loc-tree ; Crossover (direct)
+  (let [loc-tree*
+        (fn [loc]
+          (let [loc-parts (str/split (-> loc locale-key name) #"[-_]")
+                loc-tree  (mapv #(keyword (str/join "-" %))
+                            (take-while identity (iterate butlast loc-parts)))]
+            loc-tree))]
+    (memoize ; Also used runtime by translation fns
+      (fn [loc-or-locs]
+        (if-not (vector? loc-or-locs)
+          (loc-tree* loc-or-locs) ; Build search tree from single locale
+          (->> loc-or-locs ; Build search tree from multiple locales
+               (mapv loc-tree*)
+               (apply encore/interleave-all) ; (reduce into)
+               (encore/distinctv)))))))
 
 (defn make-t ; Crossover (modified)
   [tconfig] {:pre [(map? tconfig) ; (:dictionary tconfig)
@@ -69,33 +77,36 @@
           find-scoped   (fn [d k l] (some #(get-in d [(scope-fn k) %]) (loc-tree l)))
           find-unscoped (fn [d k l] (some #(get-in d [          k  %]) (loc-tree l)))]
 
-      (fn new-t [loc k-or-ks & fmt-args]
-        (let [dict (or dict-cached ; (dict-compile-uncached dictionary)
+      (fn new-t [loc-or-locs k-or-ks & fmt-args]
+        (let [l-or-ls loc-or-locs
+              dict (or dict-cached ; (dict-compile-uncached dictionary)
                        )
               ks   (if (vector? k-or-ks) k-or-ks [k-or-ks])
+              ls   (if (vector? l-or-ls) l-or-ls [l-or-ls])
+              loc1 (nth ls 0) ; Preferred locale (always used for fmt)
               tr
               (or
-               ;; Try loc & parents:
-               (some #(find-scoped dict % loc) (take-while keyword? ks))
+               ;; Try locales & parents:
+               (some #(find-scoped dict % l-or-ls) (take-while keyword? ks))
                (let [last-k (peek ks)]
                  (if-not (keyword? last-k)
                    last-k ; Explicit final, non-keyword fallback (may be nil)
                    (do
                      (when-let [log-f log-missing-translation-fn]
-                       (log-f {:locale loc :scope (scope-fn nil) :ks ks
+                       (log-f {:locales ls :scope (scope-fn nil) :ks ks
                                :dev-mode? dev-mode? ; :ns (str *ns*)
                                }))
                      (or
                       ;; Try fallback-locale & parents:
                       (some #(find-scoped dict % fallback-locale) ks)
 
-                      ;; Try :missing in loc, parents, fallback-loc, & parents:
+                      ;; Try :missing in locales, parents, fallback-loc, & parents:
                       (when-let [pattern
-                                 (or (find-unscoped dict :missing loc)
+                                 (or (find-unscoped dict :missing l-or-ls)
                                      (find-unscoped dict :missing fallback-locale))]
-                        (fmt-fn loc pattern (nstr loc) (nstr (scope-fn nil))
+                        (fmt-fn loc1 pattern (nstr ls) (nstr (scope-fn nil))
                           (nstr ks))))))))]
 
           (if (nil? fmt-args) tr
             (if (nil? tr) (throw (js/Error. "Can't format nil translation pattern."))
-              (apply fmt-fn loc tr fmt-args))))))))
+              (apply fmt-fn loc1 tr fmt-args))))))))
