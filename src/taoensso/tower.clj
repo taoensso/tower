@@ -521,7 +521,7 @@
   (t :en example-tconfig [:invalid :example/foo])
   (t :en example-tconfig [:invalid "Explicit fallback"])
 
-  (def prod-t (create-t (assoc example-tconfig :dev-mode? false)))
+  (def prod-t (make-t (assoc example-tconfig :dev-mode? false)))
   (time (dotimes [_ 10000] (prod-t :en :example/foo)))            ; ~18ms
   (time (dotimes [_ 10000] (prod-t :en [:invalid :example/foo]))) ; ~38ms
   (time (dotimes [_ 10000] (prod-t :en [:invalid nil])))          ; ~20ms
