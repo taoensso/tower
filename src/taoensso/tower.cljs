@@ -40,12 +40,13 @@
 
 (def ^:private loc-tree ; Crossover (direct)
   (let [loc-tree*
-        (fn [loc]
-          (let [loc-parts (str/split (-> loc locale-key name) #"[-_]")
-                loc-tree  (mapv #(keyword (str/join "-" %))
-                            (take-while identity (iterate butlast loc-parts)))]
-            loc-tree))]
-    (memoize ; Also used runtime by translation fns
+        (memoize
+          (fn [loc]
+            (let [loc-parts (str/split (-> loc locale-key name) #"[-_]")
+                  loc-tree  (mapv #(keyword (str/join "-" %))
+                              (take-while identity (iterate butlast loc-parts)))]
+              loc-tree)))]
+    (identity ; memoize ; Also used runtime by translation fns
       (fn [loc-or-locs]
         (if-not (vector? loc-or-locs)
           (loc-tree* loc-or-locs) ; Build search tree from single locale
