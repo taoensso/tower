@@ -358,27 +358,32 @@
                                    dict) e))))))
 
 (def ^:private loc-tree
-  ":en-US-var1                   -> [:en-US-var1 :en-US :en]
-   [:en-US-var1 :fr-FR-var1 :fr] -> [:en-US-var1 :en-US :en :fr-FR-var1 :fr-FR :fr]"
   (let [loc-tree*
         (memoize
-          (fn [loc]
+          (fn [loc & [unpadded?]]
             (let [loc-parts (str/split (-> loc locale-key name) #"[-_]")
                   loc-tree  (mapv #(keyword (str/join "-" %))
-                              (take-while identity (iterate butlast loc-parts)))]
-              loc-tree)))]
-    (identity ; memoize ; Also used runtime by translation fns
+                              (take-while identity (iterate butlast loc-parts)))
+                  loc-tree-padded (into (vec (repeat (- 3 (count loc-tree)) nil))
+                                    loc-tree)]
+              (if unpadded? loc-tree loc-tree-padded))))]
+    (encore/memoize* 40000 nil ; Also used runtime by translation fns
       (fn [loc-or-locs]
         (if-not (vector? loc-or-locs)
-          (loc-tree* loc-or-locs) ; Build search tree from single locale
+          (loc-tree* loc-or-locs :unpadded) ; Build search tree from single locale
           (->> loc-or-locs ; Build search tree from multiple desc-preference locales
                (mapv loc-tree*)
-               (reduce into) ; (apply encore/interleave-all)
+               (apply encore/interleave-all)
+               (filterv identity)
                (encore/distinctv)))))))
 
 (comment
-  (map loc-tree [:en-US [:en-US] [:en-US :fr-FR :fr :en]])
-  (loc-tree ["en_GB" "en_US" "fr_FR" "en"])
+  (loc-tree :en-US)   ; [:en-US :en]
+  (loc-tree [:en-US]) ; [:en-US :en]
+  (loc-tree [:en-GB :en-US])     ; [:en-GB :en-US :en]
+  (loc-tree [:en-GB :en :en-US]) ; [:en-GB :en-US :en]
+  (loc-tree [:en-GB :fr-FR :en-US]) ; [:en-GB :fr-FR :en-US :en :fr]
+  (loc-tree [:en-US :fr-FR :fr :en :DE-de]) ; [:en-US :fr-FR :de-DE :en :fr :de]
   (time (dotimes [_ 10000] (loc-tree [:en-US :fr-FR :fr :en :DE-de]))))
 
 (defn- dict-inherit-parent-trs
@@ -529,8 +534,7 @@
   (time (dotimes [_ 10000] (prod-t :en [:invalid :example/foo]))) ; ~38ms
   (time (dotimes [_ 10000] (prod-t :en [:invalid nil])))          ; ~20ms
   (time (dotimes [_ 10000] (prod-t [:es-UY :ar-KW :sr-CS :en]
-                             [:invalid nil]))) ; ~170ms for 14 lookups
-  (count (loc-tree [:es-UY :ar-KW :sr-CS :en])) ; 7 locales
+                             [:invalid nil]))) ; ~90ms for 14 lookups
   )
 
 (defn dictionary->xliff [m]) ; TODO Use hiccup?

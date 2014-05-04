@@ -41,18 +41,21 @@
 (def ^:private loc-tree ; Crossover (direct)
   (let [loc-tree*
         (memoize
-          (fn [loc]
+          (fn [loc & [unpadded?]]
             (let [loc-parts (str/split (-> loc locale-key name) #"[-_]")
                   loc-tree  (mapv #(keyword (str/join "-" %))
-                              (take-while identity (iterate butlast loc-parts)))]
-              loc-tree)))]
-    (identity ; memoize ; Also used runtime by translation fns
+                              (take-while identity (iterate butlast loc-parts)))
+                  loc-tree-padded (into (vec (repeat (- 3 (count loc-tree)) nil))
+                                    loc-tree)]
+              (if unpadded? loc-tree loc-tree-padded))))]
+    (encore/memoize* 40000 nil ; Also used runtime by translation fns
       (fn [loc-or-locs]
         (if-not (vector? loc-or-locs)
-          (loc-tree* loc-or-locs) ; Build search tree from single locale
-          (->> loc-or-locs ; Build search tree from multiple locales
+          (loc-tree* loc-or-locs :unpadded) ; Build search tree from single locale
+          (->> loc-or-locs ; Build search tree from multiple desc-preference locales
                (mapv loc-tree*)
-               (reduce into) ; (apply encore/interleave-all)
+               (apply encore/interleave-all)
+               (filterv identity)
                (encore/distinctv)))))))
 
 (defn make-t ; Crossover (modified)
