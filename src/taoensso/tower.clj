@@ -357,7 +357,10 @@
         (throw (Exception. (format "Failed to load dictionary from resource: %s"
                                    dict) e))))))
 
-(def ^:private loc-tree
+(def loc-tree
+  "Implementation detail.
+  Returns intelligent, descending-preference vector of locale keys to search
+  for given locale or vector of descending-preference locales."
   (let [loc-tree*
         (memoize
           (fn [loc]

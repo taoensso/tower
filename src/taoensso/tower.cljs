@@ -38,7 +38,7 @@
   (def my-dict-inline   (tower-macros/dict-compile {:en {:a "**hello**"}}))
   (def my-dict-resource (tower-macros/dict-compile "slurps/i18n/utils.clj")))
 
-(def ^:private loc-tree
+(def loc-tree ; Crossover (direct)
   (let [loc-tree*
         (memoize
           (fn [loc]
