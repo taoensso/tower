@@ -49,7 +49,7 @@ The `make-t` fn handles translations. You give it a config map which includes yo
                      :inline-markdown "<tag>**strong**</tag>"
                      :block-markdown* "<tag>**strong**</tag>"
                      :with-exclaim!   "<tag>**strong**</tag>"
-                     :with-arguments   "Num %d = %s"
+                     :with-arguments  "Num %d = %s"
                      :greeting-alias :example/greeting
                      :baz-alias      :example.bar/baz}
            :missing  "|Missing translation: [%1$s %2$s %3$s]|"}
@@ -137,7 +137,7 @@ There's three notable differences from the JVM translator:
 
   1. The dictionary is provided in a _pre-compiled_ form so that it can be inlined directly into your Cljs.
   2. Since we lack a locale-aware Cljs `format` fn, your translations _cannot_ use JVM locale formatting patterns.
- 3. The [`goog.string.format`](http://docs.closure-library.googlecode.com/git/local_closure_goog_string_stringformat.js.source.html#line39) used to format messages with arguments handles `nil` argument as a missing argument (while Java just prints the string "null").
+  3. The [`goog.string.format`](http://docs.closure-library.googlecode.com/git/local_closure_goog_string_stringformat.js.source.html#line39) used to format messages with arguments handles `nil` argument as a missing argument (while Java just prints the string "null").
 
 The API is otherwise exactly the same, including support for all decorators.
 
