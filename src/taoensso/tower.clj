@@ -4,8 +4,9 @@
   {:author "Peter Taoussanis, Janne Asmala"}
   (:require [clojure.string  :as str]
             [clojure.java.io :as io]
+            [taoensso.encore :as encore]
             [taoensso.timbre :as timbre]
-            [taoensso.tower.utils :as utils :refer (defmem-)])
+            [taoensso.tower.utils :as utils :refer (defmem- defmem-*)])
   (:import  [java.util Date Locale TimeZone Formatter]
             [java.text Collator NumberFormat DateFormat]))
 
@@ -22,37 +23,54 @@
 
 (defn try-locale
   "Like `locale` but returns nil if no valid matching Locale could be found."
-  [loc]
-  (cond (nil? loc) nil
-        (instance? Locale loc) loc
-        (= :jvm-default loc) (Locale/getDefault)
-        :else (ensure-valid-Locale
-               (apply make-Locale (str/split (name loc) #"[-_]")))))
+  [loc & [lang-only?]]
+  (when loc
+    (cond
+     (identical? :jvm-default loc)
+     (if-not lang-only? (Locale/getDefault)
+       (make-Locale (.getLanguage ^Locale (Locale/getDefault))))
+
+     (instance? Locale loc)
+     (if-not lang-only? loc
+       (make-Locale (.getLanguage ^Locale loc)))
+
+     :else
+     (let [loc-parts (str/split (name loc) #"[-_]")]
+       (ensure-valid-Locale
+        (if-not lang-only?
+          (apply make-Locale loc-parts)
+          (make-Locale (first loc-parts))))))))
 
 (def locale
   "Returns valid Locale matching given name string/keyword, or throws an
   exception if none could be found. `loc` should be of form :en, :en-US,
   :en-US-variant, or :jvm-default."
   (memoize
-   (fn [loc] (or (try-locale loc)
-                (throw (Exception. (str "Invalid locale: " loc)))))))
+   (fn [loc & [lang-only?]]
+     (or (try-locale loc lang-only?)
+         (throw (Exception. (format "Invalid locale: %s" (str loc))))))))
 
 (def locale-key "Returns locale keyword for given Locale object or locale keyword."
   (memoize #(keyword (str/replace (str (locale %)) "_" "-"))))
 
 (comment
   (mapv try-locale [nil :invalid :jvm-default :en-US :en-US-var1 (Locale/getDefault)])
-  (time (dotimes [_ 10000] (locale :en))))
-
-(def ^:dynamic *locale* nil)
-(defmacro with-locale
-  "Executes body within the context of thread-local locale binding, enabling
-  use of translation and localization functions. `loc` should be of form :en,
-  :en-US, :en-US-variant, or :jvm-default."
-  [loc & body] `(binding [*locale* (locale ~loc)] ~@body))
+  (time (dotimes [_ 10000] (locale :en)))
+  (mapv #(try-locale % :lang-only)
+    [nil :invalid :en-invalid :en-GB (Locale/getDefault)]))
 
 ;;;; Localization
+;; The Java date API is a mess, but we (thankfully!) don't need much of it for
+;; the simple date formatting+parsing that Tower provides. So while the
+;; java.time (Java 8) and Joda-Time APIs are better, we choose instead to just
+;; use the widely-available date API and patch over the relevant nasty bits.
+;; This is an implementation detail from the perspective of lib consumers.
+;;
+;; Note that we use DateFormat rather than SimpleDateFormat since it offers
+;; better facilities (esp. wider locale support, etc.).
 
+;; Unlike SimpleDateFormat (with it's arbitrary patterns), DateFormat supports
+;; a limited set of predefined locale-specific styles:
 (def ^:private ^:const dt-styles
   {:default DateFormat/DEFAULT
    :short   DateFormat/SHORT
@@ -69,14 +87,26 @@
            st2              (dt-styles (or len2 len1 :default))]
        [type st1 st2]))))
 
-(defmem- f-date DateFormat [Loc st]    (DateFormat/getDateInstance st Loc))
-(defmem- f-time DateFormat [Loc st]    (DateFormat/getTimeInstance st Loc))
-(defmem- f-dt   DateFormat [Loc ds ts] (DateFormat/getDateTimeInstance ds ts Loc))
-
-(defmem- f-number   NumberFormat [Loc] (NumberFormat/getNumberInstance   Loc))
-(defmem- f-integer  NumberFormat [Loc] (NumberFormat/getIntegerInstance  Loc))
-(defmem- f-percent  NumberFormat [Loc] (NumberFormat/getPercentInstance  Loc))
-(defmem- f-currency NumberFormat [Loc] (NumberFormat/getCurrencyInstance Loc))
+;;; Some contortions here to get high performance thread-safe formatters (none
+;;; of the java.text formatters are thread-safe!). Each constructor* call will
+;;; return a memoized (=> shared) proxy, that'll return thread-local instances
+;;; on `.get`.
+;;
+(defmem-* f-date*             [Loc st] (DateFormat/getDateInstance st Loc)) ; proxy
+(defn-    f-date  ^DateFormat [Loc st] (.get (f-date* Loc st)))
+(defmem-* f-time*             [Loc st] (DateFormat/getTimeInstance st Loc)) ; proxy
+(defn-    f-time  ^DateFormat [Loc st] (.get (f-time* Loc st)))
+(defmem-* f-dt*            [Loc ds ts] (DateFormat/getDateTimeInstance ds ts Loc)) ; proxy
+(defn-    f-dt ^DateFormat [Loc ds ts] (.get (f-dt* Loc ds ts)))
+;;
+(defmem-* f-number*                [Loc] (NumberFormat/getNumberInstance   Loc)) ; proxy
+(defn-    f-number   ^NumberFormat [Loc] (.get (f-number* Loc)))
+(defmem-* f-integer*               [Loc] (NumberFormat/getIntegerInstance  Loc)) ; proxy
+(defn-    f-integer  ^NumberFormat [Loc] (.get (f-integer* Loc)))
+(defmem-* f-percent*               [Loc] (NumberFormat/getPercentInstance  Loc)) ; proxy
+(defn-    f-percent  ^NumberFormat [Loc] (.get (f-percent* Loc)))
+(defmem-* f-currency*              [Loc] (NumberFormat/getCurrencyInstance Loc)) ; proxy
+(defn-    f-currency ^NumberFormat [Loc] (.get (f-currency* Loc)))
 
 (defprotocol     IFmt (pfmt [x loc style]))
 (extend-protocol IFmt
@@ -171,11 +201,11 @@
   ^String [loc fmt & args] (String/format (locale loc) fmt (to-array args)))
 
 (defn fmt-msg
-  "Creates a localized message formatter and parse pattern string, substituting
-  given arguments as per MessageFormat spec."
-  ^String [loc pattern & args]
-  (let [formatter (java.text.MessageFormat. pattern (locale loc))]
-    (.format formatter (to-array args))))
+  "Creates a localized MessageFormat and uses it to format given pattern string,
+  substituting arguments as per MessageFormat spec."
+  ^String [loc ^String pattern & args]
+  (let [mformat (java.text.MessageFormat. pattern (locale loc))]
+    (.format mformat (to-array args))))
 
 (comment
   (fmt-msg :de "foobar {0}!" 102.22)
@@ -218,18 +248,20 @@
       ([loc iso-languages]
          (get-localized-sorted-map iso-languages (locale loc)
            (fn [code] (let [Loc (Locale. (name code))]
-                       (str (.getDisplayLanguage Loc (locale loc))
-                            ;; Also provide each name in it's OWN language
-                            (when (not= Loc (locale loc))
-                              (str " (" (.getDisplayLanguage Loc Loc) ")"))))))))))
+                       (str (.getDisplayLanguage Loc Loc) ; Lang, in itself
+                         (when (not= Loc (locale loc :lang-only))
+                           (format " (%s)" ; Lang, in current lang
+                             (.getDisplayLanguage Loc (locale loc))))))))))))
 
 (comment (countries :en)
-         (languages :pl [:en :de :pl]))
+         (languages :pl    [:en :de :pl])
+         (languages :en-GB [:en :de :pl]))
 
 ;;;; Timezones (doesn't depend on locales)
 
+(def all-timezone-ids (set (TimeZone/getAvailableIDs)))
 (def major-timezone-ids
-  (->> (TimeZone/getAvailableIDs)
+  (->> all-timezone-ids
        (filterv #(re-find #"^(Africa|America|Asia|Atlantic|Australia|Europe|Indian|Pacific)/.*" %))
        (set)))
 
@@ -246,53 +278,53 @@
 (comment (timezone-display-name "Asia/Bangkok" (* 90 60 1000)))
 
 (def timezones "Returns (sorted-map-by offset <tz-name> <tz-id> ...)."
-  (utils/memoize-ttl (* 3 60 60 1000) ; 3hr ttl
-   (fn []
-     (let [instant (System/currentTimeMillis)
-           tzs (->> major-timezone-ids
-                    (mapv (fn [id]
-                            (let [tz     (TimeZone/getTimeZone id)
-                                  offset (.getOffset tz instant)]
-                              [(timezone-display-name id offset) id offset]))))
-           tz-pairs (->> tzs (mapv   (fn [[dn id offset]] [dn id])))
-           offsets  (->> tzs (reduce (fn [m [dn id offset]] (assoc m dn offset)) {}))
-           comparator (fn [dn-x dn-y]
-                        (let [cmp1 (compare (offsets dn-x) (offsets dn-y))]
-                          (if-not (zero? cmp1) cmp1
-                            (compare dn-x dn-y))))]
-       (into (sorted-map-by comparator) tz-pairs)))))
+  (encore/memoize* (* 3 60 60 1000) ; 3hr ttl
+    (fn
+      ([] (timezones major-timezone-ids))
+      ([timezone-ids]
+         (let [instant (System/currentTimeMillis)
+               tzs (->> timezone-ids
+                        (mapv (fn [id]
+                                (let [tz     (TimeZone/getTimeZone id)
+                                      offset (.getOffset tz instant)]
+                                  [(timezone-display-name id offset) id offset]))))
+               tz-pairs (->> tzs (mapv   (fn [[dn id offset]] [dn id])))
+               offsets  (->> tzs (reduce (fn [m [dn id offset]] (assoc m dn offset)) {}))
+               comparator (fn [dn-x dn-y]
+                            (let [cmp1 (compare (offsets dn-x) (offsets dn-y))]
+                              (if-not (zero? cmp1) cmp1
+                                      (compare dn-x dn-y))))]
+           (into (sorted-map-by comparator) tz-pairs))))))
 
-(comment (reverse (sort ["-00:00" "+00:00" "-01:00" "+01:00" "-01:30" "+01:30"]))
-         (count       (timezones))
-         (take 5      (timezones))
-         (take-last 5 (timezones)))
+(comment
+  (reverse (sort ["-00:00" "+00:00" "-01:00" "+01:00" "-01:30" "+01:30"]))
+  (count       (timezones))
+  (take 5      (timezones))
+  (take-last 5 (timezones)))
 
 ;;;; Translations
 
-(def dev-mode?       "Global fallback dev-mode?." (atom true))
-(def fallback-locale "Global fallback locale."    (atom :en))
+(declare dev-mode? fallback-locale) ; DEPRECATED
 
 (def scoped "Merges scope keywords: (scope :a.b :c/d :e) => :a.b.c.d/e"
-  (memoize (fn [& ks] (utils/merge-keywords ks))))
+  (memoize (fn [& ks] (encore/merge-keywords ks))))
 
 (comment (scoped :a.b :c :d))
 
 (def ^:dynamic *tscope* nil)
-(defmacro with-tscope
-  "Executes body within the context of thread-local translation scope binding.
-  `translation-scope` should be a keyword like :example.greetings, or nil."
-  [translation-scope & body] `(binding [*tscope* ~translation-scope] ~@body))
+(defmacro ^:also-cljs with-tscope
+  "Executes body with given translation scope binding."
+  [translation-scope & body]
+  `(binding [taoensso.tower/*tscope* ~translation-scope] ~@body))
 
 (def example-tconfig
-  "Example/test config as passed to `t`, `wrap-i18n-middlware`, etc.
+  "Example/test config as passed to `make-t`, Ring middleware, etc.
 
   :dictionary should be a map, or named resource containing a map of form
   {:locale {:ns1 ... {:nsN {:key<decorator> text ...} ...} ...} ...}}.
 
   Named resource will be watched for changes when `:dev-mode?` is true."
-  {:dev-mode? true
-   :fallback-locale :de
-   :dictionary ; Map or named resource containing map
+  {:dictionary ; Map or named resource containing map
    {:en   {:example {:foo         ":en :example/foo text"
                      :foo_comment "Hello translator, please do x"
                      :bar {:baz ":en :example.bar/baz text"}
@@ -302,18 +334,19 @@
                      :with-exclaim!   "<tag>**strong**</tag>"
                      :greeting-alias :example/greeting
                      :baz-alias      :example.bar/baz}
-           :missing  "<Missing translation: [%1$s %2$s %3$s]>"}
+           :missing  "|Missing translation: [%1$s %2$s %3$s]|"}
     :en-US {:example {:foo ":en-US :example/foo text"}}
     :de    {:example {:foo ":de :example/foo text"}}
     :ja "test_ja.clj" ; Import locale's map from external resource
     }
-    ;;; Advanced options
-   :scope-var  #'*tscope*
-   :root-scope nil
-   :fmt-fn     fmt-str ; (fn [loc fmt args])
+   :dev-mode? true ; Set to true for auto dictionary reloading
+   :fallback-locale :de
+   :scope-fn  (fn [k] (scoped *tscope* k)) ; Experimental, undocumented
+   :fmt-fn    fmt-str ; (fn [loc fmt args])
    :log-missing-translation-fn
-   (fn [{:keys [dev-mode? locale ks scope] :as args}]
-     (timbre/logp (if dev-mode? :debug :warn) "Missing translation" args))})
+   (fn [{:keys [locale ks scope] :as args}]
+     (timbre/logp (if dev-mode? :debug :warn)
+       "Missing translation" args))})
 
 ;;; Dictionaries
 
@@ -324,13 +357,42 @@
         (throw (Exception. (format "Failed to load dictionary from resource: %s"
                                    dict) e))))))
 
-(def ^:private loc-tree ":en-US-var1 -> [:en-US-var1 :en-US :en]"
-  (memoize ; Also used runtime by `translate` fn
-   (fn [loc]
-     (let [loc-parts (str/split (-> loc locale-key name) #"[-_]")
-           loc-tree  (mapv #(keyword (str/join "-" %))
-                           (take-while identity (iterate butlast loc-parts)))]
-       loc-tree))))
+(def loc-tree
+  "Implementation detail.
+  Returns intelligent, descending-preference vector of locale keys to search
+  for given locale or vector of descending-preference locales."
+  (let [loc-tree*
+        (memoize
+          (fn [loc]
+            (let [loc-parts (str/split (-> loc locale-key name) #"[-_]")
+                  loc-tree  (mapv #(keyword (str/join "-" %))
+                              (take-while identity (iterate butlast loc-parts)))]
+              loc-tree)))
+        loc-primary (memoize (fn [loc] (peek  (loc-tree* loc))))
+        loc-nparts  (memoize (fn [loc] (count (loc-tree* loc))))]
+    (encore/memoize* 80000 nil ; Also used runtime by translation fns
+      (fn [loc-or-locs]
+        (if-not (vector? loc-or-locs)
+          (loc-tree* loc-or-locs) ; Build search tree from single locale
+          ;; Build search tree from multiple desc-preference locales:
+          (let [primary-locs (->> loc-or-locs (mapv loc-primary) (encore/distinctv))
+                primary-locs-sort (zipmap primary-locs (range))]
+            (->> loc-or-locs
+                 (mapv loc-tree*)
+                 (reduce into)
+                 (encore/distinctv)
+                 (sort-by #(- (* 10 (primary-locs-sort (loc-primary %) 0))
+                              (loc-nparts %)))
+                 (vec))))))))
+
+(comment
+  (loc-tree :en-US)   ; [:en-US :en]
+  (loc-tree [:en-US]) ; [:en-US :en]
+  (loc-tree [:en-GB :en-US])     ; [:en-GB :en-US :en]
+  (loc-tree [:en-GB :en :en-US]) ; [:en-GB :en-US :en]
+  (loc-tree [:en-GB :fr-FR :en-US]) ; [:en-GB :en-US :en :fr-FR :fr]
+  (loc-tree [:en-US :fr-FR :fr :en :DE-de]) ; [:en-US :en :fr-FR :fr :de-DE :de]
+  (time (dotimes [_ 10000] (loc-tree [:en-US :fr-FR :fr :en :DE-de]))))
 
 (defn- dict-inherit-parent-trs
   "Merges each locale's translations over its parent locale translations."
@@ -341,7 +403,7 @@
            ;; Import locale's map from another resource:
            dict      (if-not (string? (dict loc)) dict
                        (assoc dict loc (dict-load (dict loc))))]
-       [loc (apply utils/merge-deep (mapv dict (rseq loc-tree')))]))))
+       [loc (apply encore/merge-deep (mapv dict (rseq loc-tree')))]))))
 
 (comment (dict-inherit-parent-trs {:en    {:foo ":en foo"
                                            :bar ":en :bar"}
@@ -363,7 +425,7 @@
         translation ; Resolve possible translation alias
         (if-not (keyword? translation) translation
           (let [target (get-in dict
-                         (into [loc] (->> (utils/explode-keyword translation)
+                         (into [loc] (->> (encore/explode-keyword translation)
                                           (mapv keyword))))]
             (when-not (keyword? target) target)))]
 
@@ -400,88 +462,88 @@
           ;; 1-level deep merge:
           (apply merge-with merge)))))
 
-(def ^:private dict-compile* (comp dict-compile-prepared dict-prepare)) ; For dev-mode
-(def ^:private dict-compile  (memoize dict-compile*)) ; For prod-mode
+(def dict-compile* (comp dict-compile-prepared dict-prepare)) ; Public for cljs macro
+(comment (time (dotimes [_ 1000] (dict-compile* (:dictionary example-tconfig)))))
 
-(comment
-  (time (dotimes [_ 1000] (dict-compile* (:dictionary example-tconfig))))
-  (time (dotimes [_ 1000] (dict-compile  (:dictionary example-tconfig)))))
+(defmacro ^:only-cljs dict-compile
+  "Tower's standard dictionary compiler, as a compile-time macro. For use with
+  ClojureScript."
+  [dict] (dict-compile* dict))
 
 ;;;
 
-(defn translate
-  "Takes dictionary key (or vector of descending- preference keys) within a
-  (possibly nil) scope, and returns the best translation available for given
-  locale. With additional arguments, treats translation as pattern for
-  config's `:fmt-fn` (defaults to `fmt-str`). `:fmt-fn` can also be used for
-  advanced arg transformations like Hiccup form rendering, etc.
+(defn- make-t-uncached
+  [tconfig] {:pre [(map? tconfig) (:dictionary tconfig)]}
+  (let [{:keys [dictionary dev-mode? fallback-locale scope-fn fmt-fn
+                log-missing-translation-fn]
+         :or   {fallback-locale :en
+                scope-fn (fn [k] (scoped *tscope* k))
+                fmt-fn   fmt-str
+                log-missing-translation-fn
+                (fn [{:keys [locale ks scope] :as args}]
+                  (timbre/logp (if dev-mode? :debug :warn)
+                    "Missing translation" args))}} tconfig]
 
+    (let [nstr          (fn [x] (if (nil? x) "nil" (str x)))
+          dict-cached   (when-not dev-mode? (dict-compile* dictionary))
+          find-scoped   (fn [d k l] (some #(get-in d [(scope-fn k) %]) (loc-tree l)))
+          find-unscoped (fn [d k l] (some #(get-in d [          k  %]) (loc-tree l)))]
+
+      (fn new-t [loc-or-locs k-or-ks & fmt-args]
+        (let [l-or-ls loc-or-locs
+              dict (or dict-cached (dict-compile* dictionary)) ; Recompile (slow)
+              ks   (if (vector? k-or-ks) k-or-ks [k-or-ks])
+              ls   (if (vector? l-or-ls) l-or-ls [l-or-ls])
+              loc1 (nth ls 0) ; Preferred locale (always used for fmt)
+              tr
+              (or
+               ;; Try locales & parents:
+               (some #(find-scoped dict % l-or-ls) (take-while keyword? ks))
+               (let [last-k (peek ks)]
+                 (if-not (keyword? last-k)
+                   last-k ; Explicit final, non-keyword fallback (may be nil)
+                   (do
+                     (when-let [log-f log-missing-translation-fn]
+                       (log-f {:locales ls :scope (scope-fn nil) :ks ks
+                               :dev-mode? dev-mode? :ns (str *ns*)}))
+                     (or
+                      ;; Try fallback-locale & parents:
+                      (some #(find-scoped dict % fallback-locale) ks)
+
+                      ;; Try :missing in locales, parents, fallback-loc, & parents:
+                      (when-let [pattern
+                                 (or (find-unscoped dict :missing l-or-ls)
+                                     (find-unscoped dict :missing fallback-locale))]
+                        (fmt-fn loc1 pattern (nstr ls) (nstr (scope-fn nil))
+                          (nstr ks))))))))]
+
+          (if (nil? fmt-args) tr
+            (if (nil? tr) (throw (Exception. "Can't format nil translation pattern"))
+              (apply fmt-fn loc1 tr fmt-args))))))))
+
+(def ^:private make-t-cached (memoize make-t-uncached))
+(defn make-t
+  "Returns a new translation fn for given config map:
+  (make-t example-tconfig) => (fn t [locale k-or-ks & fmt-args]).
   See `example-tconfig` for config details."
-  [loc config scope k-or-ks & fmt-args]
-  (let [{:keys [dev-mode? dictionary fallback-locale log-missing-translation-fn
-                scope-var root-scope fmt-fn]
-         :or   {dev-mode?       @dev-mode?
-                fallback-locale (or (:default-locale config) ; Backwards comp
-                                    @fallback-locale)
-                scope-var       #'*tscope*
-                fmt-fn          fmt-str}} config
+  [{:as tconfig :keys [dev-mode?]}]
+  (if dev-mode? (make-t-uncached tconfig)
+                (make-t-cached   tconfig)))
 
-        scope  (if-not (identical? scope ::scope-var) scope
-                       (when-let [v scope-var] (var-get v)))
+(comment
+  (t :en-ZA example-tconfig :example/foo)
+  (with-tscope :example (t :en-ZA example-tconfig :foo))
+  (t :en example-tconfig :invalid)
+  (t :en example-tconfig [:invalid :example/foo])
+  (t :en example-tconfig [:invalid "Explicit fallback"])
 
-        ;; For shared dictionaries. Experimental - intentionally undocumented
-        scope  (scoped root-scope scope)
-
-        dict   (if dev-mode? (dict-compile* dictionary)
-                             (dict-compile  dictionary))
-        ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
-
-        get-tr*  (fn [k l] (get-in dict [              k  l]))  ; Unscoped k
-        get-tr   (fn [k l] (get-in dict [(scoped scope k) l]))  ; Scoped k
-        find-tr* (fn [k l] (some #(get-tr* k %1) (loc-tree l))) ; Try loc & parents
-        find-tr  (fn [k l] (some #(get-tr  k %1) (loc-tree l))) ; ''
-
-        tr
-        (or (some #(find-tr % loc) (take-while keyword? ks)) ; Try loc & parents
-            (let [last-k (peek ks)]
-              (if-not (keyword? last-k)
-                last-k ; Explicit final, non-keyword fallback (may be nil)
-
-                (do (when-let [log-f log-missing-translation-fn]
-                      (log-f {:dev-mode? dev-mode? :ns (str *ns*)
-                              :locale loc :scope scope :ks ks}))
-                    (or
-                     ;; Try fallback-locale & parents
-                     (some #(find-tr % fallback-locale) ks)
-
-                     ;; Try :missing key in loc, parents, fallback-loc, & parents
-                     (when-let [pattern (or (find-tr* :missing loc)
-                                            (find-tr* :missing fallback-locale))]
-                       (let [str* #(if (nil? %) "nil" (str %))]
-                         (fmt-fn loc pattern (str* loc) (str* scope) (str* ks)))))))))]
-
-    (if-not fmt-args tr
-      (if-not tr (throw (Exception. "Can't format nil translation pattern."))
-        (apply fmt-fn loc tr fmt-args)))))
-
-(defn t "Like `translate` but uses a thread-local translation scope."
-  [loc config k-or-ks & fmt-args]
-  (apply translate loc config ::scope-var k-or-ks fmt-args))
-
-(comment (t :en-ZA example-tconfig :example/foo)
-         (with-tscope :example (t :en-ZA example-tconfig :foo))
-         (with-tscope :invalid
-           (t :en (assoc example-tconfig :scope-var nil) :example/foo))
-
-         (t :en example-tconfig :invalid)
-         (t :en example-tconfig [:invalid :example/foo])
-         (t :en example-tconfig [:invalid "Explicit fallback"])
-
-         (def prod-c (assoc example-tconfig :dev-mode? false))
-         (time (dotimes [_ 10000] (t :en prod-c :example/foo)))            ; ~30ms
-         (time (dotimes [_ 10000] (t :en prod-c [:invalid :example/foo]))) ; ~45ms
-         (time (dotimes [_ 10000] (t :en prod-c [:invalid nil])))          ; ~35ms
-         )
+  (def prod-t (make-t (assoc example-tconfig :dev-mode? false)))
+  (time (dotimes [_ 10000] (prod-t :en :example/foo)))            ; ~18ms
+  (time (dotimes [_ 10000] (prod-t :en [:invalid :example/foo]))) ; ~38ms
+  (time (dotimes [_ 10000] (prod-t :en [:invalid nil])))          ; ~20ms
+  (time (dotimes [_ 10000] (prod-t [:es-UY :ar-KW :sr-CS :en]
+                             [:invalid nil]))) ; ~90ms for 14 lookups
+  )
 
 (defn dictionary->xliff [m]) ; TODO Use hiccup?
 (defn xliff->dictionary [s]) ; TODO Use clojure.xml/parse?
@@ -491,6 +553,32 @@
 ;; gradually, the entire v1 API is reproduced below. This should allow Tower v2
 ;; to act as a quasi drop-in replacement for v1, despite the huge changes
 ;; under-the-covers.
+
+(def ^:dynamic *locale* nil)
+(defmacro with-locale "DEPRECATED."
+  [loc & body] `(binding [*locale* (locale ~loc)] ~@body))
+
+(def ^:private migrate-tconfig
+  (memoize
+   (fn [tconfig scope]
+     (assoc tconfig
+       :scope-fn  (fn [k] (scoped (:root-scope tconfig) *tscope* scope k))
+       :dev-mode? (if (contains? tconfig :dev-mode?)
+                    (:dev-mode? tconfig) @dev-mode?)
+       :fallback-locale (if (contains? tconfig :fallback-locale)
+                          (:fallback-locale tconfig)
+                          (or (:default-locale tconfig) @fallback-locale))))))
+
+(defn translate "DEPRECATED. Use `make-t` instead."
+  [loc tconfig scope k-or-ks & fmt-args]
+  (apply (make-t (migrate-tconfig tconfig scope)) loc k-or-ks fmt-args))
+
+(defn t "DEPRECATED. Use `make-t` instead."
+  [loc tconfig k-or-ks & fmt-args]
+  (apply (make-t (migrate-tconfig tconfig nil)) loc k-or-ks fmt-args))
+
+(def dev-mode?       "DEPRECATED." (atom true))
+(def fallback-locale "DEPRECATED." (atom :en))
 
 (defn parse-Locale "DEPRECATED: Use `locale` instead."
   [loc] (if (= loc :default) (locale :jvm-default) (locale loc)))
@@ -553,7 +641,7 @@
 
 (def config "DEPRECATED." (atom example-tconfig))
 (defn set-config!   "DEPRECATED." [ks val] (swap! config assoc-in ks val))
-(defn merge-config! "DEPRECATED." [& maps] (apply swap! config utils/merge-deep maps))
+(defn merge-config! "DEPRECATED." [& maps] (apply swap! config encore/merge-deep maps))
 
 (defn load-dictionary-from-map-resource! "DEPRECATED."
   ([] (load-dictionary-from-map-resource! "tower-dictionary.clj"))
@@ -565,7 +653,7 @@
               (merge-config! {:dictionary  new-dictionary})))
 
           (set-config! [:dict-res-name] resource-name)
-          (utils/file-resources-modified? resource-name)
+          (encore/file-resources-modified? resource-name)
           (catch Exception e
             (throw (Exception. (str "Failed to load dictionary from resource: "
                                     resource-name) e))))))

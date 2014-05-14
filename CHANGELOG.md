@@ -1,17 +1,68 @@
-## v2.0.2 / 2014-Jan-19
+## Pending / unreleased
 
-This is a **backwards compatible bug fix release**. Recommended upgrade.
+ * **CHANGE**: Default :missing translations entry now avoids <>'s (no need for html escaping).
+ * **CHANGE**: `languages` now returns languages as "localized (unlocalized)" pairs rather than "unlocalized (localized)" pairs.
+ * **CHANGE** (from RC1): ClojureScript macros are now in primary `tower.clj` ns.
+ * **NEW**: `timezones` fn now supports optional timezone-ids arg.
+ * **NEW**: Add `all-timezone-ids` set.
+ * **NEW**: `locale`, `try-locale` now have an optional arg to return simplified (lang-only) locales.
+ * [#43] **NEW**: Translation fns can now take a _vector_ of descending-preference locales (@vvvvalvalval).
+ * [#43] **NEW**: Ring middleware now automatically attaches a smarter translation fn that'll search through all of a client's sorted Accept-Language header languages when looking for a translation.
 
-### Features
- * `normalize` fn now takes optional normalization form.
+
+## v2.1.0-RC1 / 2014 Mar 30
+
+> This is a **significant update** that **may be BREAKING** in certain cases.
+>
+> Sorry about the hassle. The changes were necessary as part of an overhaul to the translation system for portability to ClojureScript.
+
+### New
+
+ * Added experimental ClojureScript translation support. See the README for an example and notes.
 
 ### Changes
- None.
 
-## Fixes
- * [unreported] broken `fmt-fn` argument for translate fn.
- * [unreported] fallback locales should have `locale-key` called on their locale.
- * [#37] broken `t` parent fallback for empty child locales.
+ * **DEPRECATED**: `wrap-tower-middleware` -> `wrap-tower`. This is a recommended change, but it's **BREAKING** if you make it:
+
+  ```clojure
+  ;;; 1. The fn signature has changed (tconfig is now an explicit arg):
+  (wrap-tower-middleware <ring-handler> {:tconfig _ <other opts>}) ; old
+  ;; vs
+  (wrap-tower <ring-handler> <tconfig> {<other-opts>}) ; new
+
+  ;;; 2. The Ring request's `:t` key has changed:
+  {:locale _ :t  (fn [k-or-ks & fmt-args])} ; old
+  ;; vs
+  {:locale _ :t  (fn [locale k-or-ks & fmt-args]) ; Now takes a locale
+             :t' (fn [k-or-ks & fmt-args])} ; new
+  ```
+
+ The new behaviour is more consistent. `t` always refers to a translation fn that takes a locale arg, and `t'` always refer to a partial translation fn that has already been provided a locale arg.
+
+ **Migrate** by swapping your middleware, and using `t'` instead of `t` as your locale-less translation fn. **OR** you can give a `:legacy-t? true` opt to `wrap-tower` to keep the old behaviour.
+
+ * **DEPRECATED, POSSIBLY BREAKING**: `translate` and `t` are both being phased out in favor of a new `make-t` fn. The new approach is more flexible and faster. This change is _non-breaking_ **if** you use the Ring middleware; otherwise please see the README for new recommended usage examples.
+ * Dropped (experimental) `:scope-var` tconfig option.
+ * Dropped (experimental) `:root-scope` tconfig option.
+
+### Fixes
+
+ * All localization formatters are now correctly thread safe.
+
+
+## v2.0.2 / 2014 Jan 19
+
+> This is a **backwards compatible bug fix release**. Recommended upgrade.
+
+### New
+
+ * `normalize` fn now takes optional normalization form.
+
+### Fixes
+
+ * Broken `fmt-fn` argument for translate fn.
+ * Fallback locales should have `locale-key` called on their locale.
+ * #37 Broken `t` parent fallback for empty child locales.
 
 
 ## v2.0.0 → v2.0.1
@@ -23,6 +74,7 @@ This is a **backwards compatible bug fix release**. Recommended upgrade.
 
 
 ## v2.0.0-beta3 → 2.0.0
+
   * **BREAKING**: extra args to `t` now get formatted with `java.util.Formatter` (`fmt-str`) rather than `MessageFormat` (`fmt-msg`). You can override this preference by specifying a `:fmt-fn` config option. `oldt` retains the old behavior by default.
   * **BREAKING**: `languages` and `countries` now return lowercase keyword codes.
   * **BREAKING**: `languages`, `countries`, and `timezones` now return sorted maps.
@@ -63,16 +115,12 @@ So, basically, idiomatic Tower usage has been simplified:
 
 
 ## v1.6.0 → v1.7.1
+
   * `load-dictionary-from-map-resource!` now supports optionally overwriting (vs merging) with new optional `merge?` arg.
   * **BREAKING**: Drop Clojure 1.3 support.
 
 
 ## v1.5.1 → v1.6.0
+
   * A number of bug fixes.
   * Added support for translation aliases. If a dictionary entry's value is a keyword, it will now function as a pointer to another entry's value. See the default dictionary for an example.
-
-
-## For older versions please see the [commit history][]
-
-[commit history]: https://github.com/ptaoussanis/tower/commits/master
-[API docs]: http://ptaoussanis.github.io/tower

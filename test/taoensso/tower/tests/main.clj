@@ -1,7 +1,9 @@
 (ns taoensso.tower.tests.main
   (:require [expectations   :as test  :refer :all]
-            [taoensso.tower :as tower :refer (with-locale with-tscope t)])
+            [taoensso.tower :as tower :refer (with-tscope)])
   (:import  [java.util Date]))
+
+(comment (test/run-tests '[taoensso.tower.tests.main]))
 
 (defn- before-run {:expectations-options :before-run} [])
 (defn- after-run  {:expectations-options :after-run}  [])
@@ -105,10 +107,10 @@
   "01.02.2012" 2012 2 1
   "25.03.2012" 2012 3 25)
 
-(def pt (fn [a1 & an] (apply tower/t a1 tower/example-tconfig an)))
+(def pt (tower/make-t tower/example-tconfig))
 
 ;;;; Translations
-;;; (t :en-US my-tconfig [:example/foo :example/bar])) searches:
+;;; (pt :en-US [:example/foo :example/bar])) searches:
 ;; :example/foo in the :en-US locale.
 ;; :example/bar in the :en-US locale.
 ;; :example/foo in the :en locale.
@@ -143,22 +145,25 @@
 
 ;;; Arg interpolation
 (expect "Hello Steve, how are you?" (pt :en :example/greeting "Steve"))
-(expect Exception (t :en {:dictionary {}} :anything "Any arg"))
+(expect Exception ((tower/make-t {:dictionary {}}) :en :anything "Any arg"))
 
-;;; Missing keys & key fallback
-(expect "&lt;Missing translation: [:en nil [:invalid]]&gt;"
+;;; Missing translations
+(expect "|Missing translation: [[:en] nil [:invalid]]|"
         (pt :en :invalid))
 (expect nil (pt :de :invalid)) ; No locale-appropriate :missing key
-(expect "&lt;Missing translation: [:en :whatever [:invalid]]&gt;"
+(expect "|Missing translation: [[:en] :whatever [:invalid]]|"
         (with-tscope :whatever (pt :en :invalid)))
-(expect "&lt;Missing translation: [:en nil [:invalid]]&gt;"
+(expect "|Missing translation: [[:en] nil [:invalid]]|"
         (pt :en :invalid "arg"))
-(expect ":en :example/foo text"
-        (pt :en [:invalid :example/foo]))
-(expect "&lt;Missing translation: [:en nil [:invalid :invalid]]&gt;"
+(expect "|Missing translation: [[:en] nil [:invalid :invalid]]|"
         (pt :en [:invalid :invalid]))
-(expect "Explicit fallback" (pt :en [:invalid "Explicit fallback"]))
-(expect nil (pt :en [:invalid nil]))
+
+;;; Fallbacks
+(expect ":en :example/foo text" (pt :en       [:invalid :example/foo]))
+(expect "Explicit fallback"     (pt :en       [:invalid "Explicit fallback"]))
+(expect nil                     (pt :en       [:invalid nil]))
+(expect ":de :example/foo text" (pt [:zh :de] :example/foo))
+(expect ":de :example/foo text" (pt [:zh :de] [:invalid :example/foo]))
 
 ;;; Aliases
 (expect "Hello Bob, how are you?" (pt :en :example/greeting-alias "Bob"))

@@ -1,10 +1,10 @@
-**[API docs](http://ptaoussanis.github.io/tower/)** | **[CHANGELOG](https://github.com/ptaoussanis/tower/blob/master/CHANGELOG.md)** | [contact & contributing](#contact--contributing) | [other Clojure libs](https://www.taoensso.com/clojure-libraries) | [Twitter](https://twitter.com/#!/ptaoussanis) | current [semantic](http://semver.org/) version:
+**[API docs][]** | **[CHANGELOG][]** | [other Clojure libs][] | [Twitter][] | [contact/contributing](#contact--contributing) | current ([semantic][]) version:
 
 ```clojure
-[com.taoensso/tower "2.0.2"] ; Stable, see CHANGELOG for details
+[com.taoensso/tower "2.1.0-RC1"] ; Stable
 ```
 
-v2 provides an improved API. It is a **BREAKING** release for `t` users. See the [CHANGELOG](https://github.com/ptaoussanis/tower/blob/master/CHANGELOG.md) for migration details. Note that the examples in this README are for the v2 API. See [here](https://github.com/ptaoussanis/tower/blob/master/v1-examples.md) for v1 examples.
+v2.1 is a major release that **may be BREAKING** in certain cases. It adds _experimental_ ClojureScript translation support. Please see the [CHANGELOG][] for details.
 
 Special thanks to **Janne Asmala** ([GitHub](https://github.com/asmala) & [Twitter](https://twitter.com/janne_asmala)) for his awesome contributions to Tower's v2 design. He also has an i18n/L10n lib called [clj18n](https://github.com/asmala/clj18n) which is definitely worth checking out!
 
@@ -17,7 +17,7 @@ Tower's an attempt to present a **simple, idiomatic internationalization and loc
 ## What's in the box™?
   * Small, uncomplicated **all-Clojure** library.
   * Ridiculously simple, high-performance wrappers for standard Java **localization features**.
-  * Rails-like, all-Clojure **translation function**.
+  * Rails-like, all-Clojure **translation function** (incl. experimental ClojureScript support).
   * **Simple, map-based** translation dictionary format. No XML or resource files!
   * Automatic dev-mode **dictionary reloading** for rapid REPL development.
   * Seamless **markdown support** for translators.
@@ -28,22 +28,20 @@ Tower's an attempt to present a **simple, idiomatic internationalization and loc
 
 ### Dependencies
 
-Add the necessary dependency to your [Leiningen](http://leiningen.org/) `project.clj` and `require` the library in your ns:
+Add the necessary dependency to your [Leiningen][] `project.clj` and `require` the library in your ns:
 
 ```clojure
-[com.taoensso/tower "2.0.2"] ; project.clj
-(ns my-app (:require [taoensso.tower :as tower
-                      :refer (with-locale with-tscope t *locale*)])) ; ns
+[com.taoensso/tower "2.1.0-RC1"] ; project.clj
+(ns my-app (:require [taoensso.tower :as tower :refer (with-tscope)])) ; ns
 ```
 
 ### Translation
 
-The `t` fn handles translations. You give it a config map which includes your dictionary, and you're ready to go (see `tower/example-tconfig` for advanced options):
+The `make-t` fn handles translations. You give it a config map which includes your dictionary, and get back a `(fn [locale-or-locales k-or-ks & fmt-args])`:
+
 ```clojure
 (def my-tconfig
-  {:dev-mode? true
-   :fallback-locale :de
-   :dictionary
+  {:dictionary ; Map or named resource containing map
    {:en   {:example {:foo         ":en :example/foo text"
                      :foo_comment "Hello translator, please do x"
                      :bar {:baz ":en :example.bar/baz text"}
@@ -51,44 +49,56 @@ The `t` fn handles translations. You give it a config map which includes your di
                      :inline-markdown "<tag>**strong**</tag>"
                      :block-markdown* "<tag>**strong**</tag>"
                      :with-exclaim!   "<tag>**strong**</tag>"
+                     :with-arguments  "Num %d = %s"
                      :greeting-alias :example/greeting
                      :baz-alias      :example.bar/baz}
-           :missing  "<Missing translation: [%1$s %2$s %3$s]>"}
+           :missing  "|Missing translation: [%1$s %2$s %3$s]|"}
     :en-US {:example {:foo ":en-US :example/foo text"}}
     :de    {:example {:foo ":de :example/foo text"}}
     :ja "test_ja.clj" ; Import locale's map from external resource
-    }})
+    }
+   :dev-mode? true ; Set to true for auto dictionary reloading
+   :fallback-locale :de
+   :scope-fn  (fn [k] (scoped *tscope* k)) ; Experimental, undocumented
+   :fmt-fn fmt-str ; (fn [loc fmt args])
+   :log-missing-translation-fn
+   (fn [{:keys [locale ks scope] :as args}]
+     (timbre/logp (if dev-mode? :debug :warn)
+       "Missing translation" args))})
 
-(t :en-US my-tconfig :example/foo) => ":en-US :example/foo text"
-(t :en    my-tconfig :example/foo) => ":en :example/foo text"
-(t :en    my-tconfig :example/greeting "Steve") => "Hello Steve, how are you?"
+(def t (tower/make-t my-tconfig)) ; Create translation fn
+
+(t :en-US :example/foo) => ":en-US :example/foo text"
+(t :en    :example/foo) => ":en :example/foo text"
+(t :en    :example/greeting "Steve") => "Hello Steve, how are you?"
 
 ;;; Translation strings are escaped and parsed as inline or block Markdown:
-(t :en my-tconfig :example/inline-markdown) => "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
-(t :en my-tconfig :example/block-markdown)  => "<p>&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;</p>" ; Notice no "*" suffix here, only in dictionary map
-(t :en my-tconfig :example/with-exclaim)    => "<tag>**strong**</tag>" ; Notice no "!" suffix here, only in dictionary map
+(t :en :example/inline-markdown) => "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
+(t :en :example/block-markdown)  => "<p>&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;</p>" ; Notice no "*" suffix here, only in dictionary map
+(t :en :example/with-exclaim)    => "<tag>**strong**</tag>" ; Notice no "!" suffix here, only in dictionary map
+(t :en :example/with-arguments 42 "forty two") =>   "Num 42 = forty two"
 ```
 
 It's simple to get started, but there's a number of advanced features for if/when you need them:
 
-**Loading dictionaries from disk/resources**: Just use a string for the `:dictionary` value in your config map. For example, `:dictionary "my-dictionary.clj"` will load a dictionary map from the "my-dictionary.clj" file on your classpath or one of Leiningen's resource paths (e.g. `resources/`).
+**Loading dictionaries from disk/resources**: Just use a string for the `:dictionary` and/or any locale value(s) in your config map. Be sure to check that the appropriate files are available on your classpath or one of Leiningen's resource paths (e.g. `resources/`).
 
-**Reloading dictionaries on modification**: Just make sure `:dev-mode? true` is in your config, and you're good to go!
+**Reloading dictionaries on modification**: Enable the `:dev-mode?` option and you're good to go!
 
 **Scoping translations**: Use `with-tscope` if you're calling `t` repeatedly within a specific translation-namespace context:
 ```clojure
 (with-tscope :example
-  [(t :en my-tconfig :foo)
-   (t :en my-tconfig :bar/baz)]) => [":en :example/foo text" ":en :example.bar/baz text"]
+  [(t :en :foo)
+   (t :en :bar/baz)]) => [":en :example/foo text" ":en :example.bar/baz text"]
 ```
 
-**Missing translations**: These are handled gracefully. `(t :en-US my-tconfig :example/foo)` will search for a translation as follows:
+**Missing translations**: These are handled gracefully. `(t :en-US :example/foo)` will search for a translation as follows:
   1. `:example/foo` in the `:en-US` locale.
   2. `:example/foo` in the `:en` locale.
   3. `:example/foo` in the dictionary's fallback locale.
   4. `:missing` in any of the above locales.
 
-You can also specify fallback keys that'll be tried before other locales. `(t :en-US my-tconfig [:example/foo :example/bar]))` searches:
+You can also specify fallback keys that'll be tried before other locales. `(t :en-US [:example/foo :example/bar]))` searches:
   1. `:example/foo` in the `:en-US` locale.
   2. `:example/bar` in the `:en-US` locale.
   3. `:example/foo` in the `:en` locale.
@@ -97,7 +107,48 @@ You can also specify fallback keys that'll be tried before other locales. `(t :e
   6. `:example/bar` in the fallback locale.
   7. `:missing` in any of the above locales.
 
+And even fallback locales. `(t [:fr-FR :en-US] :example/foo)` searches:
+  1. `:example/foo` in the `:fr-FR` locale.
+  2. `:example/foo` in the `:fr` locale.
+  3. `:example/foo` in the `:en-US` locale.
+  4. `:example/foo` in the `:en` locale.
+  5. `:example/foo` in the fallback locale.
+  6. `:missing` in any of the above locales.
+
 In all cases, translation requests are logged upon fallback to fallback locale or :missing key.
+
+#### ClojureScript translation support (still experimental!)
+
+```clojure
+(ns my-clojurescript-ns
+  (:require [taoensso.tower :as tower :refer-macros (with-tscope)]))
+
+(def ^:private tconfig
+  {:fallback-locale :en
+   ;; Inlined (macro) dict => this ns needs rebuild for dict changes to reflect:
+   :compiled-dictionary (tower-macros/dict-compile "my-dict.clj")})
+
+(def t (tower/make-t tconfig)) ; Create translation fn
+
+(t :en-US :example/foo) => ":en-US :example/foo text"
+```
+
+There's three notable differences from the JVM translator:
+
+  1. The dictionary is provided in a _pre-compiled_ form so that it can be inlined directly into your Cljs.
+  2. Since we lack a locale-aware Cljs `format` fn, your translations _cannot_ use JVM locale formatting patterns.
+  3. The [`goog.string.format`](http://docs.closure-library.googlecode.com/git/local_closure_goog_string_stringformat.js.source.html#line39) used to format messages with arguments handles `nil` argument as a missing argument (while Java just prints the string "null").
+
+The API is otherwise exactly the same, including support for all decorators.
+
+##### Use with React (Reagent/Om/etc.)
+
+React presents a bit of a challenge to translations since it **automatically escapes all text content** as a security measure.
+
+This has two important implications for use with Tower's translations:
+
+  1. Content intended to allow _translator-controlled inline styles_ needs to provided to React with the `dangerouslySetInnerHTML` property.
+  2. All other content should get a `:<key>!`-style translation to prevent double escaping (Tower already escapes translations not marked with an exlamation point).
 
 ### Localization
 
@@ -128,24 +179,40 @@ Check out `countries`, `languages`, and `timezones`.
 
 ### Ring middleware
 
-Quickly internationalize your Ring web apps by adding `taoensso.tower.ring/wrap-tower-middleware` to your middleware stack.
-
-It'll select the best available locale for each request then establish a thread-local locale binding with `tower/*locale*`, and add `:locale` and `:t` request keys.
+Quickly internationalize your Ring web apps by adding `taoensso.tower.ring/wrap-tower` to your middleware stack.
 
 See the docstring for details.
 
 ## This project supports the CDS and ![ClojureWerkz](https://raw.github.com/clojurewerkz/clojurewerkz.org/master/assets/images/logos/clojurewerkz_long_h_50.png) goals
 
-  * [CDS](http://clojure-doc.org/), the **Clojure Documentation Site**, is a **contributer-friendly** community project aimed at producing top-notch, **beginner-friendly** Clojure tutorials and documentation. Awesome resource.
+  * [CDS][], the **Clojure Documentation Site**, is a **contributer-friendly** community project aimed at producing top-notch, **beginner-friendly** Clojure tutorials and documentation. Awesome resource.
 
-  * [ClojureWerkz](http://clojurewerkz.org/) is a growing collection of open-source, **batteries-included Clojure libraries** that emphasise modern targets, great documentation, and thorough testing. They've got a ton of great stuff, check 'em out!
+  * [ClojureWerkz][] is a growing collection of open-source, **batteries-included Clojure libraries** that emphasise modern targets, great documentation, and thorough testing. They've got a ton of great stuff, check 'em out!
 
-## Contact & contribution
+## Contact & contributing
 
-Please use the [project's GitHub issues page](https://github.com/ptaoussanis/tower/issues) for project questions/comments/suggestions/whatever **(pull requests welcome!)**. Am very open to ideas if you have any!
+`lein start-dev` to get a (headless) development repl that you can connect to with [Cider][] (emacs) or your IDE.
 
-Otherwise reach me (Peter Taoussanis) at [taoensso.com](https://www.taoensso.com) or on Twitter ([@ptaoussanis](https://twitter.com/#!/ptaoussanis)). Cheers!
+Please use the project's GitHub [issues page][] for project questions/comments/suggestions/whatever **(pull requests welcome!)**. Am very open to ideas if you have any!
+
+Otherwise reach me (Peter Taoussanis) at [taoensso.com][] or on [Twitter][]. Cheers!
 
 ## License
 
-Copyright &copy; 2012, 2013 Peter Taoussanis. Distributed under the [Eclipse Public License](http://www.eclipse.org/legal/epl-v10.html), the same as Clojure.
+Copyright &copy; 2012-2014 Peter Taoussanis. Distributed under the [Eclipse Public License][], the same as Clojure.
+
+
+[API docs]: <http://ptaoussanis.github.io/tower/>
+[CHANGELOG_]: <https://github.com/ptaoussanis/tower/blob/master/CHANGELOG.md>
+[CHANGELOG]: <https://github.com/ptaoussanis/tower/releases>
+[other Clojure libs]: <https://www.taoensso.com/clojure-libraries>
+[Twitter]: <https://twitter.com/ptaoussanis>
+[semantic]: <http://semver.org/>
+[Leiningen]: <http://leiningen.org/>
+[CDS]: <http://clojure-doc.org/>
+[ClojureWerkz]: <http://clojurewerkz.org/>
+[issues page]: <https://github.com/ptaoussanis/tower/issues>
+[Cider]: <https://github.com/clojure-emacs/cider>
+[commit history]: <https://github.com/ptaoussanis/tower/commits/master>
+[taoensso.com]: <https://www.taoensso.com>
+[Eclipse Public License]: <https://raw2.github.com/ptaoussanis/tower/master/LICENSE>
