@@ -49,6 +49,7 @@ The `make-t` fn handles translations. You give it a config map which includes yo
                      :inline-markdown "<tag>**strong**</tag>"
                      :block-markdown* "<tag>**strong**</tag>"
                      :with-exclaim!   "<tag>**strong**</tag>"
+                     :with-arguments  "Num %d = %s"
                      :greeting-alias :example/greeting
                      :baz-alias      :example.bar/baz}
            :missing  "|Missing translation: [%1$s %2$s %3$s]|"}
@@ -75,6 +76,7 @@ The `make-t` fn handles translations. You give it a config map which includes yo
 (t :en :example/inline-markdown) => "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
 (t :en :example/block-markdown)  => "<p>&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;</p>" ; Notice no "*" suffix here, only in dictionary map
 (t :en :example/with-exclaim)    => "<tag>**strong**</tag>" ; Notice no "!" suffix here, only in dictionary map
+(t :en :example/with-arguments 42 "forty two") =>   "Num 42 = forty two"
 ```
 
 It's simple to get started, but there's a number of advanced features for if/when you need them:
