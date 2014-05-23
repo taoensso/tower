@@ -67,6 +67,15 @@ The `t` fn handles translations. You give it a config map which includes your di
 (t :en my-tconfig :example/inline-markdown) => "&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;"
 (t :en my-tconfig :example/block-markdown)  => "<p>&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;</p>" ; Notice no "*" suffix here, only in dictionary map
 (t :en my-tconfig :example/with-exclaim)    => "<tag>**strong**</tag>" ; Notice no "!" suffix here, only in dictionary map
+
+;;; Keys can be specified as being aliased to another
+(t :en my-tconfig :example/greeting-alias "Steve") => "Hello Steve, how are you?"
+
+;;; Keys can be comments about other keys by using underscores in the key name
+(t :en my-tconfig :foo_comment) => "&lt;Missing translation: [:en nil [:example/foo_comments]]&gt;"
+
+;;; Note: this implies that you cannot use underscores in your key names. A key named :foo_bar is interpreted as a comment about :foo
+and cannot be used as a translation key.
 ```
 
 It's simple to get started, but there's a number of advanced features for if/when you need them:
