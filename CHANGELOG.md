@@ -1,26 +1,10 @@
-## Pending / unreleased
+## v2.1.0-RC2 / 2014 Jul 12
 
- * **CHANGE**: Default :missing translations entry now avoids <>'s (no need for html escaping).
- * **CHANGE**: `languages` now returns languages as "localized (unlocalized)" pairs rather than "unlocalized (localized)" pairs.
- * **CHANGE** (from RC1): ClojureScript macros are now in primary `tower.clj` ns.
- * **NEW**: `timezones` fn now supports optional timezone-ids arg.
- * **NEW**: Add `all-timezone-ids` set.
- * **NEW**: `locale`, `try-locale` now have an optional arg to return simplified (lang-only) locales.
- * [#43] **NEW**: Translation fns can now take a _vector_ of descending-preference locales (@vvvvalvalval).
- * [#43] **NEW**: Ring middleware now automatically attaches a smarter translation fn that'll search through all of a client's sorted Accept-Language header languages when looking for a translation.
-
-
-## v2.1.0-RC1 / 2014 Mar 30
-
-> This is a **significant update** that **may be BREAKING** in certain cases.
+> This is a **major update** that **may be BREAKING** in certain cases.
 >
 > Sorry about the hassle. The changes were necessary as part of an overhaul to the translation system for portability to ClojureScript.
 
-### New
-
- * Added experimental ClojureScript translation support. See the README for an example and notes.
-
-### Changes
+ * **NEW**: Added experimental ClojureScript translation support. See the README for an example and notes.
 
  * **DEPRECATED**: `wrap-tower-middleware` -> `wrap-tower`. This is a recommended change, but it's **BREAKING** if you make it:
 
@@ -45,9 +29,15 @@
  * Dropped (experimental) `:scope-var` tconfig option.
  * Dropped (experimental) `:root-scope` tconfig option.
 
-### Fixes
-
- * All localization formatters are now correctly thread safe.
+ * **CHANGE**: Default :missing translations entry now avoids <>'s (no need for html escaping).
+ * **CHANGE**: `languages` now returns languages as "localized (unlocalized)" pairs rather than "unlocalized (localized)" pairs.
+ * **CHANGE** (from RC1): ClojureScript macros are now in primary `tower.clj` ns.
+ * **NEW**: `timezones` fn now supports optional timezone-ids arg.
+ * **NEW**: Add `all-timezone-ids` set.
+ * **NEW**: `locale`, `try-locale` now have an optional arg to return simplified (lang-only) locales.
+ * [#43] **NEW**: Translation fns can now take a _vector_ of descending-preference locales (@vvvvalvalval).
+ * [#43] **NEW**: Ring middleware now automatically attaches a smarter translation fn that'll search through all of a client's sorted Accept-Language header languages when looking for a translation.
+ * **FIX**: All localization formatters are now correctly thread safe.
 
 
 ## v2.0.2 / 2014 Jan 19
