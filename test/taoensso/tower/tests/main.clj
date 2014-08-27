@@ -181,6 +181,13 @@
 (expect ":de :example/foo text" (pt [:zh :de] :example/foo))
 (expect ":de :example/foo text" (pt [:zh :de] [:invalid :example/foo]))
 
+;;; Arbitrary locales (translation API doesn't insist on JVM-recognized locales)
+(expect ":arbitrary :example/foo text" (pt :arbitrary :example/foo))
+
+;;; Invalid locales (translation API allows arbitrary locales to fallback like normal)
+(expect ":de :example/foo text" (pt nil      :example/foo))
+(expect ":de :example/foo text" (pt :invalid :example/foo))
+
 ;;; Aliases
 (expect "Hello Bob, how are you?" (pt :en :example/greeting-alias "Bob"))
 (expect (pt :en :example.bar/baz) (pt :en :example/baz-alias))
