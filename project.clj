@@ -12,9 +12,9 @@
 
   :dependencies
   [[org.clojure/clojure "1.4.0"]
-   [com.taoensso/encore "1.7.0"]
+   [com.taoensso/encore "1.7.1"]
    [com.taoensso/timbre "3.2.1"]
-   [markdown-clj        "0.9.46"]]
+   [markdown-clj        "0.9.47"]]
 
   :plugins
   [[com.keminglabs/cljx "0.4.0"]
@@ -25,9 +25,9 @@
    :server-jvm {:jvm-opts ^:replace ["-server"]}
    :1.5  {:dependencies [[org.clojure/clojure "1.5.1"]]}
    :1.6  {:dependencies [[org.clojure/clojure "1.6.0"]]}
-   :test {:dependencies [[expectations            "1.4.56"]
-                         [org.clojure/test.check  "0.5.8"]
-                         [ring/ring-core          "1.3.0"
+   :test {:dependencies [[expectations            "2.0.9"]
+                         [org.clojure/test.check  "0.5.9"]
+                         [ring/ring-core          "1.3.1"
                           :exclusions [org.clojure/tools.reader]]]
           :plugins [[lein-expectations "0.0.8"]
                     [lein-autoexpect   "1.2.2"]]}
