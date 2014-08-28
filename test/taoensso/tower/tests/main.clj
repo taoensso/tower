@@ -10,20 +10,23 @@
 
 ;;;; Localization
 
-(given [s n] (expect s (tower/fmt :en-ZA n))
-  "1,000.1"       1000.10
-  "100,000,000.1" 100000000.10
-  "1,000"         1000)
+(expect
+  (from-each [[s n] [["1,000.1"       1000.10]
+                     ["100,000,000.1" 100000000.10]
+                     ["1,000"         1000]]]
+    (= s (tower/fmt :en-za n))))
 
-(given [s n] (expect s (tower/fmt :en-US n))
-  "1,000.1"       1000.10
-  "100,000,000.1" 100000000.10
-  "1,000"         1000)
+(expect
+  (from-each [[s n] [["1,000.1"       1000.10]
+                     ["100,000,000.1" 100000000.10]
+                     ["1,000"         1000]]]
+    (= s (tower/fmt :en-US n))))
 
-(given [s n] (expect s (tower/fmt :de-DE n))
-  "1.000,1"       1000.10
-  "100.000.000,1" 100000000.10
-  "1.000"         1000)
+(expect
+  (from-each [[s n] [["1.000,1"       1000.10]
+                     ["100.000.000,1" 100000000.10]
+                     ["1.000"         1000]]]
+    (= s (tower/fmt :de-DE n))))
 
 (expect "1,000.1"    (tower/fmt :en-US 1000.10))
 (expect "1,000"      (tower/fmt :en-US 1000.10 :integer))
@@ -33,79 +36,92 @@
 (expect "1.000"      (tower/fmt :de-DE 1000.10 :integer))
 (expect "1.000,10 €" (tower/fmt :de-DE 1000.10 :currency))
 
-(given [s n] (expect s (tower/fmt :en-ZA n :percent))
-  "314%"   (float (/ 22 7))
-  "200%"   2
-  "50%"    (float (/ 1 2))
-  "75%"    (float (/ 3 4)))
+(expect
+  (from-each [[s n] [["314%"   (float (/ 22 7))]
+                     ["200%"   2]
+                     ["50%"    (float (/ 1 2))]
+                     ["75%"    (float (/ 3 4))]]]
+    (= s (tower/fmt :en-ZA n :percent))))
 
-(given [s n] (expect s (tower/fmt :en-ZA n :currency))
-  "R 123.45"         123.45
-  "R 12,345.00"      12345
-  "R 123,456,789.00" 123456789
-  "R 123,456,789.20" 123456789.20)
+(expect
+  (from-each [[s n] [["R 123.45"         123.45]
+                     ["R 12,345.00"      12345]
+                     ["R 123,456,789.00" 123456789]
+                     ["R 123,456,789.20" 123456789.20]]]
+    (= s (tower/fmt :en-ZA n :currency))))
 
-(given [s n] (expect s (tower/fmt :en-US n :currency))
-  "$123.45"         123.45
-  "$12,345.00"      12345
-  "$123,456,789.00" 123456789
-  "$123,456,789.20" 123456789.20)
+(expect
+  (from-each [[s n] [["$123.45"         123.45]
+                     ["$12,345.00"      12345]
+                     ["$123,456,789.00" 123456789]
+                     ["$123,456,789.20" 123456789.20]]]
+    (= s (tower/fmt :en-US n :currency))))
 
-(given [s n] (expect s (tower/fmt :de-DE n :currency))
-  "123,45 €"         123.45
-  "12.345,00 €"      12345
-  "123.456.789,00 €" 123456789
-  "123.456.789,20 €" 123456789.20)
+(expect
+  (from-each [[s n] [["123,45 €"         123.45]
+                     ["12.345,00 €"      12345]
+                     ["123.456.789,00 €" 123456789]
+                     ["123.456.789,20 €" 123456789.20]]]
+    (= s (tower/fmt :de-DE n :currency))))
 
-(given [n s] (expect n (tower/parse :en-ZA s))
-  1000.01    "1000.01"
-  1000.01    "1,000.01"
-  1000000.01 "1,000,000.01"
-  1.23456    "1.23456")
+(expect
+  (from-each [[n s] [[1000.01    "1000.01"]
+                     [1000.01    "1,000.01"]
+                     [1000000.01 "1,000,000.01"]
+                     [1.23456    "1.23456"]]]
+    (= n (tower/parse :en-ZA s))))
 
-(given [n s] (expect n (tower/parse :en-US s))
-  1000.01    "1000.01"
-  1000.01    "1,000.01"
-  1000000.01 "1,000,000.01"
-  1.23456    "1.23456")
+(expect
+  (from-each [[n s] [[1000.01    "1000.01"]
+                     [1000.01    "1,000.01"]
+                     [1000000.01 "1,000,000.01"]
+                     [1.23456    "1.23456"]]]
+    (= n (tower/parse :en-US s))))
 
-(given [n s] (expect n (tower/parse :de-DE s))
-  1000.01    "1000,01"
-  1000.01    "1.000,01"
-  1000000.01 "1.000.000,01"
-  1.23456    "1,23456")
+(expect
+  (from-each [[n s] [[1000.01    "1000,01"]
+                     [1000.01    "1.000,01"]
+                     [1000000.01 "1.000.000,01"]
+                     [1.23456    "1,23456"]]]
+    (= n (tower/parse :de-DE s))))
 
-(given [n s] (expect n (tower/parse :en-ZA s :currency))
-  123.45        "R 123.45"
-  12345         "R 123,45"
-  123456.01     "R 123,456.01"
-  123456789.01  "R 123,456,789.01")
+(expect
+  (from-each [[n s] [[123.45        "R 123.45"]
+                     [12345         "R 123,45"]
+                     [123456.01     "R 123,456.01"]
+                     [123456789.01  "R 123,456,789.01"]]]
+    (= n (tower/parse :en-ZA s :currency))))
 
-(given [n s] (expect n (tower/parse :en-US s :currency))
-  123.45        "$123.45"
-  12345         "$123,45"
-  123456.01     "$123,456.01"
-  123456789.01  "$123,456,789.01")
+(expect
+  (from-each [[n s] [[123.45        "$123.45"]
+                     [12345         "$123,45"]
+                     [123456.01     "$123,456.01"]
+                     [123456789.01  "$123,456,789.01"]]]
+    (= n (tower/parse :en-US s :currency))))
 
-(given [n s] (expect n (tower/parse :de-DE s :currency))
-  123.45       "123,45 €"
-  12345        "123.45 €"
-  123456.01    "123.456,01 €"
-  123456789.01 "123.456.789,01 €")
+(expect
+  (from-each [[n s] [[123.45       "123,45 €"]
+                     [12345        "123.45 €"]
+                     [123456.01    "123.456,01 €"]
+                     [123456789.01 "123.456.789,01 €"]]]
+    (= n (tower/parse :de-DE s :currency))))
 
 (defn test-dt [y m d] (Date. (Date/UTC (- y 1900) (- m 1) d 0 0 0)))
 
-(given [s y m d] (expect s (tower/fmt :en-ZA (test-dt y m d)))
-  "01 Feb 2012" 2012 2 1
-  "25 Mar 2012" 2012 3 25)
+(expect
+  (from-each [[s y m d] [["01 Feb 2012" 2012 2 1]
+                         ["25 Mar 2012" 2012 3 25]]]
+    (= s (tower/fmt :en-ZA (test-dt y m d)))))
 
-(given [s y m d] (expect s (tower/fmt :en-US (test-dt y m d)))
-  "Feb 1, 2012"  2012 2 1
-  "Mar 25, 2012" 2012 3 25)
+(expect
+  (from-each [[s y m d] [["Feb 1, 2012"  2012 2 1]
+                         ["Mar 25, 2012" 2012 3 25]]]
+    (= s (tower/fmt :en-US (test-dt y m d)))))
 
-(given [s y m d] (expect s (tower/fmt :de-DE (test-dt y m d)))
-  "01.02.2012" 2012 2 1
-  "25.03.2012" 2012 3 25)
+(expect
+  (from-each [[s y m d] [["01.02.2012" 2012 2 1]
+                         ["25.03.2012" 2012 3 25]]]
+    (= s (tower/fmt :de-DE (test-dt y m d)))))
 
 (def pt (tower/make-t tower/example-tconfig))
 
@@ -118,6 +134,16 @@
 ;; :example/foo in the fallback locale.
 ;; :example/bar in the fallback locale.
 ;; :missing in any of the above locales.
+
+;;; loc-tree
+(def ^:private ltree tower/loc-tree)
+(expect [:en-US :en] (ltree :en-US))
+(expect [:en-US :en] (ltree [:en-US]))
+(expect [:en-GB :en-US :en] (ltree [:en-GB :en-US]))
+(expect [:en-GB :en-US :en] (ltree [:en-GB :en :en-US]))
+(expect [:en-GB :en-US :en :fr-FR :fr]     (ltree [:en-GB :fr-FR :en-US]))
+(expect [:en-US :en :fr-FR :fr :de-DE :de] (ltree [:en-US :fr-FR :fr :en :DE-de]))
+(expect [:nil :whatever-foo :whatever :en] (ltree [nil :whatever-foo :en]))
 
 ;;; Basic locale selection & fallback
 (expect ":en :example/foo text"    (pt :en    :example/foo)) ; :en
@@ -142,6 +168,8 @@
         (pt :en :example/block-markdown))
 (expect "<tag>**strong**</tag>"
         (pt :en :example/with-exclaim))
+(expect ":en :foo_undecorated text"
+        (pt :en :example/foo_undecorated))
 
 ;;; Arg interpolation
 (expect "Hello Steve, how are you?" (pt :en :example/greeting "Steve"))
@@ -164,6 +192,13 @@
 (expect nil                     (pt :en       [:invalid nil]))
 (expect ":de :example/foo text" (pt [:zh :de] :example/foo))
 (expect ":de :example/foo text" (pt [:zh :de] [:invalid :example/foo]))
+
+;;; Arbitrary locales (translation API doesn't insist on JVM-recognized locales)
+(expect ":arbitrary :example/foo text" (pt :arbitrary :example/foo))
+
+;;; Invalid locales (translation API allows arbitrary locales to fallback like normal)
+(expect ":de :example/foo text" (pt nil      :example/foo))
+(expect ":de :example/foo text" (pt :invalid :example/foo))
 
 ;;; Aliases
 (expect "Hello Bob, how are you?" (pt :en :example/greeting-alias "Bob"))
