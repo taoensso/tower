@@ -135,6 +135,16 @@
 ;; :example/bar in the fallback locale.
 ;; :missing in any of the above locales.
 
+;;; loc-tree
+(def ^:private ltree tower/loc-tree)
+(expect [:en-US :en] (ltree :en-US))
+(expect [:en-US :en] (ltree [:en-US]))
+(expect [:en-GB :en-US :en] (ltree [:en-GB :en-US]))
+(expect [:en-GB :en-US :en] (ltree [:en-GB :en :en-US]))
+(expect [:en-GB :en-US :en :fr-FR :fr]     (ltree [:en-GB :fr-FR :en-US]))
+(expect [:en-US :en :fr-FR :fr :de-DE :de] (ltree [:en-US :fr-FR :fr :en :DE-de]))
+(expect [:nil :whatever-foo :whatever :en] (ltree [nil :whatever-foo :en]))
+
 ;;; Basic locale selection & fallback
 (expect ":en :example/foo text"    (pt :en    :example/foo)) ; :en
 (expect ":en-US :example/foo text" (pt :en-US :example/foo)) ; :en-US

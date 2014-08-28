@@ -416,12 +416,6 @@
                  (vec))))))))
 
 (comment
-  (loc-tree [nil :whatever-foo :en]) ; [:nil :whatever-foo :whatever :en]
-  (loc-tree :en-US)   ; [:en-US :en]
-  (loc-tree [:en-US]) ; [:en-US :en]
-  (loc-tree [:en-GB :en-US])     ; [:en-GB :en-US :en]
-  (loc-tree [:en-GB :en :en-US]) ; [:en-GB :en-US :en]
-  (loc-tree [:en-GB :fr-FR :en-US]) ; [:en-GB :en-US :en :fr-FR :fr]
   (loc-tree [:en-US :fr-FR :fr :en :DE-de]) ; [:en-US :en :fr-FR :fr :de-DE :de]
   (time (dotimes [_ 10000] (loc-tree [:en-US :fr-FR :fr :en :DE-de]))))
 
