@@ -1,45 +1,44 @@
 > This project uses [Break Versioning](https://github.com/ptaoussanis/encore/blob/master/BREAK-VERSIONING.md) as of **Aug 16, 2014**.
 
-## v2.1.0-RC2 / 2014 Jul 12
+## v3.0.0 / 2014 Aug 28
 
-> This is a **major update** that **may be BREAKING** in certain cases.
->
-> Sorry about the hassle. The changes were necessary as part of an overhaul to the translation system for portability to ClojureScript.
+> This is a **major update** that **may be BREAKING** for users upgrading from < `v2.1.0-RC1`.
+> It introduces ClojureScript translation support and fixes a number of useability sharp edges.
 
- * **NEW**: Added experimental ClojureScript translation support. See the README for an example and notes.
+ * **FIX**: All localization formatters are now correctly thread safe.
 
- * **DEPRECATED**: `wrap-tower-middleware` -> `wrap-tower`. This is a recommended change, but it's **BREAKING** if you make it:
-
-  ```clojure
-  ;;; 1. The fn signature has changed (tconfig is now an explicit arg):
-  (wrap-tower-middleware <ring-handler> {:tconfig _ <other opts>}) ; old
-  ;; vs
-  (wrap-tower <ring-handler> <tconfig> {<other-opts>}) ; new
-
-  ;;; 2. The Ring request's `:t` key has changed:
-  {:locale _ :t  (fn [k-or-ks & fmt-args])} ; old
-  ;; vs
-  {:locale _ :t  (fn [locale k-or-ks & fmt-args]) ; Now takes a locale
-             :t' (fn [k-or-ks & fmt-args])} ; new
-  ```
-
- The new behaviour is more consistent. `t` always refers to a translation fn that takes a locale arg, and `t'` always refer to a partial translation fn that has already been provided a locale arg.
-
- **Migrate** by swapping your middleware, and using `t'` instead of `t` as your locale-less translation fn. **OR** you can give a `:legacy-t? true` opt to `wrap-tower` to keep the old behaviour.
-
- * **DEPRECATED, POSSIBLY BREAKING**: `translate` and `t` are both being phased out in favor of a new `make-t` fn. The new approach is more flexible and faster. This change is _non-breaking_ **if** you use the Ring middleware; otherwise please see the README for new recommended usage examples.
- * Dropped (experimental) `:scope-var` tconfig option.
- * Dropped (experimental) `:root-scope` tconfig option.
-
- * **CHANGE**: Default :missing translations entry now avoids <>'s (no need for html escaping).
- * **CHANGE**: `languages` now returns languages as "localized (unlocalized)" pairs rather than "unlocalized (localized)" pairs.
- * **CHANGE** (from RC1): ClojureScript macros are now in primary `tower.clj` ns.
+ * **NEW**: Added ClojureScript translation support. See the README for an example and notes.
  * **NEW**: `timezones` fn now supports optional timezone-ids arg.
  * **NEW**: Add `all-timezone-ids` set.
- * **NEW**: `locale`, `try-locale` now have an optional arg to return simplified (lang-only) locales.
- * [#43] **NEW**: Translation fns can now take a _vector_ of descending-preference locales (@vvvvalvalval).
- * [#43] **NEW**: Ring middleware now automatically attaches a smarter translation fn that'll search through all of a client's sorted Accept-Language header languages when looking for a translation.
- * **FIX**: All localization formatters are now correctly thread safe.
+ * **NEW** [#42]: Translation dictionary now supports underscores in translation keys.
+ * **NEW** [#43]: Translation fns can now take a _vector_ of descending-preference locales (@vvvvalvalval).
+ * **NEW** [#43]: Ring middleware now automatically attaches a smarter translation fn that'll search through all of a client's sorted Accept-Language header languages when looking for a translation.
+ * **NEW** [#50], [#52]: Translation dictionary now supports arbitrary (non-JVM) locales.
+
+ * **CHANGE**: Dropped (experimental) `:scope-var` tconfig option.
+ * **CHANGE**: Dropped (experimental) `:root-scope` tconfig option.
+ * **CHANGE**: Default :missing translations entry now avoids <>'s (no need for html escaping).
+ * **CHANGE**: `languages` now returns languages as "localized (unlocalized)" pairs rather than "unlocalized (localized)" pairs.
+ * **CHANGE**: All `Exception`s are now `ExceptionInfo`s.
+
+ * **POSSIBLY BREAKING**: `translate` and `t` are both being phased out in favor of a new `make-t` fn. The new approach is more flexible and faster. This change is _non-breaking_ **if** you use the Ring middleware; otherwise please see the README for new recommended usage examples.
+
+ * **DEPRECATED**: `locale`->`jvm-locale`, `try-locale`->`try-jvm-locale` (only the names have changed).
+ * **DEPRECATED**: `wrap-tower-middleware` -> `wrap-tower`. This is a recommended change, but it's **BREAKING** if you make it:
+  ```clojure
+  ;;; 1. The fn signature has changed (tconfig is now an explicit arg):
+  (wrap-tower-middleware <ring-handler> {:tconfig _ <other opts>}) ; Old
+  ;; vs
+  (wrap-tower <ring-handler> <tconfig> {<other-opts>}) ; New
+
+  ;;; 2. The Ring request's `:t` key has changed:
+  {:locale _ :t  (fn [k-or-ks & fmt-args])} ; Old
+  ;; vs
+  {:locale _ :t  (fn [locale k-or-ks & fmt-args]) ; Now takes a locale
+             :t' (fn [k-or-ks & fmt-args])}       ; New, behaves like old `:t`
+  ```
+
+ The new behaviour is more consistent. `t` always refers to a translation fn that takes a locale arg, and `t'` always refer to a partial translation fn that has already been provided a locale arg. **Migrate** by swapping your middleware, and using `t'` instead of `t` as your locale-less translation fn. **OR** you can give a `:legacy-t? true` opt to `wrap-tower` to keep the old behaviour.
 
 
 ## v2.0.2 / 2014 Jan 19

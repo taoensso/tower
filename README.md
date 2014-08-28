@@ -1,11 +1,10 @@
 **[API docs][]** | **[CHANGELOG][]** | [other Clojure libs][] | [Twitter][] | [contact/contrib](#contact--contributing) | current [Break Version][]:
 
 ```clojure
-[com.taoensso/tower "2.0.2"]     ; Stable
-[com.taoensso/tower "2.1.0-RC2"] ; Development
+[com.taoensso/tower "3.0.0"] ; Please see CHANGELOG for possible breaking changes
 ```
 
-v2.1 is a major release that **may be BREAKING** in certain cases. It adds _experimental_ ClojureScript translation support. Please see the [CHANGELOG][] for details.
+v3 is a major release that **may be BREAKING**. It adds ClojureScript translation support and fixes a number of sharp edges. Please see the [CHANGELOG][] for details.
 
 Special thanks to **Janne Asmala** ([GitHub](https://github.com/asmala) & [Twitter](https://twitter.com/janne_asmala)) for his awesome contributions to Tower's v2 design. He also has an i18n/L10n lib called [clj18n](https://github.com/asmala/clj18n) which is definitely worth checking out!
 
@@ -32,7 +31,7 @@ Tower's an attempt to present a **simple, idiomatic internationalization and loc
 Add the necessary dependency to your [Leiningen][] `project.clj` and `require` the library in your ns:
 
 ```clojure
-[com.taoensso/tower "2.0.2"] ; project.clj
+[com.taoensso/tower "3.0.0"] ; project.clj
 (ns my-app (:require [taoensso.tower :as tower :refer (with-tscope)])) ; ns
 ```
 
@@ -118,7 +117,7 @@ And even fallback locales. `(t [:fr-FR :en-US] :example/foo)` searches:
 
 In all cases, translation requests are logged upon fallback to fallback locale or :missing key.
 
-#### ClojureScript translation support (still experimental!)
+#### ClojureScript translations (early support)
 
 ```clojure
 (ns my-clojurescript-ns
@@ -135,7 +134,7 @@ In all cases, translation requests are logged upon fallback to fallback locale o
 (t :en-US :example/foo) => ":en-US :example/foo text"
 ```
 
-There's two notable differences from the JVM translator:
+There's two notable differences from JVM translations:
 
   1. The dictionary is provided in a _pre-compiled_ form so that it can be inlined directly into your Cljs.
   2. Since we lack a locale-aware Cljs `format` fn, your translations _cannot_ use JVM locale formatting patterns.
