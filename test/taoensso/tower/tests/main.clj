@@ -158,6 +158,8 @@
         (pt :en :example/block-markdown))
 (expect "<tag>**strong**</tag>"
         (pt :en :example/with-exclaim))
+(expect ":en :foo_undecorated text"
+        (pt :en :example/foo_undecorated))
 
 ;;; Arg interpolation
 (expect "Hello Steve, how are you?" (pt :en :example/greeting "Steve"))

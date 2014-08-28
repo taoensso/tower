@@ -357,8 +357,9 @@
                      :inline-markdown "<tag>**strong**</tag>"
                      :block-markdown* "<tag>**strong**</tag>"
                      :with-exclaim!   "<tag>**strong**</tag>"
-                     :greeting-alias :example/greeting
-                     :baz-alias      :example.bar/baz}
+                     :greeting-alias  :example/greeting
+                     :baz-alias       :example.bar/baz
+                     :foo_undecorated ":en :foo_undecorated text"}
            :missing  "|Missing translation: [%1$s %2$s %3$s]|"}
     :en-US {:example {:foo ":en-US :example/foo text"}}
     :de    {:example {:foo ":de :example/foo text"}}
@@ -452,9 +453,19 @@
   (let [loc         (first  path)
         translation (peek   path)
         scope-ks    (subvec path 1 (- (count path) 2)) ; [:ns1 ... :nsN]
-        [_ unscoped-k decorator] (->> (re-find #"([^!\*_]+)([!\*_].*)*"
-                                               (name (peek (pop path))))
-                                      (mapv keyword))
+
+        unscoped-k     (peek (pop path))
+        unscoped-kname (name unscoped-k)
+
+        decorators [:_comment :_note :_html :! :_md :*]
+        ?decorator (some #(when (encore/str-ends-with? unscoped-kname (name %)) %)
+                      decorators)
+
+        unscoped-k (if-not ?decorator unscoped-k
+                     (keyword (encore/substr unscoped-kname 0
+                                (- (count unscoped-kname)
+                                   (count (name ?decorator))))))
+
         translation ; Resolve possible translation alias
         (if-not (keyword? translation) translation
           (let [target (get-in dict
@@ -464,7 +475,7 @@
 
     (when translation
       (when-let [translation*
-                 (case decorator
+                 (case ?decorator
                    (:_comment :_note) nil
                    (:_html :!)        translation
                    (:_md   :*)        (-> translation utils/html-escape
