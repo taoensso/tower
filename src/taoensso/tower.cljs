@@ -17,7 +17,7 @@
   Ref. http://goo.gl/su7Xkj"
   ;; TODO Locale-aware format fn would be nice, but no obvious+easy way of
   ;; implementing one to get Java-like semantics (?)
-  [_loc fmt & args] (apply encore/format fmt args))
+  [_loc fmt & args] (apply encore/format (or fmt "") args))
 
 ;;;; Translations
 
@@ -109,9 +109,5 @@
                         (fmt-fn loc1 pattern (nstr ls) (nstr (scope-fn nil))
                           (nstr ks))))))))]
 
-          (if (nil? fmt-args)
-            tr
-            (if (nil? tr)
-              (throw (ex-info "Can't format nil translation pattern."
-                       {:tr tr :fmt-args fmt-args}))
-              (apply fmt-fn loc1 tr fmt-args))))))))
+          (if (nil? fmt-args) tr
+            (apply fmt-fn loc1 (or tr "") fmt-args)))))))
