@@ -221,14 +221,16 @@
 
 ;; (defmem- f-str Formatter [Loc] (Formatter. Loc))
 
-(defn fmt-str "Like clojure.core/format but takes a locale."
-  ^String [loc fmt & args] (String/format (jvm-locale loc) fmt (to-array args)))
+(defn fmt-str
+  "Like clojure.core/format but takes a locale, doesn't throw on nil pattern."
+  ^String [loc fmt & args]
+  (String/format (jvm-locale loc) (or fmt "") (to-array args)))
 
 (defn fmt-msg
   "Creates a localized MessageFormat and uses it to format given pattern string,
   substituting arguments as per MessageFormat spec."
   ^String [loc ^String pattern & args]
-  (let [mformat (java.text.MessageFormat. pattern (jvm-locale loc))]
+  (let [mformat (java.text.MessageFormat. (or pattern "") (jvm-locale loc))]
     (.format mformat (to-array args))))
 
 (comment
@@ -555,12 +557,8 @@
                         (fmt-fn loc1 pattern (nstr ls) (nstr (scope-fn nil))
                           (nstr ks))))))))]
 
-          (if (nil? fmt-args)
-            tr
-            (if (nil? tr)
-              (throw (ex-info "Can't format nil translation pattern."
-                       {:tr tr :fmt-args fmt-args}))
-              (apply fmt-fn loc1 tr fmt-args))))))))
+          (if (nil? fmt-args) tr
+            (apply fmt-fn loc1 (or tr "") fmt-args)))))))
 
 (def ^:private make-t-cached (memoize make-t-uncached))
 (defn make-t
