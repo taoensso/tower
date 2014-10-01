@@ -1,7 +1,7 @@
 **[API docs][]** | **[CHANGELOG][]** | [other Clojure libs][] | [Twitter][] | [contact/contrib](#contact--contributing) | current [Break Version][]:
 
 ```clojure
-[com.taoensso/tower "3.0.1"] ; Please see CHANGELOG for possible breaking changes
+[com.taoensso/tower "3.0.2"] ; Please see CHANGELOG for possible breaking changes
 ```
 
 v3 is a major release that **may be BREAKING**. It adds ClojureScript translation support and fixes a number of sharp edges. Please see the [CHANGELOG][] for details.

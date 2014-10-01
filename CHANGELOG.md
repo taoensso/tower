@@ -1,8 +1,13 @@
 > This project uses [Break Versioning](https://github.com/ptaoussanis/encore/blob/master/BREAK-VERSIONING.md) as of **Aug 16, 2014**.
 
+## v3.0.2 / 2014 Oct 1
+
+ * **CHANGE**: no longer throw NPEs on `nil` format patterns (e.g. for missing translation key).
+
+
 ## v3.0.1 / 2014 Sep 7
 
- * **FIX** https://github.com/ptaoussanis/timbre/issues/79.
+ * **FIX**: https://github.com/ptaoussanis/timbre/issues/79.
 
 
 ## v3.0.0 / 2014 Aug 28
