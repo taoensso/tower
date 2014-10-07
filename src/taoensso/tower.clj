@@ -285,48 +285,48 @@
 
 ;;;; Timezones (doesn't depend on locales)
 
-(def all-timezone-ids (set (TimeZone/getAvailableIDs)))
-(def major-timezone-ids
-  (->> all-timezone-ids
-       (filterv #(re-find #"^(Africa|America|Asia|Atlantic|Australia|Europe|Indian|Pacific)/.*" %))
-       (set)))
+(def ^:private major-tz-regex
+  #"^(Africa|America|Asia|Atlantic|Australia|Europe|Indian|Pacific)/.*")
+(def tz-ids-all   (set (TimeZone/getAvailableIDs)))
+(def tz-ids-major (set (filter #(re-find major-tz-regex %) tz-ids-all)))
 
-(defn- timezone-display-name "(GMT +05:30) Colombo"
+(defn timezone
+  ([] (timezone "UTC"))
+  ([tz-id]
+     (let [tz-id (str/upper-case (encore/have string? tz-id))
+           tz    (java.util.TimeZone/getTimeZone tz-id)]
+       (when (= (.getID ^TimeZone tz) tz-id) tz))))
+
+(defn- tz-name "(GMT +05:30) Colombo"
   [city-tz-id offset]
   (let [[region city] (str/split city-tz-id #"/")
         offset-mins   (/ offset 1000 60)]
     (format "(GMT %s%02d:%02d) %s"
-            (if (neg? offset-mins) "-" "+")
-            (Math/abs (int (/ offset-mins 60)))
-            (mod (int offset-mins) 60)
-            (str/replace city "_" " "))))
+      (if (neg? offset-mins) "-" "+")
+      (Math/abs (int (/ offset-mins 60)))
+      (mod (int offset-mins) 60)
+      (str/replace city "_" " "))))
 
-(comment (timezone-display-name "Asia/Bangkok" (* 90 60 1000)))
+(comment (tz-name "Asia/Bangkok" (* 90 60 1000)))
 
-(def timezones "Returns (sorted-map-by offset <tz-name> <tz-id> ...)."
-  (encore/memoize* (* 3 60 60 1000) ; 3hr ttl
-    (fn
-      ([] (timezones major-timezone-ids))
-      ([timezone-ids]
-         (let [instant (System/currentTimeMillis)
-               tzs (->> timezone-ids
-                        (mapv (fn [id]
-                                (let [tz     (TimeZone/getTimeZone id)
-                                      offset (.getOffset tz instant)]
-                                  [(timezone-display-name id offset) id offset]))))
-               tz-pairs (->> tzs (mapv   (fn [[dn id offset]] [dn id])))
-               offsets  (->> tzs (reduce (fn [m [dn id offset]] (assoc m dn offset)) {}))
-               comparator (fn [dn-x dn-y]
-                            (let [cmp1 (compare (offsets dn-x) (offsets dn-y))]
-                              (if-not (zero? cmp1) cmp1
-                                      (compare dn-x dn-y))))]
-           (into (sorted-map-by comparator) tz-pairs))))))
+(def get-timezones
+  "Experimental. Useful format for [sorted] lists, stitching into maps."
+  (encore/memoize* (encore/ms :hours 3)
+    (fn [& [?tz-ids]]
+      (let [tz-ids  (or ?tz-ids tz-ids-major)
+            instant (System/currentTimeMillis)
+            data    (map (fn [id]
+                           (let [tz     (TimeZone/getTimeZone id)
+                                 offset (.getOffset tz instant)]
+                             {:id     id
+                              :offset offset
+                              :tz     tz
+                              :name   (tz-name id offset)}))
+                      tz-ids)]
+        ;; Sort by :offset, then :name on tie:
+        (into [] (sort-by (fn keyfn [x] [(:offset x) (:name x)]) data))))))
 
-(comment
-  (reverse (sort ["-00:00" "+00:00" "-01:00" "+01:00" "-01:30" "+01:30"]))
-  (count       (timezones))
-  (take 5      (timezones))
-  (take-last 5 (timezones)))
+(comment (get-timezones))
 
 ;;;; Translations
 
@@ -707,7 +707,9 @@
 (def     locale "DEPRECATED as of v2.1.0." jvm-locale)
 (def try-locale "DEPRECATED as of v2.1.0." try-jvm-locale)
 
-(def iso-languages iso-langs)
+(def iso-languages      iso-langs)
+(def all-timezone-ids   tz-ids-all)
+(def major-timezone-ids tz-ids-major)
 
 (defn- get-localized-sorted-map
   "Returns {<localized-name> <iso-code>} sorted map."
@@ -735,6 +737,31 @@
                          (when (not= Loc (jvm-locale loc :lang-only))
                            (format " (%s)" ; Lang, in current lang
                              (.getDisplayLanguage Loc (jvm-locale loc))))))))))))
+
+(def timezones "DEPRECATED."
+  (encore/memoize* (* 3 60 60 1000) ; 3hr ttl
+    (fn
+      ([] (timezones major-timezone-ids))
+      ([timezone-ids]
+         (let [instant (System/currentTimeMillis)
+               tzs (->> timezone-ids
+                        (mapv (fn [id]
+                                (let [tz     (TimeZone/getTimeZone id)
+                                      offset (.getOffset tz instant)]
+                                  [(tz-name id offset) id offset]))))
+               tz-pairs (->> tzs (mapv   (fn [[dn id offset]] [dn id])))
+               offsets  (->> tzs (reduce (fn [m [dn id offset]] (assoc m dn offset)) {}))
+               comparator (fn [dn-x dn-y]
+                            (let [cmp1 (compare (offsets dn-x) (offsets dn-y))]
+                              (if-not (zero? cmp1) cmp1
+                                      (compare dn-x dn-y))))]
+           (into (sorted-map-by comparator) tz-pairs))))))
+
+(comment
+  (reverse (sort ["-00:00" "+00:00" "-01:00" "+01:00" "-01:30" "+01:30"]))
+  (count       (timezones))
+  (take 5      (timezones))
+  (take-last 5 (timezones)))
 
 (def sorted-localized-countries "DEPRECATED." (sorted-old countries))
 (def sorted-localized-languages "DEPRECATED." (sorted-old languages))
