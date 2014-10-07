@@ -247,42 +247,41 @@
 
 ;;;; Localized country & language names
 
-(defn- get-localized-sorted-map
-  "Returns {<localized-name> <iso-code>} sorted map."
-  [iso-codes display-loc display-fn]
-  (let [pairs (->> iso-codes (mapv (fn [code] [(display-fn code) code])))
-        comparator (fn [ln-x ln-y] (.compare (collator (jvm-locale display-loc))
-                                            ln-x ln-y))]
-    (into (sorted-map-by comparator) pairs)))
+(def iso-countries (set (map (comp keyword str/lower-case) (Locale/getISOCountries))))
+(defn- country-name [code display-loc]
+  (let [loc (Locale. "" (name (encore/have iso-countries code)))]
+    (.getDisplayCountry loc (jvm-locale display-loc))))
 
-(def iso-countries (->> (Locale/getISOCountries)
-                        (mapv (comp keyword str/lower-case)) (set)))
+(def iso-langs (set (map (comp keyword str/lower-case) (Locale/getISOLanguages))))
+(defn- lang-name [code & [?display-loc]]
+  (let [loc (Locale. (name (encore/have iso-langs code)))]
+    (.getDisplayLanguage loc (jvm-locale (or ?display-loc loc)))))
 
-(def countries "Returns (sorted-map <localized-name> <iso-code> ...)."
+(def get-countries
+  "Experimental. Useful format for [sorted] lists, stitching into maps."
   (memoize
-   (fn ([loc] (countries loc iso-countries))
-      ([loc iso-countries]
-         (get-localized-sorted-map iso-countries (jvm-locale loc)
-           (fn [code] (.getDisplayCountry (Locale. "" (name code))
-                       (jvm-locale loc))))))))
+    (fn [loc & [?iso-countries]]
+      (let [iso-countries (or ?iso-countries iso-countries)
+            lcmp          (lcomparator loc)
+            data          (map (fn [code] {:code code :name (country-name code loc)})
+                            iso-countries)]
+        ;; Sensible default sort
+        (into [] (sort-by :name lcmp data))))))
 
-(def iso-languages (->> (Locale/getISOLanguages)
-                        (mapv (comp keyword str/lower-case)) (set)))
-
-(def languages "Returns (sorted-map <localized-name> <iso-code> ...)."
+(def get-langs
+  "Experimental. Useful format for [sorted] lists, stitching into maps."
   (memoize
-   (fn ([loc] (languages loc iso-languages))
-      ([loc iso-languages]
-         (get-localized-sorted-map iso-languages (jvm-locale loc)
-           (fn [code] (let [Loc (Locale. (name code))]
-                       (str (.getDisplayLanguage Loc Loc) ; Lang, in itself
-                         (when (not= Loc (jvm-locale loc :lang-only))
-                           (format " (%s)" ; Lang, in current lang
-                             (.getDisplayLanguage Loc (jvm-locale loc))))))))))))
+    (fn [loc & [?iso-langs]]
+      (let [iso-langs (or ?iso-langs iso-langs)
+            lcmp      (lcomparator loc)
+            data      (map (fn [code] {:code code :name (lang-name code loc)
+                                      :own-name (lang-name code)})
+                        iso-langs)]
+        ;; Sensible default sort
+        (into [] (sort-by :name lcmp data))))))
 
-(comment (countries :en)
-         (languages :pl    [:en :de :pl])
-         (languages :en-GB [:en :de :pl]))
+(comment (get-countries :en)
+         (get-langs     :en))
 
 ;;;; Timezones (doesn't depend on locales)
 
@@ -679,10 +678,6 @@
       {:sorted-names names
        :sorted-ids   ids})))
 
-(def sorted-localized-countries "DEPRECATED." (sorted-old countries))
-(def sorted-localized-languages "DEPRECATED." (sorted-old languages))
-(def sorted-timezones           "DEPRECATED." (sorted-old timezones))
-
 (def config "DEPRECATED." (atom example-tconfig))
 (defn set-config!   "DEPRECATED." [ks val] (swap! config assoc-in ks val))
 (defn merge-config! "DEPRECATED." [& maps] (apply swap! config encore/merge-deep maps))
@@ -711,3 +706,36 @@
 
 (def     locale "DEPRECATED as of v2.1.0." jvm-locale)
 (def try-locale "DEPRECATED as of v2.1.0." try-jvm-locale)
+
+(def iso-languages iso-langs)
+
+(defn- get-localized-sorted-map
+  "Returns {<localized-name> <iso-code>} sorted map."
+  [iso-codes display-loc display-fn]
+  (let [pairs (->> iso-codes (mapv (fn [code] [(display-fn code) code])))
+        comparator (fn [ln-x ln-y] (.compare (collator (jvm-locale display-loc))
+                                    ln-x ln-y))]
+    (into (sorted-map-by comparator) pairs)))
+
+(def countries "DEPRECATED."
+  (memoize
+    (fn ([loc] (countries loc iso-countries))
+      ([loc iso-countries]
+         (get-localized-sorted-map iso-countries (jvm-locale loc)
+           (fn [code] (.getDisplayCountry (Locale. "" (name code))
+                       (jvm-locale loc))))))))
+
+(def languages "DEPRECATED."
+  (memoize
+    (fn ([loc] (languages loc iso-languages))
+      ([loc iso-languages]
+         (get-localized-sorted-map iso-languages (jvm-locale loc)
+           (fn [code] (let [Loc (Locale. (name code))]
+                       (str (.getDisplayLanguage Loc Loc) ; Lang, in itself
+                         (when (not= Loc (jvm-locale loc :lang-only))
+                           (format " (%s)" ; Lang, in current lang
+                             (.getDisplayLanguage Loc (jvm-locale loc))))))))))))
+
+(def sorted-localized-countries "DEPRECATED." (sorted-old countries))
+(def sorted-localized-languages "DEPRECATED." (sorted-old languages))
+(def sorted-timezones           "DEPRECATED." (sorted-old timezones))
