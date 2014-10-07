@@ -337,6 +337,8 @@
 
 (comment (scoped :a.b :c/d :e))
 
+(def tscoped scoped) ; For aliasing
+
 (def ^:dynamic *tscope* nil)
 (defmacro ^:also-cljs with-tscope
   "Executes body with given translation scope binding."
