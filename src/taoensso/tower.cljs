@@ -56,7 +56,22 @@
                  (encore/distinctv)
                  (sort-by #(- (* 10 (primary-locs-sort (loc-primary %) 0))
                               (loc-nparts %)))
+                 (take 6) ; Cap potential perf hit of searching loc-tree
                  (vec))))))))
+
+(defn- nstr [x] (if (nil? x) "nil" (str x)))
+(defn- find1 ; This fn is perf sensitive, but isn't easily memo'd
+  ([dict scope k l-or-ls] ; Find scoped
+     (let [[l1 :as ls] (loc-tree l-or-ls)
+           scoped-k    (if-not scope k (scoped scope k))]
+       (if (next ls)
+         (some #(get-in dict [scoped-k %]) ls)
+         (do    (get-in dict [scoped-k l1])))))
+  ([dict k l-or-ls] ; Find unscoped
+     (let [[l1 :as ls] (loc-tree l-or-ls)]
+       (if (next ls)
+         (some #(get-in dict [k %]) ls)
+         (do    (get-in dict [k l1]))))))
 
 (defn make-t ; Crossover (modified)
   [tconfig] {:pre [(map? tconfig) ; (:dictionary tconfig)
@@ -65,49 +80,48 @@
                 dev-mode? fallback-locale scope-fn fmt-fn
                 log-missing-translation-fn]
          :or   {fallback-locale :en
-                scope-fn (fn [k] (scoped *tscope* k))
+                scope-fn (fn [] *tscope*)
                 fmt-fn   fmt-str
                 log-missing-translation-fn
                 (fn [{:keys [locale ks scope] :as args}]
                   (encore/log (str "Missing translation" args)))}} tconfig
 
-        _ (assert (:compiled-dictionary tconfig) "Missing tconfig key: :compiled-dictionary")
-        _ (assert (not (:dictionary tconfig))    "Invalid tconfig key: :dictionary")
+        _ (assert (:compiled-dictionary tconfig)  "Missing tconfig key: :compiled-dictionary")
+        _ (assert     (not (:dictionary tconfig)) "Invalid tconfig key: :dictionary")
 
-        nstr          (fn [x] (if (nil? x) "nil" (str x)))
-        dict-cached   compiled-dictionary
-        find-scoped   (fn [d k l] (some #(get-in d [(scope-fn k) %]) (loc-tree l)))
-        find-unscoped (fn [d k l] (some #(get-in d [          k  %]) (loc-tree l)))]
+        dict-cached compiled-dictionary]
 
-    (fn new-t [loc-or-locs k-or-ks & fmt-args]
-      (let [l-or-ls loc-or-locs
-            dict (or dict-cached ; (dict-compile-uncached dictionary)
-                       )
-            ks   (if (vector? k-or-ks) k-or-ks [k-or-ks])
-            ls   (if (vector? l-or-ls) l-or-ls [l-or-ls])
-            loc1 (nth ls 0) ; Preferred locale (always used for fmt)
+    (fn new-t [l-or-ls k-or-ks & fmt-args]
+      (let [dict   (or dict-cached #_(dict-compile* dictionary))
+            ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
+            ls     (if (vector? l-or-ls) l-or-ls [l-or-ls])
+            [loc1] ls ; Preferred locale (always used for fmt)
+            scope  (scope-fn)
+            ks?    (sequential? k-or-ks)
             tr
             (or
               ;; Try locales & parents:
-              (some #(find-scoped dict % l-or-ls) (take-while keyword? ks))
+              (if ks?
+                (some #(find1 dict scope % l-or-ls) (take-while keyword? ks))
+                (find1 dict scope k-or-ks l-or-ls))
+
               (let [last-k (peek ks)]
                 (if-not (keyword? last-k)
                   last-k ; Explicit final, non-keyword fallback (may be nil)
                   (do
                     (when-let [log-f log-missing-translation-fn]
-                      (log-f {:locales ls :scope (scope-fn nil) :ks ks
+                      (log-f {:locales ls :scope scope :ks ks
                               :dev-mode? dev-mode? ; :ns (str *ns*)
                               }))
                     (or
                       ;; Try fallback-locale & parents:
-                      (some #(find-scoped dict % fallback-locale) ks)
+                      (if ks?
+                        (some #(find1 dict scope % fallback-locale) ks)
+                        ((find1 dict scope k-or-ks fallback-locale)))
 
-                      ;; Try :missing in locales, parents, fallback-loc, & parents:
-                      (when-let [pattern
-                                 (or (find-unscoped dict :missing l-or-ls)
-                                     (find-unscoped dict :missing fallback-locale))]
-                        (fmt-fn loc1 pattern (nstr ls) (nstr (scope-fn nil))
-                          (nstr ks))))))))]
+                      ;; Try (unscoped) :missing in locales, parents, fallback-loc, & parents:
+                      (when-let [pattern (find1 dict :missing (conj ls fallback-locale))]
+                        (fmt-fn loc1 pattern (nstr ls) (nstr scope) (nstr ks))))))))]
 
         (if (nil? fmt-args) tr
           (apply fmt-fn loc1 (or tr "") fmt-args))))))

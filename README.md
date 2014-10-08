@@ -59,8 +59,6 @@ The `make-t` fn handles translations. You give it a config map which includes yo
     }
    :dev-mode? true ; Set to true for auto dictionary reloading
    :fallback-locale :de
-   :scope-fn  (fn [k] (scoped *tscope* k)) ; Experimental, undocumented
-   :fmt-fn fmt-str ; (fn [loc fmt args])
    :log-missing-translation-fn
    (fn [{:keys [locale ks scope] :as args}]
      (timbre/logp (if dev-mode? :debug :warn)

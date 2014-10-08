@@ -328,7 +328,7 @@
 
 (comment (get-timezones))
 
-;;;; Translations
+;;;; Translations ; TODO Switch to cljx codebase
 
 (declare dev-mode? fallback-locale) ; DEPRECATED
 
@@ -374,7 +374,7 @@
 
    :dev-mode? true ; Set to true for auto dictionary reloading
    :fallback-locale :de
-   :scope-fn  (fn [k] (scoped *tscope* k)) ; Experimental, undocumented
+   :scope-fn  (fn [] *tscope*) ; Experimental, undocumented
    :fmt-fn    fmt-str ; (fn [loc fmt args])
    :log-missing-translation-fn
    (fn [{:keys [locale ks scope] :as args}]
@@ -401,8 +401,8 @@
                   loc-tree  (mapv #(keyword (str/join "-" %))
                               (take-while identity (iterate butlast loc-parts)))]
               loc-tree)))
-        loc-primary (memoize (fn [loc] (peek  (loc-tree* loc))))
-        loc-nparts  (memoize (fn [loc] (count (loc-tree* loc))))]
+        loc-primary (fn [loc] (peek  (loc-tree* loc)))
+        loc-nparts  (fn [loc] (count (loc-tree* loc)))]
     (encore/memoize* 80000 nil ; Also used runtime by translation fns
       (fn [loc-or-locs]
         (if-not (vector? loc-or-locs)
@@ -416,11 +416,12 @@
                  (encore/distinctv)
                  (sort-by #(- (* 10 (primary-locs-sort (loc-primary %) 0))
                               (loc-nparts %)))
+                 (take 6) ; Cap potential perf hit of searching loc-tree
                  (vec))))))))
 
 (comment
   (loc-tree [:en-US :fr-FR :fr :en :DE-de]) ; [:en-US :en :fr-FR :fr :de-DE :de]
-  (time (dotimes [_ 10000] (loc-tree [:en-US :fr-FR :fr :en :DE-de]))))
+  (encore/qb 10000 (loc-tree [:en-US :fr-FR :fr :en :DE-de])))
 
 (defn- dict-inherit-parent-trs
   "Merges each locale's translations over its parent locale translations."
@@ -513,50 +514,64 @@
 
 ;;;
 
+(defn- nstr [x] (if (nil? x) "nil" (str x)))
+(defn- find1 ; This fn is perf sensitive, but isn't easily memo'd
+  ([dict scope k l-or-ls] ; Find scoped
+     (let [[l1 :as ls] (loc-tree l-or-ls)
+           scoped-k    (if-not scope k (scoped scope k))]
+       (if (next ls)
+         (some #(get-in dict [scoped-k %]) ls)
+         (do    (get-in dict [scoped-k l1])))))
+  ([dict k l-or-ls] ; Find unscoped
+     (let [[l1 :as ls] (loc-tree l-or-ls)]
+       (if (next ls)
+         (some #(get-in dict [k %]) ls)
+         (do    (get-in dict [k l1]))))))
+
 (defn- make-t-uncached
   [tconfig] {:pre [(map? tconfig) (:dictionary tconfig)]}
   (let [{:keys [dictionary dev-mode? fallback-locale scope-fn fmt-fn
                 log-missing-translation-fn]
          :or   {fallback-locale :en
-                scope-fn (fn [k] (scoped *tscope* k))
+                scope-fn (fn [] *tscope*)
                 fmt-fn   fmt-str
                 log-missing-translation-fn
                 (fn [{:keys [locale ks scope] :as args}]
                   (timbre/logp (if dev-mode? :debug :warn)
                     "Missing translation" args))}} tconfig
 
-        nstr          (fn [x] (if (nil? x) "nil" (str x)))
-        dict-cached   (when-not dev-mode? (dict-compile* dictionary))
-        find-scoped   (fn [d k l] (some #(get-in d [(scope-fn k) %]) (loc-tree l)))
-        find-unscoped (fn [d k l] (some #(get-in d [          k  %]) (loc-tree l)))]
+        dict-cached (when-not dev-mode? (dict-compile* dictionary))]
 
-    (fn new-t [loc-or-locs k-or-ks & fmt-args]
-      (let [l-or-ls loc-or-locs
-            dict (or dict-cached (dict-compile* dictionary)) ; Recompile (slow)
-            ks   (if (vector? k-or-ks) k-or-ks [k-or-ks])
-            ls   (if (vector? l-or-ls) l-or-ls [l-or-ls])
-            loc1 (nth ls 0) ; Preferred locale (always used for fmt)
+    (fn new-t [l-or-ls k-or-ks & fmt-args]
+      (let [dict   (or dict-cached (dict-compile* dictionary)) ; Recompile (slow)
+            ks     (if (vector? k-or-ks) k-or-ks [k-or-ks])
+            ls     (if (vector? l-or-ls) l-or-ls [l-or-ls])
+            [loc1] ls ; Preferred locale (always used for fmt)
+            scope  (scope-fn)
+            ks?    (sequential? k-or-ks)
             tr
             (or
               ;; Try locales & parents:
-              (some #(find-scoped dict % l-or-ls) (take-while keyword? ks))
+              (if ks?
+                (some #(find1 dict scope % l-or-ls) (take-while keyword? ks))
+                (find1 dict scope k-or-ks l-or-ls))
+
               (let [last-k (peek ks)]
                 (if-not (keyword? last-k)
                   last-k ; Explicit final, non-keyword fallback (may be nil)
                   (do
                     (when-let [log-f log-missing-translation-fn]
-                      (log-f {:locales ls :scope (scope-fn nil) :ks ks
+                      (log-f {:locales ls :scope scope :ks ks
                               :dev-mode? dev-mode? :ns (str *ns*)}))
                     (or
                       ;; Try fallback-locale & parents:
-                      (some #(find-scoped dict % fallback-locale) ks)
+                      (if ks?
+                        (some #(find1 dict scope % fallback-locale) ks)
+                        (find1 dict scope k-or-ks fallback-locale))
 
-                      ;; Try :missing in locales, parents, fallback-loc, & parents:
-                      (when-let [pattern
-                                 (or (find-unscoped dict :missing l-or-ls)
-                                     (find-unscoped dict :missing fallback-locale))]
-                        (fmt-fn loc1 pattern (nstr ls) (nstr (scope-fn nil))
-                          (nstr ks))))))))]
+                      ;; Try (unscoped) :missing in locales, parents, fallback-loc, & parents:
+                      (when-let [pattern (find1 dict :missing (conj ls fallback-locale))]
+                        (fmt-fn loc1 pattern (nstr ls) (nstr scope) (nstr ks))))))))]
 
         (if (nil? fmt-args) tr
           (apply fmt-fn loc1 (or tr "") fmt-args))))))
@@ -581,13 +596,16 @@
   (t nil      example-tconfig :example/foo)
   (t :invalid example-tconfig :example/foo)
 
-  (def prod-t (make-t (assoc example-tconfig :dev-mode? false)))
-  (encore/qb 10000
-    (prod-t :en :example/foo)
-    (prod-t :en [:invalid :example/foo])
-    (prod-t :en [:invalid nil])
-    (prod-t [:es-UY :ar-KW :sr-CS :en] [:invalid nil]))
-  ;; [87.38 161.25 84.32 94.05]
+  (do
+    (def prod-t (make-t (assoc example-tconfig :dev-mode? false)))
+    (encore/qb 10000
+      (prod-t :en :example/foo)
+      (prod-t :en [:invalid "fallback"]) ; Can act like gettext
+      (prod-t :en [:invalid :example/foo])
+      (prod-t :en [:invalid nil])
+      (prod-t [:es-UY :ar-KW :sr-CS :en] [:invalid nil])))
+  ;; [87.38 161.25 84.32 94.05] ; v3.0.2
+  ;; [31.85  68.27 42.25 50.53] ; v3.1.0-SNAPSHOT (after perf work)
   )
 
 (defn dictionary->xliff [m]) ; TODO Use hiccup?
@@ -607,7 +625,7 @@
   (memoize
    (fn [tconfig scope]
      (assoc tconfig
-       :scope-fn  (fn [k] (scoped (:root-scope tconfig) *tscope* scope k))
+       :scope-fn  (fn [] (scoped (:root-scope tconfig) *tscope*))
        :dev-mode? (if (contains? tconfig :dev-mode?)
                     (:dev-mode? tconfig) @dev-mode?)
        :fallback-locale (if (contains? tconfig :fallback-locale)
