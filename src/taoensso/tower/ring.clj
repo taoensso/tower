@@ -18,36 +18,52 @@
     * :tconfig     - tconfig map as given.
     * :t           - (fn [locale-or-locales k-or-ks & fmt-args]).
     * :t'          - (fn [k-or-ks & fmt-args]), using `:locales` as above."
-  [handler tconfig & [{:keys [locale-selector fallback-locale]
+  [handler tconfig & [{:keys [locale-selector fallback-locale langs-only?
+                              t'-nsorted-locales]
                        :or   {fallback-locale :jvm-default} :as opts}]]
   (fn [{:keys [session params uri server-name headers] :as request}]
-    (let [accept-lang-locales ; [:en-GB :en :en-US], etc.
+    (let [->kw-locale #(tower/kw-locale % langs-only?)
+          accept-lang-locales ; ["en-GB" "en" "en-US"], etc.
           (->> (get headers "accept-language")
                (utils/parse-http-accept-header)
-               (mapv (comp tower/kw-locale first)))
+               (mapv (fn [[l q]] l)))
 
-          sorted-locales ; Quite expensive
+          sorted-locales
           (->>
-            (reduce (fn [v in] (if (sequential? in) (into v in) (conj v in)))
-              []
+            ;; Written for speed over clarity; a transducer would be perfect here
+            (reduce
+              (fn [v in]
+                (cond
+                  (nil? in) v
+                  (sequential? in) ; into
+                  (reduce (fn [v in] (if (nil? in) v
+                                        (conj! v (->kw-locale in))))
+                    v
+                    in)
+                  :else (conj! v (->kw-locale in))))
+              (transient [])
+              ;; Each of these may be >=0 locales:
               [(:locale request)
-               (when-let [ls locale-selector]
-                 (ls request)) ; May return >=0 locales
+               (when-let [ls locale-selector] (ls request))
                (:locale session)
                (:locale params)
                accept-lang-locales
                fallback-locale])
-            (filterv identity)
-            (mapv tower/kw-locale)
+            (persistent!)
+            ;; (filterv identity)
+            ;; (mapv ->kw-locale)
             (encore/distinctv))
 
           sorted-jvm-locales   (filterv tower/try-jvm-locale sorted-locales)
 
-          preferred-locale     (first sorted-locales)
-          preferred-jvm-locale (first sorted-jvm-locales)
+          preferred-locale     (get sorted-locales     0)
+          preferred-jvm-locale (get sorted-jvm-locales 0)
 
-          t  (tower/make-t tconfig)
-          t' (partial t sorted-locales)]
+          t  (tower/make-t tconfig) ; Constructor will be cached in prod
+          t' (partial t
+               (if-let [ntake 't-nsorted-locales]
+                 (subvec sorted-locales 0 (min ntake (count sorted-locales)))
+                 sorted-locales))]
 
       (tower/with-locale preferred-jvm-locale ; For deprecated API
         (handler
@@ -60,8 +76,8 @@
 
             (if (:legacy-t? opts)
               {:t  t'} ; DEPRECATED (:t will use parsed locale)
-              {:t  t   ; Takes locale arg
-               :t' t'  ; Uses parsed locale
+              {:t  t   ; Takes locale/s arg
+               :t' t'  ; Uses parsed locales
                })))))))
 
 ;;;; Deprecated
