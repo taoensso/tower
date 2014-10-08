@@ -22,7 +22,7 @@
 ;; can become valid JVM Locale objects. In contrast, the translation API is
 ;; independent of any JVM facilities so can take arbitrary locales.
 
-(def ^:private ensure-valid-Locale (set (Locale/getAvailableLocales)))
+(def ^:private all-Locales (set (Locale/getAvailableLocales)))
 (defn- make-Locale
   "Creates a Java Locale object with a lowercase ISO-639 language code,
   optional uppercase ISO-3166 country code, and optional vender-specific variant
@@ -46,7 +46,7 @@
 
      :else
      (let [loc-parts (str/split (name loc) #"[-_]")]
-       (ensure-valid-Locale
+       (all-Locales
         (if-not lang-only?
           (apply make-Locale loc-parts)
           (make-Locale (first loc-parts))))))))
@@ -105,7 +105,7 @@
   (memoize
    (fn [style]
      (let [[type len1 len2] (if-not style [nil]
-                              (mapv keyword (str/split (name style) #"-")))
+                              (map keyword (str/split (name style) #"-")))
            st1              (dt-styles (or len1      :default))
            st2              (dt-styles (or len2 len1 :default))]
        [type st1 st2]))))
@@ -246,7 +246,7 @@
 
   ;; "choice" formatting is about the only redeeming quality of `fmt-msg`. Note
   ;; that choice text must be unescaped! Use `!` decorator:
-  (mapv #(fmt-msg :de "{0,choice,0#no cats|1#one cat|1<{0,number} cats}" %)
+  (map #(fmt-msg :de "{0,choice,0#no cats|1#one cat|1<{0,number} cats}" %)
         (range 5)))
 
 ;;;; Localized country & language names
@@ -402,7 +402,7 @@
         (memoize
           (fn [loc]
             (let [loc-parts (str/split (-> loc kw-locale name) #"-")
-                  loc-tree  (mapv #(keyword (str/join "-" %))
+                  loc-tree  (map #(keyword (str/join "-" %))
                               (take-while identity (iterate butlast loc-parts)))]
               loc-tree)))
         loc-primary (fn [loc] (peek  (loc-tree* loc)))
@@ -412,10 +412,10 @@
         (if-not (vector? loc-or-locs)
           (loc-tree* loc-or-locs) ; Build search tree from single locale
           ;; Build search tree from multiple desc-preference locales:
-          (let [primary-locs (->> loc-or-locs (mapv loc-primary) (encore/distinctv))
+          (let [primary-locs (->> loc-or-locs (map loc-primary) (encore/distinctv))
                 primary-locs-sort (zipmap primary-locs (range))]
             (->> loc-or-locs
-                 (mapv loc-tree*)
+                 (map loc-tree*)
                  (reduce into)
                  (encore/distinctv)
                  (sort-by #(- (* 10 (primary-locs-sort (loc-primary %) 0))
@@ -436,7 +436,7 @@
            ;; Import locale's map from another resource:
            dict      (if-not (string? (dict loc)) dict
                        (assoc dict loc (dict-load (dict loc))))]
-       [loc (apply encore/merge-deep (mapv dict (rseq loc-tree')))]))))
+       [loc (apply encore/merge-deep (map dict (rseq loc-tree')))]))))
 
 (comment
   (dict-inherit-parent-trs
@@ -472,7 +472,7 @@
         (if-not (keyword? translation) translation
           (let [target (get-in dict
                          (into [loc] (->> (encore/explode-keyword translation)
-                                          (mapv keyword))))]
+                                          (map keyword))))]
             (when-not (keyword? target) target)))]
 
     (when translation
@@ -504,7 +504,7 @@
    (fn [dict-prepared]
      (->> dict-prepared
           (utils/leaf-nodes)
-          (mapv #(dict-compile-path dict-prepared (vec %)))
+          (map #(dict-compile-path dict-prepared (vec %)))
           ;; 1-level deep merge:
           (apply merge-with merge)))))
 
@@ -662,7 +662,7 @@
 (defn parse-percent   "DEPRECATED." [s] (parse *locale* s :percent))
 (defn parse-currency  "DEPRECATED." [s] (parse *locale* s :currency))
 
-(defn- new-style [& xs] (keyword (str/join "-" (mapv name xs))))
+(defn- new-style [& xs] (keyword (str/join "-" (map name xs))))
 
 (defn style "DEPRECATED."
   ([] :default)

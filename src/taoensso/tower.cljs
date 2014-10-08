@@ -41,7 +41,7 @@
         (memoize
           (fn [loc]
             (let [loc-parts (str/split (-> loc kw-locale name) #"-")
-                  loc-tree  (mapv #(keyword (str/join "-" %))
+                  loc-tree  (map #(keyword (str/join "-" %))
                               (take-while identity (iterate butlast loc-parts)))]
               loc-tree)))
         loc-primary (memoize (fn [loc] (peek  (loc-tree* loc))))
@@ -51,10 +51,10 @@
         (if-not (vector? loc-or-locs)
           (loc-tree* loc-or-locs) ; Build search tree from single locale
           ;; Build search tree from multiple desc-preference locales:
-          (let [primary-locs (->> loc-or-locs (mapv loc-primary) (encore/distinctv))
+          (let [primary-locs (->> loc-or-locs (map loc-primary) (encore/distinctv))
                 primary-locs-sort (zipmap primary-locs (range))]
             (->> loc-or-locs
-                 (mapv loc-tree*)
+                 (map loc-tree*)
                  (reduce into)
                  (encore/distinctv)
                  (sort-by #(- (* 10 (primary-locs-sort (loc-primary %) 0))
