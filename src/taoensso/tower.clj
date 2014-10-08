@@ -69,14 +69,18 @@
 
 (def kw-locale
   (memoize
-    (fn [?loc]
-      (let [loc-name (if-let [jvm-loc (try-jvm-locale ?loc)]
+    (fn [?loc & [lang-only?]]
+      (let [loc-name (if-let [jvm-loc (try-jvm-locale ?loc lang-only?)]
                        (str jvm-loc)
-                       (name (or ?loc :nil)))]
-        (keyword (str/replace loc-name "_" "-"))))))
+                       (name (or ?loc :nil)))
+            loc-name (str/replace loc-name "_" "-")
+            loc-name (if-not lang-only? loc-name
+                       (first (str/split loc-name #"-")))]
+        (keyword loc-name)))))
 
-(comment (map kw-locale [nil :whatever-foo :en (jvm-locale :en) "en-GB"
-                         :jvm-default]))
+(comment
+  (map #(kw-locale %) [nil :whatever-foo :en (jvm-locale :en) "en-GB" :jvm-default])
+  (map #(kw-locale % :lang-only) [nil :whatever-foo :en (jvm-locale :en) "en-GB" :jvm-default]))
 
 ;;;; Localization
 ;; The Java date API is a mess, but we (thankfully!) don't need much of it for
@@ -397,7 +401,7 @@
   (let [loc-tree*
         (memoize
           (fn [loc]
-            (let [loc-parts (str/split (-> loc kw-locale name) #"[-_]")
+            (let [loc-parts (str/split (-> loc kw-locale name) #"-")
                   loc-tree  (mapv #(keyword (str/join "-" %))
                               (take-while identity (iterate butlast loc-parts)))]
               loc-tree)))

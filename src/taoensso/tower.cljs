@@ -29,15 +29,18 @@
 
 (def kw-locale ; Crossover (modified)
   (memoize
-    (fn [?loc]
-      (let [loc-name (name (or ?loc :nil))]
-        (keyword (str/replace loc-name "_" "-"))))))
+    (fn [?loc & [lang-only?]]
+      (let [loc-name (name (or ?loc :nil))
+            loc-name (str/replace loc-name "_" "-")
+            loc-name (if-not lang-only? loc-name
+                       (first (str/split loc-name #"-")))]
+        (keyword loc-name)))))
 
 (def loc-tree ; Crossover (direct)
   (let [loc-tree*
         (memoize
           (fn [loc]
-            (let [loc-parts (str/split (-> loc kw-locale name) #"[-_]")
+            (let [loc-parts (str/split (-> loc kw-locale name) #"-")
                   loc-tree  (mapv #(keyword (str/join "-" %))
                               (take-while identity (iterate butlast loc-parts)))]
               loc-tree)))
