@@ -12,7 +12,7 @@
 
   :dependencies
   [[org.clojure/clojure "1.4.0"]
-   [com.taoensso/encore "1.10.2"]
+   [com.taoensso/encore "1.11.3"]
    [com.taoensso/timbre "3.3.1"]
    [markdown-clj        "0.9.54"]]
 
