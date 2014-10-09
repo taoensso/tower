@@ -1,9 +1,9 @@
 (ns taoensso.tower.ring "Tower i18n middleware for Ring."
-    {:author "Peter Taoussanis"}
-    (:require [clojure.string :as str]
-              [taoensso.tower :as tower]
-              [taoensso.tower.utils :as utils]
-              [taoensso.encore :as encore]))
+  {:author "Peter Taoussanis"}
+  (:require [clojure.string       :as str]
+            [taoensso.tower       :as tower]
+            [taoensso.tower.utils :as utils]
+            [taoensso.encore      :as encore]))
 
 (defn wrap-tower
   "Determines locale preference for request by attempting to parse a valid

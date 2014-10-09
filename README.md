@@ -58,11 +58,7 @@ The `make-t` fn handles translations. You give it a config map which includes yo
     :ja "test_ja.clj" ; Import locale's map from external resource
     }
    :dev-mode? true ; Set to true for auto dictionary reloading
-   :fallback-locale :de
-   :log-missing-translation-fn
-   (fn [{:keys [locale ks scope] :as args}]
-     (timbre/logp (if dev-mode? :debug :warn)
-       "Missing translation" args))})
+   :fallback-locale :de})
 
 (def t (tower/make-t my-tconfig)) ; Create translation fn
 
