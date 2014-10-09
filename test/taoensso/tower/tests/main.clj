@@ -123,7 +123,8 @@
                          ["25.03.2012" 2012 3 25]]]
     (= s (tower/fmt :de-DE (test-dt y m d)))))
 
-(def pt (tower/make-t tower/example-tconfig))
+(def pt (tower/make-t (assoc-in tower/example-tconfig
+                        [:dictionary :ja] "test_ja.clj")))
 
 ;;;; Translations
 ;;; (pt :en-US [:example/foo :example/bar])) searches:

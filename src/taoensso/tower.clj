@@ -365,7 +365,7 @@
            :missing  "|Missing translation: [%1$s %2$s %3$s]|"}
     :en-US {:example {:foo ":en-US :example/foo text"}}
     :de    {:example {:foo ":de :example/foo text"}}
-    :ja "test_ja.clj" ; Import locale's map from external resource
+    ;; :ja "test_ja.clj" ; Import locale's map from external resource
 
     ;; Dictionaries support arbitrary locale keys (need not be recognized as
     ;; valid JVM Locales):
