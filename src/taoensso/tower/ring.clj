@@ -60,8 +60,8 @@
           preferred-jvm-locale (get sorted-jvm-locales 0)
 
           t  (tower/make-t tconfig) ; Constructor will be cached in prod
-          t' (partial t
-               (if-let [ntake 't-nsorted-locales]
+          t' (partial (tower/make-t (assoc tconfig :cache-locales? true))
+               (if-let [ntake t'-nsorted-locales]
                  (subvec sorted-locales 0 (min ntake (count sorted-locales)))
                  sorted-locales))]
 

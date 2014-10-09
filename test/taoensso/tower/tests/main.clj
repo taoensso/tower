@@ -137,7 +137,7 @@
 ;; :missing in any of the above locales.
 
 ;;; loc-tree
-(def ^:private ltree tower/loc-tree)
+(def ^:private ltree #'tower/loc-tree)
 (expect [:en-US :en] (ltree :en-US))
 (expect [:en-US :en] (ltree [:en-US]))
 (expect [:en-GB :en-US :en] (ltree [:en-GB :en-US]))
