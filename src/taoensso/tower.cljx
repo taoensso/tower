@@ -498,62 +498,80 @@
 #+clj (def ^:private dict-prepare (comp dict-inherit-parent-trs dict-load))
 
 #+clj
+(def ^:private default-decorators
+  "Experimental, currently undocumented."
+  {:default
+   [[".comment" #{:comment}]
+    [".md!"     #{:md-inline}]
+    [".mdb!"    #{:md-block}]
+    [".md"      #{:md-inline :esc}]
+    [".mdb"     #{:md-block  :esc}]
+    ["!"        #{}]
+    [""         #{:esc}] ; Always matches
+    ]
+   :reactjs ; Reactjs automatically escapes itself
+   [[".comment" #{:comment}]
+    ;;; For use with dangerouslySetInnerHTML:
+    [".md!"     #{:md-inline}]
+    [".mdb!"    #{:md-block}]
+    [".md"      #{:md-inline :esc}]
+    [".mdb"     #{:md-block  :esc}]
+    ;; --------------------------------------
+    ["!"        #{}]
+    [""         #{}]]
+   :legacy
+   [["_comment" #{:comment}]
+    ["_note"    #{:comment}]
+    ["_html"    #{}]
+    ["!"        #{}]
+    ["_md"      #{:md-block  :esc}]
+    ["*"        #{:md-block  :esc}]
+    [""         #{:md-inline :esc}]]})
+
+#+clj
+(defn- match-decorators [decorators k]
+  (let [kname (name k)
+        [suffix optset :as match]
+        (some (fn [[suffix optset :as match]]
+                (when (encore/str-ends-with? kname suffix) match))
+          (encore/have vector? decorators))
+
+        k-without-suffix
+        (if (= "" suffix) k
+          (keyword (encore/substr kname 0 (- (count kname) (count suffix)))))]
+    [(encore/have keyword? k-without-suffix)
+     (encore/have set?     optset)]))
+
+(comment (match-decorators (default-decorators :default) :hello))
+
+#+clj
 (defn- dict-compile-path
   "[:locale :ns1 ... :nsN unscoped-key<decorator> translation] =>
   {:ns1.<...>.nsN/unscoped-key {:locale (f translation decorator)}}"
-  [dict path] {:pre [(>= (count path) 3) (vector? path)]}
+  [dict path & [{:keys [decorators] :or {decorators :legacy}}]]
+  {:pre [(>= (count path) 3) (vector? path)]}
   (let [loc         (first  path)
         translation (peek   path)
         scope-ks    (subvec path 1 (- (count path) 2)) ; [:ns1 ... :nsN]
-
-        unscoped-k     (peek (pop path))
-        unscoped-kname (name unscoped-k)
-
-        decorators [:_comment :_note :_html :! :_md :*]
-        ?decorator (some #(when (encore/str-ends-with? unscoped-kname (name %)) %)
-                      decorators)
-
-        unscoped-k (if-not ?decorator unscoped-k
-                     (keyword (encore/substr unscoped-kname 0
-                                (- (count unscoped-kname)
-                                   (count (name ?decorator))))))
-
-        translation ; Resolve possible translation alias
+        unscoped-k  (peek (pop path))
+        decorators        (or (get default-decorators decorators) decorators)
+        [unscoped-k opt?] (match-decorators decorators unscoped-k)
+        ?translation ; Resolve possible translation alias
         (if-not (keyword? translation) translation
           (let [target (get-in dict
                          (into [loc] (->> (encore/explode-keyword translation)
                                           (map keyword))))]
             (when-not (keyword? target) target)))]
 
-    (when translation
-      (let [?translation*
-            (case ?decorator
-              (:_comment :_note) nil
-              (:_html :!) translation
-              (:_md   :*) (utils/markdown {:inline? false}
-                            (utils/html-escape translation))
-              (utils/markdown {:inline? true}
-                (utils/html-escape translation)))
-
-            tr  translation
-            esc utils/html-escape
-            md  utils/markdown
-
-            ?translation*
-            (case ?decorator
-              (:_comment :_note) nil
-
-              ;;; Unescaped
-              (:_html  :!) tr
-              (:_md!  :*!) (md {:inline? true}  tr)
-              (:_mdblock!) (md {:inline? false} tr)
-
-              ;;; Escaped
-              (:_md :*)    (md {:inline? true}  (esc tr))
-              (:_mdblock)  (md {:inline? false} (esc tr))
-              (esc tr))]
-        (when ?translation*
-          {(apply scoped (conj scope-ks unscoped-k)) {loc ?translation*}})))))
+    (when-let [tr ?translation]
+      (when-not (opt? :comment)
+        (let [esc  utils/html-escape
+              md   utils/markdown
+              tr*  tr
+              tr*  (if-not (opt? :esc)       tr* (esc tr*))
+              tr*  (if-not (opt? :md-inline) tr* (md {:inline? true}  tr*))
+              tr*  (if-not (opt? :md-block)  tr* (md {:inline? false} tr*))]
+          {(apply scoped (conj scope-ks unscoped-k)) {loc tr*}})))))
 
 #+clj
 (def ^:private dict-compile-prepared
@@ -571,20 +589,23 @@
 
   Note the optional key decorators."
   (memoize
-   (fn [dict-prepared]
+   (fn [dict-prepared & [opts]]
      (->> dict-prepared
           (utils/leaf-nodes)
-          (map #(dict-compile-path dict-prepared (vec %)))
+          (map #(dict-compile-path dict-prepared (vec %) opts))
           ;; 1-level deep merge:
           (apply merge-with merge)))))
 
 #+clj
-(def dict-compile* (comp dict-compile-prepared dict-prepare)) ; Public for cljs macro
-(comment (time (dotimes [_ 1000] (dict-compile* (:dictionary example-tconfig)))))
+(defn dict-compile* ; Public for cljs macro
+  [dict & [opts]]
+  (dict-compile-prepared (dict-prepare dict) opts))
+
+(comment (encore/qb 1000 (dict-compile* (:dictionary example-tconfig))))
 
 (defmacro ^:only-cljs dict-compile
   "Standard dictionary compiler, as a compile-time macro for use with Cljs."
-  [dict] (dict-compile* dict))
+  [dict & [opts]] (dict-compile* dict opts))
 
 ;;;
 
@@ -606,11 +627,13 @@
   [tconfig] {:pre [(map? tconfig) #+clj (:dictionary tconfig)]}
   (let [{:keys [#+clj dictionary #+cljs compiled-dictionary
                 dev-mode? fallback-locale scope-fn fmt-fn
-                log-missing-translation-fn cache-locales?]
+                log-missing-translation-fn cache-locales?
+                #+clj decorators]
          :or   {fallback-locale :en
                 cache-locales? #+clj false #+cljs true
                 scope-fn (fn [] *tscope*)
                 fmt-fn   fmt-str
+                #+clj decorators #+clj :legacy
                 log-missing-translation-fn
                 (fn [{:keys [dev-mode?] :as args}]
                   (let [pattern "Missing-translation: %s"]
@@ -631,7 +654,8 @@
         ;; but a _per_ `t` cache is trivial when `l-or-ls` is constant (e.g.
         ;; with the Ring middleware):
         loc-tree*   (if cache-locales? (memoize loc-tree) loc-tree)
-        dict-cached #+clj  (when-not dev-mode? (dict-compile* dictionary))
+        dict-cached #+clj  (when-not dev-mode? (dict-compile* dictionary
+                                                 {:decorators decorators}))
                     #+cljs compiled-dictionary]
 
     (fn new-t [l-or-ls k-or-ks & fmt-args]
