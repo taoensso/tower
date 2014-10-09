@@ -154,8 +154,6 @@
 (expect ":ja 日本語"               (pt :ja    :example/foo)) ; External resource
 (expect ":ja 日本語"               (pt :ja-JP :example/foo)) ; :ja-JP -> :ja
 
-(expect ":en-US :example/foo text" (pt :jvm-default :example/foo)) ; not= fb-loc
-
 ;;; Scoping
 (expect ":en :example/foo text"     (pt :en :example/foo))
 (expect ":en :example.bar/baz text" (pt :en :example.bar/baz))
