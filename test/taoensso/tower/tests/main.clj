@@ -174,7 +174,8 @@
 
 ;;; Arg interpolation
 (expect "Hello Steve, how are you?" (pt :en :example/greeting "Steve"))
-(expect Exception ((tower/make-t {:dictionary {}}) :en :anything "Any arg"))
+(expect "" ((tower/make-t {:dictionary {}
+                           :dev-mode? true}) :en :anything "Any arg"))
 
 ;;; Missing translations
 (expect "|Missing translation: [[:en] nil [:invalid]]|"
