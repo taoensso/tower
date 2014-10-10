@@ -1,6 +1,6 @@
 (ns taoensso.tower
   "Simple internationalization (i18n) and localization (L10n) library for
-  Clojure. Wraps standard Java facilities when possible."
+  Clojure/Script. Wraps standard Java/Script facilities when possible."
   {:author "Peter Taoussanis, Janne Asmala"}
   #+clj (:require [clojure.string  :as str]
                   [clojure.java.io :as io]
@@ -19,10 +19,11 @@
 ;; 'locale'     - Valid JVM Locale object, or a locale kw like `:en-GB`.
 ;; 'jvm-locale' - Valid JVM Locale object, or a locale kw like `:en-GB` which
 ;;                can become a valid JVM Locale object.
-;; 'kw-locale'  - A locale kw like `:en-GB`.
+;; 'kw-locale'  - A locale kw like `:en-GB`. These are the only locales we use
+;;                with Cljs.
 ;;
-;; The localization API wraps JVM facilities so requires locales which are or
-;; can become valid JVM Locale objects. In contrast, the translation API is
+;; The Clj localization API wraps JVM facilities so requires locales which are
+;; or can become valid JVM Locale objects. In contrast, the translation API is
 ;; independent of any JVM facilities so can take arbitrary locales.
 
 #+clj (def ^:private all-Locales (set (Locale/getAvailableLocales)))
@@ -41,20 +42,20 @@
   [loc & [lang-only?]]
   (when loc
     (cond
-     (identical? :jvm-default loc)
-     (if-not lang-only? (Locale/getDefault)
-       (make-Locale (.getLanguage ^Locale (Locale/getDefault))))
+      (= :jvm-default loc)
+      (if-not lang-only? (Locale/getDefault)
+        (make-Locale (.getLanguage ^Locale (Locale/getDefault))))
 
-     (instance? Locale loc)
-     (if-not lang-only? loc
-       (make-Locale (.getLanguage ^Locale loc)))
+      (instance? Locale loc)
+      (if-not lang-only? loc
+        (make-Locale (.getLanguage ^Locale loc)))
 
-     :else
-     (let [loc-parts (str/split (name loc) #"[-_]")]
-       (all-Locales
-        (if-not lang-only?
-          (apply make-Locale loc-parts)
-          (make-Locale (first loc-parts))))))))
+      :else
+      (let [loc-parts (str/split (name loc) #"[-_]")]
+        (all-Locales
+          (if-not lang-only?
+            (apply make-Locale loc-parts)
+            (make-Locale (first loc-parts))))))))
 
 #+clj
 (def jvm-locale
@@ -62,10 +63,10 @@
   exception if none could be found. `loc` should be of form :en, :en-US,
   :en-US-variant, or :jvm-default."
   (memoize
-   (fn [loc & [lang-only?]]
-     (or (try-jvm-locale loc lang-only?)
-         (throw (ex-info (str "Invalid locale: " loc)
-                  {:loc loc :lang-only? lang-only?}))))))
+    (fn [loc & [lang-only?]]
+      (or (try-jvm-locale loc lang-only?)
+        (throw (ex-info (str "Invalid locale: " loc)
+                 {:loc loc :lang-only? lang-only?}))))))
 
 (comment
   (encore/qb 10000 (jvm-locale :en))
@@ -73,7 +74,7 @@
     [(map #(try-jvm-locale %)            ls)
      (map #(try-jvm-locale % :lang-only) ls)]))
 
-(def kw-locale
+(def kw-locale "\"en_gb-var1\" -> :en-gb-var1, etc."
   (memoize
     (fn [?loc & [lang-only?]]
       (let [loc-name
@@ -305,6 +306,8 @@
         ;; Sensible default sort
         (into [] (sort-by :name lcmp data))))))
 
+(comment (get-langs :en))
+
 #+clj
 (def get-langs
   "Experimental. Useful format for [sorted] lists, stitching into maps."
@@ -318,8 +321,7 @@
         ;; Sensible default sort
         (into [] (sort-by :name lcmp data))))))
 
-(comment (get-countries :en)
-         (get-langs     :en))
+(comment (get-countries :en))
 
 ;;;; Timezones (doesn't depend on locales)
 
@@ -352,7 +354,7 @@
 #+clj
 (def get-timezones
   "Experimental. Useful format for [sorted] lists, stitching into maps."
-  (encore/memoize* (encore/ms :hours 3)
+  (encore/memoize* (encore/ms :hours 1) ; tz info varies with time
     (fn [& [?tz-ids]]
       (let [tz-ids  (or ?tz-ids tz-ids-major)
             instant (System/currentTimeMillis)
@@ -479,6 +481,10 @@
 #+clj
 (defn- dict-inherit-parent-trs
   "Merges each locale's translations over its parent locale translations."
+  ;; With `t`'s new searching behaviour, it's no longer actually necessary that
+  ;; we actually merge parent->child translations. Doing so anyway can yield a
+  ;; small perf bump, but will also bring larger pre-compiled dicts into Cljs.
+  ;; The merging behaviour here will likly be nixed shortly.
   [dict] {:pre [(map? dict)]}
   (into {}
    (for [loc (keys dict)]
@@ -577,17 +583,7 @@
 (def ^:private dict-compile-prepared
   "Compiles text translations stored in simple development-friendly
   Clojure map into form required by localized text translator.
-
-    {:en {:example {:inline-markdown \"<tag>**strong**</tag>\"
-                    :block-markdown  \"<tag>**strong**</tag>\"
-                    :with-exclaim!   \"<tag>**strong**</tag>\"
-                    :foo_comment     \"Hello translator, please do x\"}}}
-    =>
-    {:example/inline-markdown {:en \"&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;\"}
-     :example/block-markdown  {:en \"<p>&lt;tag&gt;<strong>strong</strong>&lt;/tag&gt;</p>\"}
-     :example/with-exclaim!   {:en \"<tag>**strong**</tag>\"}}}
-
-  Note the optional key decorators."
+    {:en {:example {:foo <tr>}}} => {:example/foo {:en <decorated-tr>}}"
   (memoize
    (fn [dict-prepared & [opts]]
      (->> dict-prepared
@@ -597,7 +593,7 @@
           (apply merge-with merge)))))
 
 #+clj
-(defn dict-compile* ; Public for cljs macro
+(defn dict-compile* ; Public for Cljs macro
   [dict & [opts]]
   (dict-compile-prepared (dict-prepare dict) opts))
 
