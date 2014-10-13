@@ -651,13 +651,16 @@
         ;; Nb `loc-tree` is expensive and not easily cached at the top-level,
         ;; but a _per_ `t` cache is trivial when `l-or-ls` is constant (e.g.
         ;; with the Ring middleware):
-        loc-tree*   (if cache-locales? (memoize loc-tree) loc-tree)
-        dict-cached #+clj  (when-not dev-mode? (dict-compile* dictionary
-                                                 {:decorators decorators}))
-                    #+cljs compiled-dictionary]
+        loc-tree* (if cache-locales? (memoize loc-tree) loc-tree)
+        get-dict
+        #+cljs (fn [] compiled-dictionary)
+        #+clj
+        (let [compile1 (fn [] (dict-compile* dictionary {:decorators decorators}))
+              cached_  (delay (compile1))]
+          (fn [] (if dev-mode? (compile1) @cached_)))]
 
     (fn new-t [l-or-ls k-or-ks & fmt-args]
-      (let [dict  (or dict-cached #+clj (dict-compile* dictionary)) ; Recompile (slow)
+      (let [dict  (get-dict)
             ks    (if (vector? k-or-ks) k-or-ks [k-or-ks])
             ls    (if (vector? l-or-ls) l-or-ls [l-or-ls])
             [l1]  ls ; Preferred locale (always used for fmt)
