@@ -148,6 +148,7 @@
 
 ;;; Basic locale selection & fallback
 (expect ":en :example/foo text"    (pt :en    :example/foo)) ; :en
+(expect ":en :example/foo text"    (pt :en    :example.foo)) ; :en
 (expect ":en-US :example/foo text" (pt :en-US :example/foo)) ; :en-US
 (expect ":en :example/foo text"    (pt :en-GB :example/foo)) ; :en-GB -> :en
 (expect ":de :example/foo text"    (pt :zh-CN :example/foo)) ; :zh-CN -> :zh -> fb-loc

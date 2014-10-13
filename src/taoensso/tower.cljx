@@ -609,7 +609,9 @@
 (defn- find1 ; This fn is perf sensitive, but isn't easily memo'd
   ([dict scope k ltree] ; Find scoped
      (let [[l1 :as ls] ltree
-           scoped-k    (if-not scope k (scoped scope k))]
+           scoped-k ; (if-not scope k (scoped scope k))
+           (scoped scope k) ; Even with nil scope, to get ns/kw form
+           ]
        (if (next ls)
          (some #(get-in dict [scoped-k %]) ls)
          (do    (get-in dict [scoped-k l1])))))
