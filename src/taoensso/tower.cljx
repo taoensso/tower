@@ -9,7 +9,8 @@
                   [taoensso.tower.utils :as utils :refer (defmem- defmem-*)])
   #+clj (:import  [java.util Date Locale TimeZone Formatter]
                   [java.text Collator NumberFormat DateFormat])
-  #+cljs (:require-macros [taoensso.tower  :as tower-macros])
+  #+cljs (:require-macros [taoensso.encore :as encore]
+                          [taoensso.tower  :as tower-macros])
   #+cljs (:require        [clojure.string  :as str]
                           [taoensso.encore :as encore]))
 
@@ -471,37 +472,39 @@
   (def my-dict-resource (tower-macros/dict-compile "slurps/i18n/utils.clj")))
 
 #+clj
-(defn- dict-load [dict] {:pre [(or (map? dict) (string? dict))]}
-  (if-not (string? dict) dict
-    (try (-> dict io/resource io/reader slurp read-string)
-      (catch Exception e
-        (throw (ex-info (str "Failed to load dictionary from resource: " dict)
-                 {:dict dict} e))))))
+(def dict-load "Implementation detail."
+  (let [load1
+        (fn [dict] {:pre [(encore/have? [:or map? string?] dict)]}
+          (if-not (string? dict) dict
+            (try (-> dict io/resource io/reader slurp read-string)
+                 (catch Exception e
+                   (throw (ex-info (str "Failed to load dictionary from resource: " dict)
+                            {:dict dict} e))))))]
+    (fn [dict]
+      (let [;; Load top-level dict:
+            dict (encore/have map? (load1 dict))]
+        ;;; Load any leaf maps + merge parent->child translations
+        ;; With `t`'s new searching behaviour, it's no longer actually necessary that
+        ;; we actually merge parent->child translations. Doing so anyway can yield a
+        ;; small perf bump, but will also bring larger pre-compiled dicts into Cljs.
+        ;; The merging behaviour here will likly be nixed shortly.
+        (into {}
+          (for [loc (keys dict)]
+            (let [ ;; Import locale's map from another resource:
+                  dict (if-not (string? (dict loc)) dict
+                         (assoc dict loc (dict-load (dict loc))))]
+              [loc (apply encore/merge-deep (map dict (rseq (loc-tree loc))))])))))))
 
-#+clj
-(defn- dict-inherit-parent-trs
-  "Merges each locale's translations over its parent locale translations."
-  ;; With `t`'s new searching behaviour, it's no longer actually necessary that
-  ;; we actually merge parent->child translations. Doing so anyway can yield a
-  ;; small perf bump, but will also bring larger pre-compiled dicts into Cljs.
-  ;; The merging behaviour here will likly be nixed shortly.
-  [dict] {:pre [(map? dict)]}
-  (into {}
-   (for [loc (keys dict)]
-     (let [;; Import locale's map from another resource:
-           dict (if-not (string? (dict loc)) dict
-                  (assoc dict loc (dict-load (dict loc))))]
-       [loc (apply encore/merge-deep (map dict (rseq (loc-tree loc))))]))))
+(defmacro ^:also-cljs dict-load* "Compile-time loader."
+  [dict] (dict-load dict))
 
 (comment
-  (dict-inherit-parent-trs
+  (dict-load
     {:en        {:foo ":en foo"
                  :bar ":en :bar"}
      :en-US     {:foo ":en-US foo"}
      :ja        "test_ja.clj"
      :arbitrary {:foo ":arbitrary :example/foo text"}}))
-
-#+clj (def ^:private dict-prepare (comp dict-inherit-parent-trs dict-load))
 
 #+clj
 (def ^:private default-decorators
@@ -580,28 +583,30 @@
           {(apply scoped (conj scope-ks unscoped-k)) {loc tr*}})))))
 
 #+clj
-(def ^:private dict-compile-prepared
-  "Compiles text translations stored in simple development-friendly
-  Clojure map into form required by localized text translator.
+(def dict-compile
+  "Implementation detail.
+  Compiles text translations stored in simple development-friendly Clojure map
+  into form required by localized text translator:
     {:en {:example {:foo <tr>}}} => {:example/foo {:en <decorated-tr>}}"
-  (memoize
-   (fn [dict-prepared & [opts]]
-     (->> dict-prepared
-          (utils/leaf-nodes)
-          (map #(dict-compile-path dict-prepared (vec %) opts))
-          ;; 1-level deep merge:
-          (apply merge-with merge)))))
+  (let [compile-loaded-dict
+        (memoize
+          (fn [loaded-dict & [opts]]
+            (->> loaded-dict
+                 (utils/leaf-nodes)
+                 (mapv #(dict-compile-path loaded-dict (vec %) opts))
+                 ;; 1-level deep merge:
+                 (apply merge-with merge))))]
 
-#+clj
-(defn dict-compile* ; Public for Cljs macro
-  [dict & [opts]]
-  (dict-compile-prepared (dict-prepare dict) opts))
+    (fn [dict & [{:as opts :keys [dict-filter]}]]
+      (let [loaded-dict (dict-load dict)
+            loaded-dict (if-not dict-filter loaded-dict
+                          (dict-filter loaded-dict))]
+        (compile-loaded-dict loaded-dict opts)))))
 
-(comment (encore/qb 1000 (dict-compile* (:dictionary example-tconfig))))
+(comment (encore/qb 1000 (dict-compile (:dictionary example-tconfig))))
 
-(defmacro ^:only-cljs dict-compile
-  "Standard dictionary compiler, as a compile-time macro for use with Cljs."
-  [dict & [opts]] (dict-compile* dict opts))
+(defmacro ^:also-cljs dict-compile* "Compile-time compiler."
+  [dict & [opts]] (dict-compile dict opts))
 
 ;;;
 
@@ -625,13 +630,11 @@
   [tconfig] {:pre [(map? tconfig) #+clj (:dictionary tconfig)]}
   (let [{:keys [#+clj dictionary #+cljs compiled-dictionary
                 dev-mode? fallback-locale scope-fn fmt-fn
-                log-missing-translation-fn cache-locales?
-                #+clj decorators]
+                log-missing-translation-fn cache-locales?]
          :or   {fallback-locale :en
                 cache-locales? #+clj false #+cljs true
                 scope-fn (fn [] *tscope*)
                 fmt-fn   fmt-str
-                #+clj decorators #+clj :legacy
                 log-missing-translation-fn
                 (fn [{:keys [dev-mode?] :as args}]
                   (let [pattern "Missing-translation: %s"]
@@ -655,7 +658,10 @@
         get-dict
         #+cljs (fn [] compiled-dictionary)
         #+clj
-        (let [compile1  (fn [] (dict-compile* dictionary {:decorators decorators}))
+        (let [compile1  (fn [] (dict-compile dictionary
+                                ;; These opts are experimental, undocumented:
+                                {:dict-filter (:dict-filter tconfig nil)
+                                 :decorators  (:decorators  tconfig :legacy)}))
               cached_   (delay (compile1))
               ;; Blunt impact on dev-mode benchmarks, etc.:
               compile1* (encore/memoize* 2000 compile1)]
