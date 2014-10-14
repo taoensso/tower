@@ -655,9 +655,11 @@
         get-dict
         #+cljs (fn [] compiled-dictionary)
         #+clj
-        (let [compile1 (fn [] (dict-compile* dictionary {:decorators decorators}))
-              cached_  (delay (compile1))]
-          (fn [] (if dev-mode? (compile1) @cached_)))]
+        (let [compile1  (fn [] (dict-compile* dictionary {:decorators decorators}))
+              cached_   (delay (compile1))
+              ;; Blunt impact on dev-mode benchmarks, etc.:
+              compile1* (encore/memoize* 2000 compile1)]
+          (fn [] (if dev-mode? (compile1*) @cached_)))]
 
     (fn new-t [l-or-ls k-or-ks & fmt-args]
       (let [dict  (get-dict)
