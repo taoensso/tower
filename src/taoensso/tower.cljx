@@ -684,7 +684,8 @@
 
               (let [last-k (peek ks)]
                 (if-not (keyword? last-k)
-                  last-k ; Explicit final, non-keyword fallback (may be nil)
+                  ;; Explicit final, non-keyword fallback (may be nil)
+                  (if (nil? last-k) ::nil last-k)
                   (do
                     (when-let [log-f log-missing-translation-fn]
                       (log-f {:locales ls :scope scope :ks ks
@@ -702,8 +703,10 @@
                         (when-let [pattern (find1 dict :missing ltree)]
                           (fmt-fn l1 pattern (nstr ls) (nstr scope) (nstr ks)))))))))]
 
-        (if (nil? fmt-args) tr
-          (apply fmt-fn l1 (or tr "") fmt-args))))))
+        (when-not (encore/kw-identical? tr ::nil)
+          (let [tr (or tr "")]
+            (if (nil? fmt-args) tr
+              (apply fmt-fn l1 tr fmt-args))))))))
 
 (def ^:private make-t-cached (memoize make-t-uncached))
 (def make-t

@@ -179,7 +179,8 @@
 ;;; Missing translations
 (expect "|Missing translation: [[:en] nil [:invalid]]|"
         (pt :en :invalid))
-(expect nil (pt :de :invalid)) ; No locale-appropriate :missing key
+(expect "" (pt :de :invalid))           ; No locale-appropriate :missing key
+(expect "" (pt :de :invalid "fmt-arg")) ; ''
 (expect "|Missing translation: [[:en] :whatever [:invalid]]|"
         (with-tscope :whatever (pt :en :invalid)))
 (expect "|Missing translation: [[:en] nil [:invalid]]|"
@@ -190,7 +191,7 @@
 ;;; Fallbacks
 (expect ":en :example/foo text" (pt :en       [:invalid :example/foo]))
 (expect "Explicit fallback"     (pt :en       [:invalid "Explicit fallback"]))
-(expect nil                     (pt :en       [:invalid nil]))
+(expect nil                     (pt :en       [:invalid nil])) ; not= ""!
 (expect ":de :example/foo text" (pt [:zh :de] :example/foo))
 (expect ":de :example/foo text" (pt [:zh :de] [:invalid :example/foo]))
 
