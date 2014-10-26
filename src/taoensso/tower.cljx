@@ -688,8 +688,7 @@
                   (if (nil? last-k) ::nil last-k)
                   (do
                     (when-let [log-f log-missing-translation-fn]
-                      (log-f {:locales ls :scope scope :ks ks
-                              :dev-mode? dev-mode? #+clj :ns #+clj (str *ns*)}))
+                      (log-f {:locales ls :scope scope :ks ks :dev-mode? dev-mode?}))
                     (or
                       ;; Try fallback-locale & parents:
                       (let [ltree (loc-tree* fallback-locale)]
