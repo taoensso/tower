@@ -12,9 +12,9 @@
 
   :dependencies
   [[org.clojure/clojure "1.4.0"]
-   [com.taoensso/encore "1.12.0"]
+   [com.taoensso/encore "1.15.1"]
    [com.taoensso/timbre "3.3.1"]
-   [markdown-clj        "0.9.54"]]
+   [markdown-clj        "0.9.55"]]
 
   ;; :plugins
   ;; [[com.keminglabs/cljx "0.4.0"]
@@ -30,7 +30,7 @@
                          [ring/ring-core          "1.3.1"
                           :exclusions [org.clojure/tools.reader]]]
           :plugins [[lein-expectations "0.0.8"]
-                    [lein-autoexpect   "1.2.2"]]}
+                    [lein-autoexpect   "1.4.0"]]}
    :dev
    [:1.6 :test
     {:dependencies
