@@ -496,7 +496,7 @@
               [loc (apply encore/merge-deep (map dict (rseq (loc-tree loc))))])))))))
 
 (defmacro ^:also-cljs dict-load* "Compile-time loader."
-  [dict] (dict-load dict))
+  [dict] (dict-load (eval dict)))
 
 (comment
   (dict-load
@@ -606,7 +606,7 @@
 (comment (encore/qb 1000 (dict-compile (:dictionary example-tconfig))))
 
 (defmacro ^:also-cljs dict-compile* "Compile-time compiler."
-  [dict & [opts]] (dict-compile dict opts))
+  [dict & [opts]] (dict-compile (eval dict) (eval opts)))
 
 ;;;
 
