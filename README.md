@@ -115,13 +115,13 @@ In all cases, translation requests are logged upon fallback to fallback locale o
 
 ```clojure
 (ns my-clojurescript-ns
-  (:require-macros [taoensso.tower :as tower-macros :refer (with-tscope)])
-  (:require        [taoensso.tower :as tower]))
+  (:require [taoensso.tower :as tower :refer-macros (with-tscope)]))
 
 (def ^:private tconfig
   {:fallback-locale :en
-   ;; Inlined (macro) dict => this ns needs rebuild for dict changes to reflect:
-   :compiled-dictionary (tower-macros/dict-compile "my-dict.clj")})
+   ;; Inlined (macro) dict => this ns needs rebuild for dict changes to reflect.
+   ;; (dictionary .clj file can be placed in project's `/resources` dir):
+   :compiled-dictionary (tower-macros/dict-compile* "my-dict.clj")})
 
 (def t (tower/make-t tconfig)) ; Create translation fn
 
