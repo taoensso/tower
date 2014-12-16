@@ -283,17 +283,27 @@
 
 #+clj
 (def iso-countries (set (map (comp keyword str/lower-case) (Locale/getISOCountries))))
+
 #+clj
-(defn- country-name [code display-loc]
-  (let [loc (Locale. "" (name (encore/have iso-countries code)))]
-    (.getDisplayCountry loc (jvm-locale display-loc))))
+(defn country-name "Experimental."
+  [code display-loc]
+  (let [loc (Locale. "" (name (encore/have iso-countries code)))
+        display-loc (jvm-locale display-loc)]
+    (.getDisplayCountry loc display-loc)))
+
+(comment (country-name :za :de))
 
 #+clj
 (def iso-langs (set (map (comp keyword str/lower-case) (Locale/getISOLanguages))))
+
 #+clj
-(defn- lang-name [code & [?display-loc]]
-  (let [loc (Locale. (name (encore/have iso-langs code)))]
-    (.getDisplayLanguage loc (jvm-locale (or ?display-loc loc)))))
+(defn lang-name "Experimental."
+  [code & [?display-loc]]
+  (let [loc (Locale. (name (encore/have iso-langs code)))
+        display-loc (if ?display-loc (jvm-locale ?display-loc) loc)]
+    (.getDisplayLanguage loc display-loc)))
+
+(comment (lang-name :en :de))
 
 #+clj
 (def get-countries
