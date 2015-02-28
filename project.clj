@@ -1,4 +1,4 @@
-(defproject com.taoensso/tower "3.1.0-alpha3"
+(defproject com.taoensso/tower "3.1.0-beta1"
   :author "Peter Taoussanis <https://www.taoensso.com>"
   :description "Clojure i18n & L10n library"
   :url "https://github.com/ptaoussanis/tower"
@@ -15,10 +15,6 @@
    [com.taoensso/encore "1.21.0"]
    [com.taoensso/timbre "3.4.0"]
    [markdown-clj        "0.9.63"]]
-
-  ;; :plugins
-  ;; [[com.keminglabs/cljx "0.4.0"]
-  ;;  [lein-cljsbuild      "1.0.3"]]
 
   :profiles
   {;; :default [:base :system :user :provided :dev]

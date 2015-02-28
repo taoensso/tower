@@ -1,12 +1,9 @@
 **[API docs][]** | **[CHANGELOG][]** | [other Clojure libs][] | [Twitter][] | [contact/contrib](#contact--contributing) | current [Break Version][]:
 
 ```clojure
-[com.taoensso/tower "3.0.2"] ; Please see CHANGELOG for possible breaking changes
+[com.taoensso/tower "3.0.2"]       ; Stable
+[com.taoensso/tower "3.1.0-beta1"] ; Dev, please see CHANGELOG for details
 ```
-
-v3 is a major release that **may be BREAKING**. It adds ClojureScript translation support and fixes a number of sharp edges. Please see the [CHANGELOG][] for details.
-
-Special thanks to **Janne Asmala** ([GitHub](https://github.com/asmala) & [Twitter](https://twitter.com/janne_asmala)) for his awesome contributions to Tower's v2 design. He also has an i18n/L10n lib called [clj18n](https://github.com/asmala/clj18n) which is definitely worth checking out!
 
 # Tower, a Clojure i18n & L10n library
 
@@ -31,7 +28,7 @@ Tower's an attempt to present a **simple, idiomatic internationalization and loc
 Add the necessary dependency to your [Leiningen][] `project.clj` and `require` the library in your ns:
 
 ```clojure
-[com.taoensso/tower "3.0.0"] ; project.clj
+[com.taoensso/tower "3.0.2"] ; project.clj
 (ns my-app (:require [taoensso.tower :as tower :refer (with-tscope)])) ; ns
 ```
 

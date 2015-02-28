@@ -1,5 +1,22 @@
 > This project uses [Break Versioning](https://github.com/ptaoussanis/encore/blob/master/BREAK-VERSIONING.md) as of **Aug 16, 2014**.
 
+## v3.1.0-beta1 / 2015 Feb 28
+
+ > This is a **major update** that **may be BREAKING**.
+
+ * **BREAK**: ClojureScript dict compiler has been renamed `dict-compile`->`dict-compile*` for consistency with new `dict-load`,`dict-load*` fn+macro pair.
+ * **BREAK** (rarely): `t` now _always_ returns a string unless it has an explicit `nil` fallback.
+ * **BREAK** (rarely): Fix strange JVM handling for locales #{:he :yi :id}. [@juhani-hietikko - #56]
+ * **New**: add `get-countries`, `get-langs` (**experimental**).
+ * **New**: add `kw-locale` `:lang-only?` option.
+ * **New**: add fully-configurable dictionary decorators (**experimental**).
+ * **New**: eval macro-time dict compilation to allow for dicts in vars, etc. [#54]
+ * **New**: `country-name`, `lang-name` are now public (**experimental**).
+ * **Fix**: ensure that `foo.bar` and `foo/bar` reach same translation.
+ * **Implementation**: move to unified .cljx codebase.
+ * **Implementation**: `t`, Ring middleware performance improvements.
+
+
 ## v3.0.2 / 2014 Oct 1
 
  * **CHANGE**: no longer throw NPEs on `nil` format patterns (e.g. for missing translation key).
