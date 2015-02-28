@@ -14,6 +14,19 @@
   #+cljs (:require        [clojure.string  :as str]
                           [taoensso.encore :as encore]))
 
+;;;; Encore version check
+
+#+clj
+(let [min-encore-version 1.21] ; Let's get folks on newer versions here
+  (if-let [assert! (ns-resolve 'taoensso.encore 'assert-min-encore-version)]
+    (assert! min-encore-version)
+    (throw
+      (ex-info
+        (format
+          "Insufficient com.taoensso/encore version (< %s). You may have a Leiningen dependency conflict (see http://goo.gl/qBbLvC for solution)."
+          min-encore-version)
+        {:min-version min-encore-version}))))
+
 ;;;; Locales
 ;;; We use the following terms:
 ;; 'Locale'     - Valid JVM Locale object.
