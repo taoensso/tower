@@ -81,7 +81,8 @@
       (let [loc-name
             #+cljs (name (or ?loc :nil))
             #+clj  (if-let [jvm-loc (try-jvm-locale ?loc lang-only?)]
-                     (str jvm-loc)
+                     ;; (str jvm-loc) ; No! See [1] in comments below
+                     (.toLanguageTag ^Locale jvm-loc)
                      (name (or ?loc :nil)))
             loc-name (str/replace loc-name "_" "-")
             loc-name (if-not lang-only? loc-name
@@ -89,8 +90,15 @@
         (keyword loc-name)))))
 
 (comment
+  ;; [1] Ref. https://github.com/ptaoussanis/tower/issues/56 re: weird JVM
+  ;; locale handling for certain locales:
+  [(str (Locale. "id")) (Locale. "id") (.toLanguageTag (Locale. "id"))
+   (kw-locale :id)]
+
   (map #(kw-locale %) [nil :whatever-foo :en (jvm-locale :en) "en-GB" :jvm-default])
-  (map #(kw-locale % :lang-only) [nil :whatever-foo :en (jvm-locale :en) "en-GB" :jvm-default]))
+  (map #(kw-locale % :lang-only) [nil :whatever-foo :en (jvm-locale :en) "en-GB" :jvm-default])
+
+  )
 
 ;;;; Localization
 ;; The Java date API is a mess, but we (thankfully!) don't need much of it for
