@@ -1,12 +1,9 @@
 **[API docs][]** | **[CHANGELOG][]** | [other Clojure libs][] | [Twitter][] | [contact/contrib](#contact--contributing) | current [Break Version][]:
 
 ```clojure
-[com.taoensso/tower "3.0.2"] ; Please see CHANGELOG for possible breaking changes
+[com.taoensso/tower "3.0.2"]       ; Stable
+[com.taoensso/tower "3.1.0-beta1"] ; Dev, please see CHANGELOG for details
 ```
-
-v3 is a major release that **may be BREAKING**. It adds ClojureScript translation support and fixes a number of sharp edges. Please see the [CHANGELOG][] for details.
-
-Special thanks to **Janne Asmala** ([GitHub](https://github.com/asmala) & [Twitter](https://twitter.com/janne_asmala)) for his awesome contributions to Tower's v2 design. He also has an i18n/L10n lib called [clj18n](https://github.com/asmala/clj18n) which is definitely worth checking out!
 
 # Tower, a Clojure i18n & L10n library
 
@@ -31,7 +28,7 @@ Tower's an attempt to present a **simple, idiomatic internationalization and loc
 Add the necessary dependency to your [Leiningen][] `project.clj` and `require` the library in your ns:
 
 ```clojure
-[com.taoensso/tower "3.0.0"] ; project.clj
+[com.taoensso/tower "3.0.2"] ; project.clj
 (ns my-app (:require [taoensso.tower :as tower :refer (with-tscope)])) ; ns
 ```
 
@@ -58,13 +55,7 @@ The `make-t` fn handles translations. You give it a config map which includes yo
     :ja "test_ja.clj" ; Import locale's map from external resource
     }
    :dev-mode? true ; Set to true for auto dictionary reloading
-   :fallback-locale :de
-   :scope-fn  (fn [k] (scoped *tscope* k)) ; Experimental, undocumented
-   :fmt-fn fmt-str ; (fn [loc fmt args])
-   :log-missing-translation-fn
-   (fn [{:keys [locale ks scope] :as args}]
-     (timbre/logp (if dev-mode? :debug :warn)
-       "Missing translation" args))})
+   :fallback-locale :de})
 
 (def t (tower/make-t my-tconfig)) ; Create translation fn
 
@@ -121,13 +112,13 @@ In all cases, translation requests are logged upon fallback to fallback locale o
 
 ```clojure
 (ns my-clojurescript-ns
-  (:require-macros [taoensso.tower :as tower-macros :refer (with-tscope)])
-  (:require        [taoensso.tower :as tower]))
+  (:require [taoensso.tower :as tower :refer-macros (with-tscope)]))
 
 (def ^:private tconfig
   {:fallback-locale :en
-   ;; Inlined (macro) dict => this ns needs rebuild for dict changes to reflect:
-   :compiled-dictionary (tower-macros/dict-compile "my-dict.clj")})
+   ;; Inlined (macro) dict => this ns needs rebuild for dict changes to reflect.
+   ;; (dictionary .clj file can be placed in project's `/resources` dir):
+   :compiled-dictionary (tower-macros/dict-compile* "my-dict.clj")})
 
 (def t (tower/make-t tconfig)) ; Create translation fn
 

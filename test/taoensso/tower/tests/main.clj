@@ -123,7 +123,8 @@
                          ["25.03.2012" 2012 3 25]]]
     (= s (tower/fmt :de-DE (test-dt y m d)))))
 
-(def pt (tower/make-t tower/example-tconfig))
+(def pt (tower/make-t (assoc-in tower/example-tconfig
+                        [:dictionary :ja] "test_ja.clj")))
 
 ;;;; Translations
 ;;; (pt :en-US [:example/foo :example/bar])) searches:
@@ -136,7 +137,7 @@
 ;; :missing in any of the above locales.
 
 ;;; loc-tree
-(def ^:private ltree tower/loc-tree)
+(def ^:private ltree #'tower/loc-tree)
 (expect [:en-US :en] (ltree :en-US))
 (expect [:en-US :en] (ltree [:en-US]))
 (expect [:en-GB :en-US :en] (ltree [:en-GB :en-US]))
@@ -147,13 +148,12 @@
 
 ;;; Basic locale selection & fallback
 (expect ":en :example/foo text"    (pt :en    :example/foo)) ; :en
+(expect ":en :example/foo text"    (pt :en    :example.foo)) ; :en
 (expect ":en-US :example/foo text" (pt :en-US :example/foo)) ; :en-US
 (expect ":en :example/foo text"    (pt :en-GB :example/foo)) ; :en-GB -> :en
 (expect ":de :example/foo text"    (pt :zh-CN :example/foo)) ; :zh-CN -> :zh -> fb-loc
 (expect ":ja 日本語"               (pt :ja    :example/foo)) ; External resource
 (expect ":ja 日本語"               (pt :ja-JP :example/foo)) ; :ja-JP -> :ja
-
-(expect ":en-US :example/foo text" (pt :jvm-default :example/foo)) ; not= fb-loc
 
 ;;; Scoping
 (expect ":en :example/foo text"     (pt :en :example/foo))
@@ -173,12 +173,14 @@
 
 ;;; Arg interpolation
 (expect "Hello Steve, how are you?" (pt :en :example/greeting "Steve"))
-(expect Exception ((tower/make-t {:dictionary {}}) :en :anything "Any arg"))
+(expect "" ((tower/make-t {:dictionary {}
+                           :dev-mode? true}) :en :anything "Any arg"))
 
 ;;; Missing translations
 (expect "|Missing translation: [[:en] nil [:invalid]]|"
         (pt :en :invalid))
-(expect nil (pt :de :invalid)) ; No locale-appropriate :missing key
+(expect "" (pt :de :invalid))           ; No locale-appropriate :missing key
+(expect "" (pt :de :invalid "fmt-arg")) ; ''
 (expect "|Missing translation: [[:en] :whatever [:invalid]]|"
         (with-tscope :whatever (pt :en :invalid)))
 (expect "|Missing translation: [[:en] nil [:invalid]]|"
@@ -189,7 +191,7 @@
 ;;; Fallbacks
 (expect ":en :example/foo text" (pt :en       [:invalid :example/foo]))
 (expect "Explicit fallback"     (pt :en       [:invalid "Explicit fallback"]))
-(expect nil                     (pt :en       [:invalid nil]))
+(expect nil                     (pt :en       [:invalid nil])) ; not= ""!
 (expect ":de :example/foo text" (pt [:zh :de] :example/foo))
 (expect ":de :example/foo text" (pt [:zh :de] [:invalid :example/foo]))
 

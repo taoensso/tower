@@ -1,10 +1,10 @@
 (ns taoensso.tower.utils
   {:author "Peter Taoussanis"}
-  (:require [clojure.string :as str]
-            [markdown.core]
+  (:require [clojure.string  :as str]
+            [markdown.core   :as md-core]
             [taoensso.encore :as encore]))
 
-(defn leaf-nodes
+(defn leaf-nodes ; From u-core
   "Takes a nested map and squashes it into a sequence of paths to leaf nodes.
   Based on 'flatten-tree' by James Reaves on Google Groups."
   [m]
@@ -14,29 +14,37 @@
       (cons k w))
     (list (list m))))
 
-(defn html-breaks [s] (str/replace s #"(\r?\n|\r)" "<br/>"))
+;;; From u-core
+(defn html-breaks [s] (-> s (str/replace #"(\r?\n|\r)" "<br/>")))
+(defn html-spaces [s] (-> s (str/replace #"(\r?\n|\r)" "<br/>")
+                            (str/replace #"\t"   "&nbsp;&nbsp;")
+                            (str/replace #"\s\s" " &nbsp;")))
 (defn html-escape [s]
-  (-> (str s)
+  (-> s
       (str/replace "&"  "&amp;") ; First!
       (str/replace "<"  "&lt;")
       (str/replace ">"  "&gt;")
-      ;;(str/replace "'"  "&#39;") ; NOT &apos;
+      ;; (str/replace "'"  "&#39;") ; NOT &apos;
       (str/replace "\"" "&quot;")))
 
 (comment (html-escape "Hello, x>y & the cat's hat's fuzzy. <boo> \"Hello there\""))
 
-(defn markdown
-  [s & [{:keys [inline? auto-links?] :as opts}]]
-  ;; TODO cond-> with Clojure 1.5 dep
-  (let [s (str s)
-        s (if-not auto-links? s (str/replace s #"https?://([\w/\.-]+)" "[$1]($0)"))
-        s (if-not inline?     s (str/replace s #"(\r?\n|\r)+" " "))
-        s (apply markdown.core/md-to-html-string s (reduce concat opts))
-        s (if-not inline?     s (str/replace s #"^<p>(.*?)</p>$" "$1"))]
-    s))
+(defn markdown ; From u-core
+  ([s] (markdown {} s))
+  ([{:keys [inline? auto-links?] :as opts} s]
+     (let [s (str s) ; No html-escaping!
+           s (if-not auto-links? s (str/replace s #"https?://([\w/\.-]+)" "[$1]($0)"))
+           s (if-not inline?     s (str/replace s #"(\r?\n|\r)+" " "))
+           s (encore/mapply
+               #+clj  md-core/md-to-html-string
+               #+cljs md-core/mdToHtml
+               s
+               opts)
+           s (if-not inline?     s (str/replace s #"^<p>(.*?)</p>$" "$1"))]
+       s)))
 
-(comment (markdown "Hello *this* is a test! <tag> & thing" {:inline? true})
-         (markdown "Visit http://www.cnn.com, yeah" {:auto-links? true}))
+(comment (markdown {:inline?     true} "Hello *this* is a test! <tag> & thing")
+         (markdown {:auto-links? true} "Visit http://www.cnn.com, yeah"))
 
 (defmacro defmem-
   "Defines a type-hinted, private memoized fn."
@@ -57,13 +65,12 @@
   "Parses HTTP Accept header and returns sequence of [choice weight] pairs
   sorted by weight."
   [header]
-  (->> (for [choice (->> (str/split (str header) #",")
-                         (remove str/blank?))]
-         (let [[lang q] (str/split choice #";")]
-           [(str/trim lang)
-            (or (when q (Float/parseFloat (second (str/split q #"="))))
-                1)]))
-       (sort-by second >)))
+  (sort-by second encore/rcompare
+    (for [choice (remove str/blank? (str/split (str header) #","))]
+      (let [[lang q] (str/split choice #";")]
+        [(str/trim lang)
+         (or (when q (encore/parse-float (get (str/split q #"=") 1)))
+             1)]))))
 
 (comment (parse-http-accept-header nil)
          (parse-http-accept-header "en-GB")
