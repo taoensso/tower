@@ -7,7 +7,7 @@
  * **Fix**: unnested resource dictionaries were not loading correctly [@juhani-hietikko #60]
 
 ```clojure
-[com.taoensso/tower "3.1.0-beta1"]
+[com.taoensso/tower "3.1.0-beta2"]
 ```
 
 ## v3.1.0-beta1 / 2015 Feb 28
