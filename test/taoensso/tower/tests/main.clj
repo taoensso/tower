@@ -152,8 +152,8 @@
 (expect ":en-US :example/foo text" (pt :en-US :example/foo)) ; :en-US
 (expect ":en :example/foo text"    (pt :en-GB :example/foo)) ; :en-GB -> :en
 (expect ":de :example/foo text"    (pt :zh-CN :example/foo)) ; :zh-CN -> :zh -> fb-loc
-(expect ":ja 日本語"               (pt :ja    :example/foo)) ; External resource
-(expect ":ja 日本語"               (pt :ja-JP :example/foo)) ; :ja-JP -> :ja
+(expect ":ja 日本語"                (pt :ja    :example/foo)) ; External resource
+(expect ":ja 日本語"                (pt :ja-JP :example/foo)) ; :ja-JP -> :ja
 
 ;;; Scoping
 (expect ":en :example/foo text"     (pt :en :example/foo))
@@ -187,6 +187,8 @@
         (pt :en :invalid "arg"))
 (expect "|Missing translation: [[:en] nil [:invalid :invalid]]|"
         (pt :en [:invalid :invalid]))
+(expect "|Missing :ja translation: [[:ja] nil [:invalid]]|"
+        (pt :ja :invalid))
 
 ;;; Fallbacks
 (expect ":en :example/foo text" (pt :en       [:invalid :example/foo]))
