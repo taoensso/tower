@@ -521,9 +521,9 @@
         ;; The merging behaviour here will likly be nixed shortly.
         (into {}
           (for [loc (keys dict)]
-            (let [ ;; Import locale's map from another resource:
+            (let [;; Import locale's map from another resource:
                   dict (if-not (string? (dict loc)) dict
-                         (assoc dict loc (dict-load (dict loc))))]
+                         (assoc dict loc (load1 (dict loc))))]
               [loc (apply encore/merge-deep (map dict (rseq (loc-tree loc))))])))))))
 
 (defmacro ^:also-cljs dict-load* "Compile-time loader."
