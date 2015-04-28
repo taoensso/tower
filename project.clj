@@ -1,4 +1,4 @@
-(defproject com.taoensso/tower "3.1.0-beta2"
+(defproject com.taoensso/tower "3.1.0-beta3"
   :author "Peter Taoussanis <https://www.taoensso.com>"
   :description "Clojure i18n & L10n library"
   :url "https://github.com/ptaoussanis/tower"
@@ -12,9 +12,9 @@
 
   :dependencies
   [[org.clojure/clojure "1.4.0"]
-   [com.taoensso/encore "1.21.0"]
+   [com.taoensso/encore "1.24.1"]
    [com.taoensso/timbre "3.4.0"]
-   [markdown-clj        "0.9.63"]]
+   [markdown-clj        "0.9.65"]]
 
   :profiles
   {;; :default [:base :system :user :provided :dev]
