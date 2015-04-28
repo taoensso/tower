@@ -2,7 +2,7 @@
 
 ```clojure
 [com.taoensso/tower "3.0.2"]       ; Stable
-[com.taoensso/tower "3.1.0-beta2"] ; Dev, please see CHANGELOG for details
+[com.taoensso/tower "3.1.0-beta3"] ; Dev, please see CHANGELOG for details
 ```
 
 # Tower, a Clojure i18n & L10n library
