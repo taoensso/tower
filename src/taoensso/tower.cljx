@@ -12,6 +12,8 @@
   #+cljs (:require-macros [taoensso.encore :as encore]
                           [taoensso.tower  :as tower-macros])
   #+cljs (:require        [clojure.string  :as str]
+                          [goog.string     :as gstr]
+                          [goog.string.format]
                           [taoensso.encore :as encore]))
 
 ;;;; Encore version check
@@ -269,15 +271,14 @@
 ;; (defmem- f-str Formatter [Loc] (Formatter. Loc))
 
 #+clj
-(defn fmt-str
+(defn fmt-str ; Requires a valid JVM locale
   "Like clojure.core/format but takes a locale, doesn't throw on nil pattern."
   ^String [loc fmt & args]
   (String/format (jvm-locale loc) (or fmt "") (to-array args)))
 
 #+cljs
 (defn fmt-str "Alpha - subject to change."
-  ;; TODO Locale-aware format fn would be nice, but no obvious+easy way of
-  ;; implementing one to get Java-like semantics (?)
+  ;; TODO We don't actually have any locale-aware cljs-side format fn
   [_loc fmt & args] (apply encore/format (or fmt "") args))
 
 #+clj
@@ -457,6 +458,21 @@
 
 ;;; tconfig
 
+(defn default-tfmt-str "Implementation detail. Based on `encore/format`."
+  #+clj ^String [ loc fmt & args]
+  #+cljs        [_loc fmt & args] ; TODO Locale support?
+  (let [fmt  (or fmt "") ; Prevent NPE
+        args (mapv encore/nil->str args)]
+
+    #+clj
+    (if-let [jvm-locale (try-jvm-locale loc)]
+      (String/format jvm-locale fmt (to-array args))
+      (String/format            fmt (to-array args)) ; Ignore locale
+      )
+
+    #+cljs (apply gstr/format fmt args) ; Ignore locale
+    ))
+
 #+clj
 (def example-tconfig
   "Example/test config as passed to `make-t`, Ring middleware, etc.
@@ -488,7 +504,7 @@
    :dev-mode? true ; Set to true for auto dictionary reloading
    :fallback-locale :de
    :scope-fn  (fn [] *tscope*) ; Experimental, undocumented
-   :fmt-fn    fmt-str ; (fn [loc fmt args])
+   :fmt-fn    default-tfmt-str ; (fn [loc fmt args])
    :log-missing-translation-fn
    (fn [{:keys [locales ks scope dev-mode?] :as args}]
      (let [pattern "Missing-translation: %s"]
@@ -665,7 +681,7 @@
          :or   {fallback-locale :en
                 cache-locales? #+clj false #+cljs true
                 scope-fn (fn [] *tscope*)
-                fmt-fn   fmt-str
+                fmt-fn   default-tfmt-str
                 log-missing-translation-fn
                 (fn [{:keys [dev-mode?] :as args}]
                   (let [pattern "Missing-translation: %s"]
