@@ -1,8 +1,19 @@
 > This project uses [Break Versioning](https://github.com/ptaoussanis/encore/blob/master/BREAK-VERSIONING.md) as of **Aug 16, 2014**.
 
+## v3.1.0-beta3 / 2015 Apr 28
+
+> Non-breaking hotfix release
+
+* **Fix**: broken support for invalid JVM locales in translation dicts [@okal #62]
+
+```clojure
+[com.taoensso/tower "3.1.0-beta3"]
+```
+
+
 ## v3.1.0-beta2 / 2015 Mar 3
 
- > Non-breaking hotfix release.
+ > Non-breaking hotfix release
 
  * **Fix**: unnested resource dictionaries were not loading correctly [@juhani-hietikko #60]
 

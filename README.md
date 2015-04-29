@@ -5,7 +5,7 @@
 [com.taoensso/tower "3.1.0-beta3"] ; Dev, please see CHANGELOG for details
 ```
 
-# Tower, a Clojure i18n & L10n library
+# Tower, a Clojure/Script i18n & L10n library
 
 The Java platform provides some very capable tools for writing internationalized applications. Unfortunately, they can be... cumbersome. We can do much better in Clojure.
 
