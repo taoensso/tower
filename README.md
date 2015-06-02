@@ -111,6 +111,7 @@ In all cases, translation requests are logged upon fallback to fallback locale o
 #### ClojureScript translations (early support)
 
 ```clojure
+;; This example requires v3.1.0+
 (ns my-clojurescript-ns
   (:require [taoensso.tower :as tower :refer-macros (with-tscope)]))
 
