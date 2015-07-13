@@ -12,9 +12,9 @@
 
   :dependencies
   [[org.clojure/clojure "1.4.0"]
-   [com.taoensso/encore "1.24.1"]
+   [com.taoensso/encore "1.38.0"]
    [com.taoensso/timbre "3.4.0"]
-   [markdown-clj        "0.9.65"]]
+   [markdown-clj        "0.9.67"]]
 
   :profiles
   {;; :default [:base :system :user :provided :dev]
