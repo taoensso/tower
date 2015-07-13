@@ -360,27 +360,33 @@
 
 #+clj (def ^:private major-tz-regex
         #"^(Africa|America|Asia|Atlantic|Australia|Europe|Indian|Pacific)/.*")
-#+clj (def tz-ids-all   (set (TimeZone/getAvailableIDs)))
-#+clj (def tz-ids-major (set (filter #(re-find major-tz-regex %) tz-ids-all)))
+#+clj (def tz-ids-all         (set (TimeZone/getAvailableIDs)))
+#+clj (def tz-ids-major (conj (set (filter #(re-find major-tz-regex %) tz-ids-all))
+                          "GMT" "UTC"))
 
 #+clj
-(defn timezone
-  ([] (timezone "UTC"))
-  ([tz-id]
-     (let [tz-id (str/upper-case (encore/have string? tz-id))
-           tz    (java.util.TimeZone/getTimeZone tz-id)]
-       (when (= (.getID ^TimeZone tz) tz-id) tz))))
+(defn ->?jvm-tz
+  (^TimeZone [] (->?jvm-tz "UTC"))
+  (^TimeZone [tz]
+   (encore/cond!
+     (instance? TimeZone tz) tz
+     (string?                tz)
+     (let [tz-id tz
+           tz    (TimeZone/getTimeZone tz-id)]
+       (when (= (.getID ^TimeZone tz) tz-id) tz)))))
 
 #+clj
 (defn- tz-name "(GMT +05:30) Colombo"
-  [city-tz-id offset]
-  (let [[region city] (str/split city-tz-id #"/")
-        offset-mins   (/ offset 1000 60)]
-    (format "(GMT %s%02d:%02d) %s"
-      (if (neg? offset-mins) "-" "+")
-      (Math/abs (int (/ offset-mins 60)))
-      (mod (int offset-mins) 60)
-      (str/replace city "_" " "))))
+  [tz-id offset]
+  (if (= tz-id "UTC")
+    "(GMT +00:00) UTC"
+    (let [[region city] (str/split tz-id #"/")
+          offset-mins   (/ offset 1000 60)]
+      (format "(GMT %s%02d:%02d) %s"
+        (if (neg? offset-mins) "-" "+")
+        (Math/abs (int (/ offset-mins 60)))
+        (mod (int offset-mins) 60)
+        (str/replace city "_" " ")))))
 
 (comment (tz-name "Asia/Bangkok" (* 90 60 1000)))
 
@@ -390,6 +396,9 @@
   (encore/memoize* (encore/ms :hours 1) ; tz info varies with time
     (fn [& [?tz-ids]]
       (let [tz-ids  (or ?tz-ids tz-ids-major)
+            tz-ids  (if (or (tz-ids "GMT") (tz-ids "UTC"))
+                      (conj (disj tz-ids "GMT") "UTC")
+                      tz-ids)
             instant (System/currentTimeMillis)
             data    (map (fn [id]
                            (let [tz     (TimeZone/getTimeZone id)
@@ -399,6 +408,7 @@
                               :tz     tz
                               :name   (tz-name id offset)}))
                       tz-ids)]
+
         ;; Sort by :offset, then :name on tie:
         (into [] (sort-by (fn keyfn [x] [(:offset x) (:name x)]) data))))))
 
@@ -795,6 +805,7 @@
 ;; to act as a quasi drop-in replacement for v1, despite the huge changes
 ;; under-the-covers.
 
+#+clj (def timezone "DEPRECATED" ->?jvm-tz)
 #+clj
 (do
   (def dev-mode?       "DEPRECATED." (atom true))
