@@ -1,5 +1,14 @@
 > This project uses [Break Versioning](https://github.com/ptaoussanis/encore/blob/master/BREAK-VERSIONING.md) as of **Aug 16, 2014**.
 
+## v3.1.0-beta4 / 2015 Jul 13
+
+> As beta3 with updated deps
+
+```clojure
+[com.taoensso/tower "3.1.0-beta4"]
+```
+
+
 ## v3.1.0-beta3 / 2015 Apr 28
 
 > Non-breaking hotfix release
