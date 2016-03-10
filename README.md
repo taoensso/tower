@@ -8,6 +8,8 @@
 [com.taoensso/tower "3.1.0-beta4"] ; EOL but stable
 ```
 
+Want to help [support taoensso/open-source]?
+
 # Tower
 
 ## Clojure/Script i18n & L10n library
@@ -240,6 +242,7 @@ Copyright &copy; 2012-2016 [Peter Taoussanis].
 [@ptaoussanis]: https://www.taoensso.com
 [More by @ptaoussanis]: https://www.taoensso.com
 [Break Version]: https://github.com/ptaoussanis/encore/blob/master/BREAK-VERSIONING.md
+[support taoensso/open-source]: http://taoensso.com/clojure/backers
 
 <!--- Standard links (repo specific) -->
 [CHANGELOG]: https://github.com/ptaoussanis/tower/releases
