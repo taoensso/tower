@@ -536,7 +536,8 @@
             (try (-> dict io/resource io/reader slurp read-string)
                  (catch Exception e
                    (throw (ex-info (str "Failed to load dictionary from resource: " dict)
-                            {:dict dict} e))))))]
+                            {:dict dict
+                             :message (.getMessage e)} e))))))]
     (fn [dict]
       (let [;; Load top-level dict:
             dict (encore/have map? (load1 dict))]
