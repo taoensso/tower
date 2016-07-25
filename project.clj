@@ -11,74 +11,81 @@
                 *assert* true}
 
   :dependencies
-  [[org.clojure/clojure "1.4.0"]
-   [com.taoensso/encore "1.38.0"]
-   [com.taoensso/timbre "3.4.0"]
-   [markdown-clj        "0.9.67"]]
+  [[org.clojure/clojure "1.5.1"]
+   [com.taoensso/encore "2.68.0"]
+   [com.taoensso/timbre "4.7.3"]
+   [markdown-clj        "0.9.89"]]
+
+  :plugins
+  [[lein-pprint  "1.1.2"]
+   [lein-ancient "0.6.10"]
+   [lein-codox   "0.9.5"]]
 
   :profiles
   {;; :default [:base :system :user :provided :dev]
    :server-jvm {:jvm-opts ^:replace ["-server"]}
    :1.5  {:dependencies [[org.clojure/clojure "1.5.1"]]}
    :1.6  {:dependencies [[org.clojure/clojure "1.6.0"]]}
-   :test {:dependencies [[expectations            "2.0.16"]
-                         [org.clojure/test.check  "0.7.0"]
-                         [ring/ring-core          "1.3.2"
-                          :exclusions [org.clojure/tools.reader]]]
-          :plugins [[lein-expectations "0.0.8"]
-                    [lein-autoexpect   "1.4.2"]]}
+   :1.7  {:dependencies [[org.clojure/clojure "1.7.0"]]}
+   :1.8  {:dependencies [[org.clojure/clojure "1.8.0"]]}
+   :1.9  {:dependencies [[org.clojure/clojure "1.9.0-alpha10"]]}
+   :test {:dependencies [[org.clojure/test.check "0.9.0"]
+                         [expectations           "2.1.9"]
+                         [ring/ring-core         "1.5.0"]]
+          :plugins      [[lein-expectations      "0.0.8"]
+                         [lein-autoexpect        "1.4.2"]]}
    :dev
-   [:1.6 :test
+   [:1.9 :test :server-jvm
     {:dependencies
-     [[org.clojure/clojurescript "0.0-2261"]]
+     [[org.clojure/clojurescript "1.9.93"]]
 
      :plugins
      [;; These must be in :dev, Ref. https://github.com/lynaghk/cljx/issues/47:
-      [com.keminglabs/cljx             "0.4.0"]
-      [lein-cljsbuild                  "1.0.3"]
-      ;;
-      [lein-pprint                     "1.1.1"]
-      [lein-ancient                    "0.5.5"]
-      [com.cemerick/austin             "0.1.4"]
-      [lein-expectations               "0.0.8"]
-      [lein-autoexpect                 "1.2.2"]
-      [com.cemerick/clojurescript.test "0.3.1"]
-      [codox                           "0.8.10"]]}]}
+      [com.keminglabs/cljx             "0.6.0"]
+      [lein-cljsbuild                  "1.1.3"]]}]}
+
+  :source-paths ["src" "target/classes"]
+  :test-paths   ["src" "test" "target/test-classes"]
 
   :cljx
   {:builds
-   [{:source-paths ["src" "test"] :rules :clj  :output-path "target/classes"}
-    {:source-paths ["src" "test"] :rules :cljs :output-path "target/classes"}]}
+   [{:source-paths ["src"]        :rules :clj  :output-path "target/classes"}
+    {:source-paths ["src"]        :rules :cljs :output-path "target/classes"}
+    {:source-paths ["src" "test"] :rules :clj  :output-path "target/test-classes"}
+    {:source-paths ["src" "test"] :rules :cljs :output-path "target/test-classes"}]}
 
   :cljsbuild
-  {:test-commands {"node"    ["node" :node-runner "target/main.js"]
-                   "phantom" ["phantomjs" :runner "target/main.js"]}
-   :builds ; Compiled in parallel
-   [{:id :main
-     :source-paths ["src" "test" "target/classes"]
-     :compiler     {:output-to "target/main.js"
-                    :optimizations :advanced
-                    :pretty-print false}}]}
+  {:test-commands {}
+   :builds
+   [{:id "main"
+     :source-paths   ["src" "target/classes"]
+     ;; :notify-command ["terminal-notifier" "-title" "cljsbuild" "-message"]
+     :compiler       {:output-to "target/main.js"
+                      :optimizations :advanced
+                      :pretty-print false}}
+    {:id "tests"
+     :source-paths   ["src" "target/classes" "test" "target/test-classes"]
+     ;; :notify-command []
+     :compiler       {:output-to "target/tests.js"
+                      :optimizations :whitespace
+                      :pretty-print true
+                      :main "taoensso.tempura.tests"}}]}
 
-  :test-paths ["test" "src"]
-  ;;:hooks      [cljx.hooks leiningen.cljsbuild]
-  ;;:prep-tasks [["cljx" "once"] "javac" "compile"]
-  :prep-tasks   [["with-profile" "+dev" ; Workaround for :dev cljx
-                  "cljx" "once"] "javac" "compile"]
-  :codox {:language :clojure ; [:clojure :clojurescript] ; No support?
-          :sources  ["target/classes"]
-          :src-linenum-anchor-prefix "L"
-          :src-dir-uri "http://github.com/ptaoussanis/encore/blob/master/src/"
-          :src-uri-mapping {#"target/classes"
-                            #(.replaceFirst (str %) "(.cljs$|.clj$)" ".cljx")}}
+  :auto-clean false
+  :prep-tasks [["cljx" "once"] "javac" "compile"]
+
+  :codox
+  {:language :clojure ; [:clojure :clojurescript] ; No support?
+   :source-paths ["target/classes"]
+   :source-uri
+   {#"target/classes" "https://github.com/ptaoussanis/tempura/blob/master/src/{classpath}x#L{line}"
+    #".*"             "https://github.com/ptaoussanis/tempura/blob/master/{filepath}#L{line}"}}
 
   :aliases
-  {"test-all"   ["with-profile" "default:+1.5:+1.6" "expectations"]
-   ;; "test-all"   ["with-profile" "default:+1.6" "expectations"]
-   "test-auto"  ["with-profile" "+test" "autoexpect"]
-   "build-once" ["do" "cljx" "once," "cljsbuild" "once"]
+  {"test-all"   ["do" "clean," "cljx" "once,"
+                 "with-profile" "+1.9:+1.8:+1.7:+1.6:+1.5" "expectations"]
+   "build-once" ["do" "clean," "cljx" "once," "cljsbuild" "once" "main"]
    "deploy-lib" ["do" "build-once," "deploy" "clojars," "install"]
-   "start-dev"  ["with-profile" "+server-jvm" "repl" ":headless"]}
+   "start-dev"  ["with-profile" "+dev" "repl" ":headless"]}
 
-  :repositories {"sonatype-oss-public"
-                 "https://oss.sonatype.org/content/groups/public/"})
+  :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"})
