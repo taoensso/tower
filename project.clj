@@ -1,4 +1,4 @@
-(defproject com.taoensso/tower "3.1.0-beta4"
+(defproject com.taoensso/tower "3.1.0-beta5"
   :author "Peter Taoussanis <https://www.taoensso.com>"
   :description "Clojure/Script i18n & L10n library"
   :url "https://github.com/ptaoussanis/tower"
