@@ -2,7 +2,19 @@
   {:author "Peter Taoussanis"}
   (:require [clojure.string  :as str]
             [markdown.core   :as md-core]
-            [taoensso.encore :as encore]))
+            [taoensso.encore :as enc]))
+
+(defn distinctv
+  ([      coll] (distinctv identity coll))
+  ([keyfn coll]
+   (let [tr (reduce (fn [[v seen] in]
+                      (let [in* (keyfn in)]
+                        (if-not (contains? seen in*)
+                          [(conj! v in) (conj seen in*)]
+                          [v seen])))
+              [(transient []) #{}]
+              coll)]
+     (persistent! (nth tr 0)))))
 
 (defn leaf-nodes ; From u-core
   "Takes a nested map and squashes it into a sequence of paths to leaf nodes.
@@ -35,7 +47,7 @@
      (let [s (str s) ; No html-escaping!
            s (if-not auto-links? s (str/replace s #"https?://([\w/\.-]+)" "[$1]($0)"))
            s (if-not inline?     s (str/replace s #"(\r?\n|\r)+" " "))
-           s (encore/mapply
+           s (enc/mapply
                #+clj  md-core/md-to-html-string
                #+cljs md-core/mdToHtml
                s
@@ -59,17 +71,17 @@
   "Like `defmem-` but wraps body with `thread-local-proxy`."
   [name fn-params fn-body]
   `(defmem- ~name ThreadLocal ~fn-params
-     (encore/thread-local-proxy ~fn-body)))
+     (enc/thread-local-proxy ~fn-body)))
 
 (defn parse-http-accept-header
   "Parses HTTP Accept header and returns sequence of [choice weight] pairs
   sorted by weight."
   [header]
-  (sort-by second encore/rcompare
+  (sort-by second enc/rcompare
     (for [choice (remove str/blank? (str/split (str header) #","))]
       (let [[lang q] (str/split choice #";")]
         [(str/trim lang)
-         (or (when q (encore/parse-float (get (str/split q #"=") 1)))
+         (or (when q (enc/as-?float (get (str/split q #"=") 1)))
              1)]))))
 
 (comment (parse-http-accept-header nil)

@@ -4,30 +4,21 @@
   {:author "Peter Taoussanis, Janne Asmala"}
   #+clj (:require [clojure.string  :as str]
                   [clojure.java.io :as io]
-                  [taoensso.encore :as encore]
+                  [taoensso.encore :as enc]
                   [taoensso.timbre :as timbre]
                   [taoensso.tower.utils :as utils :refer (defmem- defmem-*)])
   #+clj (:import  [java.util Date Locale TimeZone Formatter]
                   [java.text Collator NumberFormat DateFormat])
-  #+cljs (:require-macros [taoensso.encore :as encore]
-                          [taoensso.tower  :as tower-macros])
+  #+cljs (:require-macros [taoensso.tower  :as tower-macros])
   #+cljs (:require        [clojure.string  :as str]
                           [goog.string     :as gstr]
                           [goog.string.format]
-                          [taoensso.encore :as encore]))
+                          [taoensso.tower.utils :as utils]
+                          [taoensso.encore :as enc :refer-macros ()]))
 
-;;;; Encore version check
-
-#+clj
-(let [min-encore-version 1.21] ; Let's get folks on newer versions here
-  (if-let [assert! (ns-resolve 'taoensso.encore 'assert-min-encore-version)]
-    (assert! min-encore-version)
-    (throw
-      (ex-info
-        (format
-          "Insufficient com.taoensso/encore version (< %s). You may have a Leiningen dependency conflict (see http://goo.gl/qBbLvC for solution)."
-          min-encore-version)
-        {:min-version min-encore-version}))))
+(if (vector? enc/encore-version)
+  (enc/assert-min-encore-version [2 67 2])
+  (enc/assert-min-encore-version  2.67))
 
 ;;;; Locales
 ;;; We use the following terms:
@@ -85,7 +76,7 @@
                  {:loc loc :lang-only? lang-only?}))))))
 
 (comment
-  (encore/qb 10000 (jvm-locale :en))
+  (enc/qb 10000 (jvm-locale :en))
   (let [ls [nil :invalid :en-invalid :en-GB (Locale/getDefault)]]
     [(map #(try-jvm-locale %)            ls)
      (map #(try-jvm-locale % :lang-only) ls)]))
@@ -279,7 +270,7 @@
 #+cljs
 (defn fmt-str "Alpha - subject to change."
   ;; TODO We don't actually have any locale-aware cljs-side format fn
-  [_loc fmt & args] (apply encore/format (or fmt "") args))
+  [_loc fmt & args] (enc/format* fmt args))
 
 #+clj
 (defn fmt-msg
@@ -309,7 +300,7 @@
 #+clj
 (defn country-name "Experimental."
   [code display-loc]
-  (let [loc (Locale. "" (name (encore/have iso-countries code)))
+  (let [loc (Locale. "" (name (enc/have iso-countries code)))
         display-loc (jvm-locale display-loc)]
     (.getDisplayCountry loc display-loc)))
 
@@ -321,7 +312,7 @@
 #+clj
 (defn lang-name "Experimental."
   [code & [?display-loc]]
-  (let [loc (Locale. (name (encore/have iso-langs code)))
+  (let [loc (Locale. (name (enc/have iso-langs code)))
         display-loc (if ?display-loc (jvm-locale ?display-loc) loc)]
     (.getDisplayLanguage loc display-loc)))
 
@@ -368,7 +359,7 @@
 (defn ->?jvm-tz
   (^TimeZone [] (->?jvm-tz "UTC"))
   (^TimeZone [tz]
-   (encore/cond!
+   (enc/cond!
      (instance? TimeZone tz) tz
      (string?                tz)
      (let [tz-id tz
@@ -393,7 +384,7 @@
 #+clj
 (def get-timezones
   "Experimental. Useful format for [sorted] lists, stitching into maps."
-  (encore/memoize* (encore/ms :hours 1) ; tz info varies with time
+  (enc/memoize* (enc/ms :hours 1) ; tz info varies with time
     (fn [& [?tz-ids]]
       (let [tz-ids  (or ?tz-ids tz-ids-major)
             tz-ids  (if (or (tz-ids "GMT") (tz-ids "UTC"))
@@ -423,7 +414,7 @@
   `(binding [taoensso.tower/*tscope* ~translation-scope] ~@body))
 
 (def scoped "Merges scope keywords: (scope :a.b :c/d :e) => :a.b.c.d/e"
-  (memoize (fn [& ks] (encore/merge-keywords ks))))
+  (memoize (fn [& ks] (enc/merge-keywords ks))))
 
 (comment (scoped :a.b :c/d :e))
 
@@ -444,10 +435,10 @@
         (loc-tree* loc-or-locs) ; Build search tree from single locale
         ;; Build search tree from multiple desc-preference locales (some
         ;; transducers would be nice here):
-        ;; (encore/distinctv (reduce into (mapv loc-tree* loc-or-locs)))
+        ;; (utils/distinctv (reduce into (mapv loc-tree* loc-or-locs)))
         (let [lang-first-idxs ; {:en 0 :fr 1 ...}
-              (zipmap (encore/distinctv (mapv (comp peek loc-tree*)
-                                          loc-or-locs))
+              (zipmap (utils/distinctv (mapv (comp peek loc-tree*)
+                                         loc-or-locs))
                 (range))
 
               loc-score ; :en-GB -> -2
@@ -458,21 +449,21 @@
                   (- (* 10 (get lang-first-idxs lang)) nparts)))
 
               locs (reduce into [] (mapv loc-tree* loc-or-locs))
-              sorted-locs (sort-by loc-score (encore/distinctv locs))]
+              sorted-locs (sort-by loc-score (utils/distinctv locs))]
           (vec sorted-locs))))))
 
 (comment
   (loc-tree [:en-US :fr-FR :fr :en :DE-de]) ; [:en-US :en :fr-FR :fr :de-DE :de]
   (loc-tree [:en-US :en-GB]) ; [:en-US :en-GB :en]
-  (encore/qb 10000 (loc-tree [:en-US :fr-FR :fr :en :DE-de])))
+  (enc/qb 10000 (loc-tree [:en-US :fr-FR :fr :en :DE-de])))
 
 ;;; tconfig
 
-(defn default-tfmt-str "Implementation detail. Based on `encore/format`."
+(defn default-tfmt-str "Implementation detail. Based on `enc/format`."
   #+clj ^String [ loc fmt & args]
   #+cljs        [_loc fmt & args] ; TODO Locale support?
   (let [fmt  (or fmt "") ; Prevent NPE
-        args (mapv encore/nil->str args)]
+        args (mapv enc/nil->str args)]
 
     #+clj
     (if-let [jvm-locale (try-jvm-locale loc)]
@@ -531,7 +522,7 @@
 #+clj
 (def dict-load "Implementation detail."
   (let [load1
-        (fn [dict] {:pre [(encore/have? [:or map? string?] dict)]}
+        (fn [dict] {:pre [(enc/have? [:or map? string?] dict)]}
           (if-not (string? dict) dict
             (try (-> dict io/resource io/reader slurp read-string)
                  (catch Exception e
@@ -539,7 +530,7 @@
                             {:dict dict} e))))))]
     (fn [dict]
       (let [;; Load top-level dict:
-            dict (encore/have map? (load1 dict))]
+            dict (enc/have map? (load1 dict))]
         ;;; Load any leaf maps + merge parent->child translations
         ;; With `t`'s new searching behaviour, it's no longer actually necessary that
         ;; we actually merge parent->child translations. Doing so anyway can yield a
@@ -550,7 +541,7 @@
             (let [;; Import locale's map from another resource:
                   dict (if-not (string? (dict loc)) dict
                          (assoc dict loc (load1 (dict loc))))]
-              [loc (apply encore/merge-deep (map dict (rseq (loc-tree loc))))])))))))
+              [loc (apply enc/nested-merge (map dict (rseq (loc-tree loc))))])))))))
 
 (defmacro ^:also-cljs dict-load* "Compile-time loader."
   [dict] (dict-load (eval dict)))
@@ -599,14 +590,14 @@
   (let [kname (name k)
         [suffix optset :as match]
         (some (fn [[suffix optset :as match]]
-                (when (encore/str-ends-with? kname suffix) match))
-          (encore/have vector? decorators))
+                (when (enc/str-ends-with? kname suffix) match))
+          (enc/have vector? decorators))
 
         k-without-suffix
         (if (= "" suffix) k
-          (keyword (encore/substr kname 0 (- (count kname) (count suffix)))))]
-    [(encore/have keyword? k-without-suffix)
-     (encore/have set?     optset)]))
+          (keyword (enc/get-substring kname 0 (- (count kname) (count suffix)))))]
+    [(enc/have keyword? k-without-suffix)
+     (enc/have set?     optset)]))
 
 (comment (match-decorators (default-decorators :default) :hello))
 
@@ -625,7 +616,7 @@
         ?translation ; Resolve possible translation alias
         (if-not (keyword? translation) translation
           (let [target (get-in dict
-                         (into [loc] (->> (encore/explode-keyword translation)
+                         (into [loc] (->> (enc/explode-keyword translation)
                                           (map keyword))))]
             (when-not (keyword? target) target)))]
 
@@ -660,7 +651,7 @@
                           (dict-filter loaded-dict))]
         (compile-loaded-dict loaded-dict opts)))))
 
-(comment (encore/qb 1000 (dict-compile (:dictionary example-tconfig))))
+(comment (enc/qb 1000 (dict-compile (:dictionary example-tconfig))))
 
 (defmacro ^:also-cljs dict-compile* "Compile-time compiler."
   [dict & [opts]] (dict-compile (eval dict) (eval opts)))
@@ -695,12 +686,10 @@
                 log-missing-translation-fn
                 (fn [{:keys [dev-mode?] :as args}]
                   (let [pattern "Missing-translation: %s"]
+                    #+cljs (enc/logf pattern args)
                     #+clj  (if dev-mode?
                              (timbre/debugf pattern args)
-                             (timbre/warnf  pattern args))
-                    #+cljs (if dev-mode?
-                             (encore/debugf pattern args)
-                             (encore/warnf  pattern args))))}} tconfig
+                             (timbre/warnf  pattern args))))}} tconfig
 
         #+cljs _
         #+cljs (do (assert (:compiled-dictionary tconfig)
@@ -721,7 +710,7 @@
                                  :decorators  (:decorators  tconfig :legacy)}))
               cached_   (delay (compile1))
               ;; Blunt impact on dev-mode benchmarks, etc.:
-              compile1* (encore/memoize* 2000 compile1)]
+              compile1* (enc/memoize* 2000 compile1)]
           (fn [] (if dev-mode? (compile1*) @cached_)))]
 
     (fn new-t [l-or-ls k-or-ks & fmt-args]
@@ -759,7 +748,7 @@
                         (when-let [pattern (find1 dict :missing ltree)]
                           (fmt-fn l1 pattern (nstr ls) (nstr scope) (nstr ks)))))))))]
 
-        (when-not (encore/kw-identical? tr ::nil)
+        (when-not (enc/kw-identical? tr ::nil)
           (let [tr (or tr "")]
             (if (nil? fmt-args) tr
               (apply fmt-fn l1 tr fmt-args))))))))
@@ -786,7 +775,7 @@
   (do
     (def prod-t (make-t (merge example-tconfig
                           {:dev-mode? false :cache-locales? true})))
-    (encore/qb 10000
+    (enc/qb 10000
       (prod-t :en :example/foo)
       (prod-t :en [:invalid "fallback"]) ; Can act like gettext
       (prod-t :en [:invalid :example/foo])
@@ -805,9 +794,10 @@
 ;; to act as a quasi drop-in replacement for v1, despite the huge changes
 ;; under-the-covers.
 
-#+clj (def timezone "DEPRECATED" ->?jvm-tz)
 #+clj
-(do
+(enc/deprecated
+
+  (def timezone        "DEPRECATED" ->?jvm-tz)
   (def dev-mode?       "DEPRECATED." (atom true))
   (def fallback-locale "DEPRECATED." (atom :en))
 
@@ -892,7 +882,7 @@
 
   (def config "DEPRECATED." (atom example-tconfig))
   (defn set-config!   "DEPRECATED." [ks val] (swap! config assoc-in ks val))
-  (defn merge-config! "DEPRECATED." [& maps] (apply swap! config encore/merge-deep maps))
+  (defn merge-config! "DEPRECATED." [& maps] (apply swap! config enc/nested-merge maps))
 
   (defn load-dictionary-from-map-resource! "DEPRECATED."
     ([] (load-dictionary-from-map-resource! "tower-dictionary.clj"))
@@ -904,7 +894,7 @@
                 (merge-config! {:dictionary  new-dictionary})))
 
             (set-config! [:dict-res-name] resource-name)
-            (encore/file-resources-modified? resource-name)
+            (enc/file-resources-modified? resource-name)
             (catch Exception e
               (throw (ex-info (str "Failed to load dictionary from resource: "
                                 resource-name)
@@ -951,7 +941,7 @@
                                (.getDisplayLanguage Loc (jvm-locale loc))))))))))))
 
   (def timezones "DEPRECATED."
-    (encore/memoize* (* 3 60 60 1000) ; 3hr ttl
+    (enc/memoize* (* 3 60 60 1000) ; 3hr ttl
       (fn
         ([] (timezones major-timezone-ids))
         ([timezone-ids]

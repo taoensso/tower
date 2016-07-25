@@ -3,7 +3,12 @@
   (:require [clojure.string       :as str]
             [taoensso.tower       :as tower]
             [taoensso.tower.utils :as utils]
-            [taoensso.encore      :as encore]))
+            [taoensso.encore      :as enc]))
+
+(defmacro with-locale [loc & body] body)
+(enc/deprecated
+  (defmacro with-locale [loc & body]
+    `(tower/with-locale ~loc ~@body)))
 
 (defn wrap-tower
   "Determines locale preference for request by attempting to parse a valid
@@ -52,7 +57,7 @@
             (persistent!)
             ;; (filterv identity)
             ;; (mapv ->kw-locale)
-            (encore/distinctv))
+            (utils/distinctv))
 
           sorted-jvm-locales   (filterv tower/try-jvm-locale sorted-locales)
 
@@ -65,7 +70,7 @@
                  (subvec sorted-locales 0 (min ntake (count sorted-locales)))
                  sorted-locales))]
 
-      (tower/with-locale preferred-jvm-locale ; For deprecated API
+      (with-locale preferred-jvm-locale ; For deprecated API
         (handler
           (merge request
             {:locale      preferred-locale
@@ -82,13 +87,14 @@
 
 ;;;; Deprecated
 
-(defn wrap-tower-middleware "DEPRECATED. Use `wrap-tower` instead."
-  [handler & [{:as   opts
-               :keys [locale-selector fallback-locale tconfig]
-               :or   {fallback-locale :jvm-default
-                      tconfig tower/example-tconfig}}]]
-  (wrap-tower handler tconfig (assoc opts :legacy-t? true)))
+(enc/deprecated
+  (defn wrap-tower-middleware "DEPRECATED. Use `wrap-tower` instead."
+    [handler & [{:as   opts
+                 :keys [locale-selector fallback-locale tconfig]
+                 :or   {fallback-locale :jvm-default
+                        tconfig tower/example-tconfig}}]]
+    (wrap-tower handler tconfig (assoc opts :legacy-t? true)))
 
-(defn wrap-i18n-middleware "DEPRECATED: Use `wrap-tower` instead."
-  [handler & {:keys [locale-selector-fn]}]
-  (wrap-tower-middleware handler {:locale-selector locale-selector-fn}))
+  (defn wrap-i18n-middleware "DEPRECATED: Use `wrap-tower` instead."
+    [handler & {:keys [locale-selector-fn]}]
+    (wrap-tower-middleware handler {:locale-selector locale-selector-fn})))
