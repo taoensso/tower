@@ -492,7 +492,8 @@
                      :with-exclaim!   "<tag>**strong**</tag>"
                      :greeting-alias  :example/greeting
                      :baz-alias       :example.bar/baz
-                     :foo_undecorated ":en :foo_undecorated text"}
+                     :foo_undecorated ":en :foo_undecorated text"
+                     :simple "Simple"}
            :missing  "|Missing translation: [%1$s %2$s %3$s]|"}
     :en-US {:example {:foo ":en-US :example/foo text"}}
     :de    {:example {:foo ":de :example/foo text"}}

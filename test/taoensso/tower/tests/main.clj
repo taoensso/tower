@@ -126,6 +126,9 @@
 (def pt (tower/make-t (assoc-in tower/example-tconfig
                         [:dictionary :ja] "test_ja.clj")))
 
+(def pt* (tower/make-t (assoc-in tower/example-tconfig
+                        [:dictionary :sw] "test_sw.clj")))
+
 ;;;; Translations
 ;;; (pt :en-US [:example/foo :example/bar])) searches:
 ;; :example/foo in the :en-US locale.
@@ -175,6 +178,12 @@
 (expect "Hello Steve, how are you?" (pt :en :example/greeting "Steve"))
 (expect "" ((tower/make-t {:dictionary {}
                            :dev-mode? true}) :en :anything "Any arg"))
+
+(expect "Simple" (pt* :en :example/simple))
+(expect "Rahisi" (pt* :sw :example/simple))
+
+(expect "Hello Steve, how are you?" (pt* :en :example/greeting "Steve"))
+(expect "Habari yako Steve?" (pt* :sw :example/greeting "Steve"))
 
 ;;; Missing translations
 (expect "|Missing translation: [[:en] nil [:invalid]]|"
