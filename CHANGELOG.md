@@ -1,4 +1,4 @@
-> This project uses [Break Versioning](https://github.com/ptaoussanis/encore/blob/master/BREAK-VERSIONING.md) as of **Aug 16, 2014**.
+This project uses Break Versioning (https://www.taoensso.com/break-versioning)
 
 ## v3.1.0-beta4 / 2015 Jul 13
 
@@ -54,7 +54,7 @@
 
 ## v3.0.1 / 2014 Sep 7
 
- * **FIX**: https://github.com/ptaoussanis/timbre/issues/79.
+ * **FIX**: https://github.com/taoensso/timbre/issues/79.
 
 
 ## v3.0.0 / 2014 Aug 28

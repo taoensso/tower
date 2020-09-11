@@ -8,15 +8,9 @@
 [com.taoensso/tower "3.1.0-beta4"] ; EOL but stable
 ```
 
-> Please consider helping to [support my continued open-source Clojure/Script work]? 
-> 
-> Even small contributions can add up + make a big difference to help sustain my time writing, maintaining, and supporting Tower and other Clojure/Script libraries. **Thank you!**
->
-> \- Peter Taoussanis
+> See [here](https://taoensso.com/clojure/backers) if you're interested in helping support my open-source work, thanks! - Peter Taoussanis
 
-# Tower
-
-## Clojure/Script i18n & L10n library
+# Tower: a Clojure/Script i18n & L10n library
 
 The Java platform provides some very capable tools for writing internationalized applications. Unfortunately, they can be... cumbersome. We can do much better in Clojure.
 
@@ -58,7 +52,8 @@ I apologise for the stress/trouble that this might cause, but hope that the pres
 Add the necessary dependency to your project:
 
 ```clojure
-[com.taoensso/tower "3.0.2"]
+Leiningen: [com.taoensso/tower "3.0.2"] ; or
+deps.edn:   com.taoensso/tower {:mvn/version "3.0.2"}
 ```
 
 And setup your namespace imports:
@@ -238,25 +233,24 @@ Otherwise, you can reach me at [Taoensso.com]. Happy hacking!
 ## License
 
 Distributed under the [EPL v1.0] \(same as Clojure).  
-Copyright &copy; 2012-2016 [Peter Taoussanis].
+Copyright &copy; 2012-2020 [Peter Taoussanis].
 
 <!--- Standard links -->
 [Taoensso.com]: https://www.taoensso.com
 [Peter Taoussanis]: https://www.taoensso.com
 [@ptaoussanis]: https://www.taoensso.com
 [More by @ptaoussanis]: https://www.taoensso.com
-[Break Version]: https://github.com/ptaoussanis/encore/blob/master/BREAK-VERSIONING.md
-[support my continued open-source Clojure/Script work]: http://taoensso.com/clojure/backers
+[Break Version]: https://github.com/taoensso/encore/blob/master/BREAK-VERSIONING.md
 
 <!--- Standard links (repo specific) -->
-[CHANGELOG]: https://github.com/ptaoussanis/tower/releases
-[API]: http://ptaoussanis.github.io/tower/
-[GitHub issues page]: https://github.com/ptaoussanis/tower/issues
-[GitHub contributors page]: https://github.com/ptaoussanis/tower/graphs/contributors
+[CHANGELOG]: https://github.com/taoensso/tower/releases
+[API]: http://taoensso.github.io/tower/
+[GitHub issues page]: https://github.com/taoensso/tower/issues
+[GitHub contributors page]: https://github.com/taoensso/tower/graphs/contributors
 [EPL v1.0]: https://raw.githubusercontent.com/ptaoussanis/tower/master/LICENSE
 [Hero]: https://raw.githubusercontent.com/ptaoussanis/tower/master/hero.png "Title"
 
 <!--- Unique links -->
-[Tempura]: https://github.com/ptaoussanis/tempura
+[Tempura]: https://github.com/taoensso/tempura
 [ClojureWerkz-logo]: https://raw.github.com/clojurewerkz/clojurewerkz.org/master/assets/images/logos/clojurewerkz_long_h_50.png
 [ClojureWerkz]: http://clojurewerkz.org/
