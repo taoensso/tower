@@ -48,8 +48,8 @@
            s (if-not auto-links? s (str/replace s #"https?://([\w/\.-]+)" "[$1]($0)"))
            s (if-not inline?     s (str/replace s #"(\r?\n|\r)+" " "))
            s (enc/mapply
-               #+clj  md-core/md-to-html-string
-               #+cljs md-core/mdToHtml
+               #?(:clj  md-core/md-to-html-string
+                  :cljs md-core/mdToHtml)
                s
                opts)
            s (if-not inline?     s (str/replace s #"^<p>(.*?)</p>$" "$1"))]
@@ -58,20 +58,22 @@
 (comment (markdown {:inline?     true} "Hello *this* is a test! <tag> & thing")
          (markdown {:auto-links? true} "Visit http://www.cnn.com, yeah"))
 
-(defmacro defmem-
-  "Defines a type-hinted, private memoized fn."
-  [name type-hint fn-params fn-body]
-  ;; To allow type-hinting, we'll actually wrap a closed-over memoized fn
-  `(let [memfn# (memoize (~'fn ~fn-params ~fn-body))]
-     (defn ~(with-meta (symbol name) {:private true})
-       ~(with-meta '[& args] {:tag type-hint})
-       (apply memfn# ~'args))))
+#?(:clj
+   (defmacro defmem-
+     "Defines a type-hinted, private memoized fn."
+     [name type-hint fn-params fn-body]
+     ;; To allow type-hinting, we'll actually wrap a closed-over memoized fn
+     `(let [memfn# (memoize (~'fn ~fn-params ~fn-body))]
+        (defn ~(with-meta (symbol name) {:private true})
+          ~(with-meta '[& args] {:tag type-hint})
+          (apply memfn# ~'args)))))
 
-(defmacro defmem-*
-  "Like `defmem-` but wraps body with `thread-local-proxy`."
-  [name fn-params fn-body]
-  `(defmem- ~name ThreadLocal ~fn-params
-     (enc/thread-local-proxy ~fn-body)))
+#?(:clj
+   (defmacro defmem-*
+     "Like `defmem-` but wraps body with `thread-local-proxy`."
+     [name fn-params fn-body]
+     `(defmem- ~name ThreadLocal ~fn-params
+        (enc/thread-local-proxy ~fn-body))))
 
 (defn parse-http-accept-header
   "Parses HTTP Accept header and returns sequence of [choice weight] pairs
